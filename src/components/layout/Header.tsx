@@ -1,15 +1,12 @@
-import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { 
   Bell, 
   Search, 
-  Maximize, 
-  Minimize, 
   User, 
   Settings, 
   LogOut,
-  Moon,
-  Sun,
   HelpCircle,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,117 +18,127 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
-interface HeaderProps {
-  onToggleFullscreen: () => void;
-  isFullscreen: boolean;
-}
+const mainNavItems = [
+  { title: "Overview", href: "/dashboard" },
+  { title: "Orders", href: "/orders" },
+  { title: "Products", href: "/stocks/products" },
+  { title: "Customers", href: "/customers" },
+  { title: "Reports", href: "/reports/daily-sales" },
+  { title: "Settings", href: "/settings" },
+];
 
-export function Header({ onToggleFullscreen, isFullscreen }: HeaderProps) {
-  const [searchOpen, setSearchOpen] = useState(false);
+export function Header() {
+  const location = useLocation();
+
+  const isActive = (href: string) => {
+    if (href === "/dashboard") return location.pathname === "/dashboard";
+    return location.pathname.startsWith(href);
+  };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border bg-card px-6">
-      {/* Search */}
-      <div className="flex items-center gap-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search orders, products, customers..."
-            className="w-80 bg-muted pl-10 placeholder:text-muted-foreground focus:bg-background"
-          />
-          <kbd className="absolute right-3 top-1/2 -translate-y-1/2 rounded bg-secondary px-1.5 py-0.5 text-xs text-muted-foreground">
-            ⌘K
-          </kbd>
+    <header className="sticky top-0 z-50 border-b border-border bg-background">
+      {/* Top Bar */}
+      <div className="flex h-14 items-center justify-between px-6">
+        {/* Left: Logo & Project */}
+        <div className="flex items-center gap-4">
+          <Link to="/dashboard" className="flex items-center gap-2">
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-foreground">
+              <span className="text-xs font-bold text-background">Ω</span>
+            </div>
+          </Link>
+          <span className="text-muted-foreground">/</span>
+          <div className="flex items-center gap-2">
+            <div className="h-5 w-5 rounded-full bg-gradient-to-br from-orange-400 to-red-500" />
+            <span className="text-sm font-medium">omega-restaurant</span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          </div>
+        </div>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2">
+          {/* Search */}
+          <div className="relative hidden md:block">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search..."
+              className="h-9 w-64 bg-muted/50 pl-9 text-sm border-0 focus-visible:ring-1"
+            />
+          </div>
+
+          <Button variant="ghost" size="sm" className="text-muted-foreground">
+            Feedback
+          </Button>
+
+          {/* Notifications */}
+          <Button variant="ghost" size="icon" className="h-9 w-9">
+            <Bell className="h-4 w-4 text-muted-foreground" />
+          </Button>
+
+          {/* Help */}
+          <Button variant="ghost" size="icon" className="h-9 w-9">
+            <HelpCircle className="h-4 w-4 text-muted-foreground" />
+          </Button>
+
+          {/* User Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-9 w-9">
+                <Avatar className="h-7 w-7">
+                  <AvatarFallback className="bg-gradient-to-br from-orange-400 to-red-500 text-[10px] text-white">
+                    AO
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <div className="flex flex-col">
+                  <span className="font-medium">Adaeze Okonkwo</span>
+                  <span className="text-xs text-muted-foreground">admin@omega.com</span>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <User className="mr-2 h-4 w-4" />
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive">
+                <LogOut className="mr-2 h-4 w-4" />
+                Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      {/* Right Actions */}
-      <div className="flex items-center gap-2">
-        {/* Fullscreen Toggle */}
-        <Button variant="ghost" size="icon" onClick={onToggleFullscreen}>
-          {isFullscreen ? (
-            <Minimize className="h-5 w-5 text-muted-foreground" />
-          ) : (
-            <Maximize className="h-5 w-5 text-muted-foreground" />
-          )}
-        </Button>
-
-        {/* Help */}
-        <Button variant="ghost" size="icon">
-          <HelpCircle className="h-5 w-5 text-muted-foreground" />
-        </Button>
-
-        {/* Notifications */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5 text-muted-foreground" />
-              <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-xs">
-                3
-              </Badge>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <div className="space-y-2 p-2">
-              <div className="rounded-lg bg-muted p-3">
-                <p className="text-sm font-medium">New order #OMG-2847</p>
-                <p className="text-xs text-muted-foreground">2 minutes ago</p>
-              </div>
-              <div className="rounded-lg bg-muted p-3">
-                <p className="text-sm font-medium">Low stock alert: Jollof Rice</p>
-                <p className="text-xs text-muted-foreground">15 minutes ago</p>
-              </div>
-              <div className="rounded-lg bg-muted p-3">
-                <p className="text-sm font-medium">Staff check-in: Adaeze O.</p>
-                <p className="text-xs text-muted-foreground">1 hour ago</p>
-              </div>
-            </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="justify-center text-primary">
-              View all notifications
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* User Menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-2 pl-2 pr-3">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                  AO
-                </AvatarFallback>
-              </Avatar>
-              <div className="hidden text-left md:block">
-                <p className="text-sm font-medium">Adaeze Okonkwo</p>
-                <p className="text-xs text-muted-foreground">Admin</p>
-              </div>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
-              <LogOut className="mr-2 h-4 w-4" />
-              Log out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      {/* Navigation Tabs */}
+      <nav className="flex h-10 items-center gap-1 px-6">
+        {mainNavItems.map((item) => (
+          <Link
+            key={item.href}
+            to={item.href}
+            className={cn(
+              "relative px-3 py-2 text-sm transition-colors",
+              isActive(item.href)
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {item.title}
+            {isActive(item.href) && (
+              <span className="absolute inset-x-0 -bottom-px h-0.5 bg-foreground" />
+            )}
+          </Link>
+        ))}
+      </nav>
     </header>
   );
 }
