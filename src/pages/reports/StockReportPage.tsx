@@ -1,79 +1,123 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Package, AlertTriangle, TrendingDown, CheckCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Package, AlertTriangle, TrendingDown, CheckCircle, Search, Filter, Download } from "lucide-react";
 
-const StockReportPage = () => {
+export default function StockReportPage() {
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
   const stockItems = [
-    { name: "Chicken Breast", current: 45, minimum: 20, status: "good" },
-    { name: "Olive Oil", current: 8, minimum: 10, status: "low" },
-    { name: "Tomatoes", current: 5, minimum: 15, status: "critical" },
-    { name: "Pasta", current: 120, minimum: 50, status: "good" },
-    { name: "Cheese", current: 22, minimum: 20, status: "good" },
+    { name: "Chicken Breast", sku: "ING-001", current: 45, minimum: 20, unit: "kg", status: "good" },
+    { name: "Olive Oil", sku: "ING-002", current: 8, minimum: 10, unit: "L", status: "low" },
+    { name: "Tomatoes", sku: "ING-003", current: 5, minimum: 15, unit: "kg", status: "critical" },
+    { name: "Pasta", sku: "ING-004", current: 120, minimum: 50, unit: "kg", status: "good" },
+    { name: "Cheese", sku: "ING-005", current: 22, minimum: 20, unit: "kg", status: "good" },
+    { name: "Lettuce", sku: "ING-006", current: 3, minimum: 10, unit: "kg", status: "critical" },
   ];
 
+  const stats = [
+    { label: "Total Items", value: "248", icon: Package },
+    { label: "In Stock", value: "215", icon: CheckCircle, color: "text-green-600" },
+    { label: "Low Stock", value: "25", icon: AlertTriangle, color: "text-yellow-600" },
+    { label: "Out of Stock", value: "8", icon: TrendingDown, color: "text-red-600" },
+  ];
+
+  const filteredItems = stockItems.filter(item => 
+    item.name.toLowerCase().includes(search.toLowerCase()) &&
+    (statusFilter === "all" || item.status === statusFilter)
+  );
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Stock Report</h1>
-        <p className="text-muted-foreground">Inventory levels and stock status</p>
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Stock Report</h1>
+          <p className="text-muted-foreground">Inventory levels and stock status</p>
+        </div>
+        <Button variant="outline">
+          <Download className="h-4 w-4 mr-2" />
+          Export
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Items</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent><div className="text-2xl font-bold">248</div></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">In Stock</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent><div className="text-2xl font-bold">215</div></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Low Stock</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent><div className="text-2xl font-bold">25</div></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Out of Stock</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent><div className="text-2xl font-bold">8</div></CardContent>
-        </Card>
+        {stats.map((stat) => (
+          <Card key={stat.label}>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">{stat.label}</p>
+                  <p className="text-2xl font-bold">{stat.value}</p>
+                </div>
+                <stat.icon className={`h-8 w-8 ${stat.color || "text-muted-foreground"}`} />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Stock Levels</CardTitle></CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {stockItems.map((item) => (
-              <div key={item.name} className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <p className="font-medium">{item.name}</p>
-                  <p className="text-sm text-muted-foreground">Min: {item.minimum} units</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="font-bold">{item.current} units</span>
-                  <Badge 
-                    variant={item.status === "good" ? "default" : item.status === "low" ? "secondary" : "destructive"}
-                  >
-                    {item.status}
-                  </Badge>
-                </div>
-              </div>
-            ))}
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search items..." 
+                value={search} 
+                onChange={(e) => setSearch(e.target.value)} 
+                className="pl-10" 
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[150px]">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="good">Good</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item</TableHead>
+                <TableHead>SKU</TableHead>
+                <TableHead>Current Stock</TableHead>
+                <TableHead>Minimum</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredItems.map((item) => (
+                <TableRow key={item.sku}>
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground">{item.sku}</TableCell>
+                  <TableCell>{item.current} {item.unit}</TableCell>
+                  <TableCell className="text-muted-foreground">{item.minimum} {item.unit}</TableCell>
+                  <TableCell>
+                    <Badge 
+                      variant={item.status === "good" ? "default" : item.status === "low" ? "secondary" : "destructive"}
+                    >
+                      {item.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>
   );
-};
-
-export default StockReportPage;
+}
