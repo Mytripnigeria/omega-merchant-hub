@@ -1,105 +1,156 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Search, Plus, Building2, Phone, Mail, DollarSign } from "lucide-react";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { Search, Plus, MoreHorizontal, Filter } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface Supplier {
+  id: string;
+  name: string;
+  contact: string;
+  email: string;
+  phone: string;
+  category: string;
+  outstanding: string;
+  status: "Active" | "Inactive";
+}
+
+const suppliers: Supplier[] = [
+  { id: "1", name: "Fresh Farms Ltd", contact: "John Adams", email: "john@freshfarms.com", phone: "+234 801 234 5678", category: "Produce", outstanding: "₦125,000", status: "Active" },
+  { id: "2", name: "Metro Beverages", contact: "Sarah Lee", email: "sarah@metro.com", phone: "+234 802 345 6789", category: "Beverages", outstanding: "₦0", status: "Active" },
+  { id: "3", name: "Quality Meats", contact: "Mike Brown", email: "mike@qualitymeats.com", phone: "+234 803 456 7890", category: "Meat", outstanding: "₦340,000", status: "Active" },
+  { id: "4", name: "Bakery Supplies Co", contact: "Lisa White", email: "lisa@bakerysupplies.com", phone: "+234 804 567 8901", category: "Baking", outstanding: "₦80,000", status: "Inactive" },
+  { id: "5", name: "Seafood Direct", contact: "David Chen", email: "david@seafood.com", phone: "+234 805 678 9012", category: "Seafood", outstanding: "₦215,000", status: "Active" },
+];
+
+const statusColors: Record<string, string> = {
+  Active: "bg-green-100 text-green-700",
+  Inactive: "bg-gray-100 text-gray-600",
+};
 
 export default function SuppliersPage() {
-  const [search, setSearch] = useState("");
-
-  const suppliers = [
-    { id: 1, name: "Fresh Farms Ltd", contact: "John Adams", phone: "+234 801 234 5678", email: "john@freshfarms.com", category: "Produce", outstanding: 1250.00, status: "active" },
-    { id: 2, name: "Metro Beverages", contact: "Sarah Lee", phone: "+234 802 345 6789", email: "sarah@metro.com", category: "Beverages", outstanding: 0, status: "active" },
-    { id: 3, name: "Quality Meats", contact: "Mike Brown", phone: "+234 803 456 7890", email: "mike@qualitymeats.com", category: "Meat", outstanding: 3400.00, status: "active" },
-    { id: 4, name: "Bakery Supplies Co", contact: "Lisa White", phone: "+234 804 567 8901", email: "lisa@bakerysupplies.com", category: "Baking", outstanding: 800.00, status: "inactive" },
-  ];
-
-  const stats = [
-    { label: "Total Suppliers", value: "24", icon: Building2 },
-    { label: "Active", value: "20", icon: Building2 },
-    { label: "Outstanding", value: "$5,450", icon: DollarSign },
-  ];
+  const [searchQuery, setSearchQuery] = useState("");
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Suppliers</h1>
-          <p className="text-muted-foreground">Manage supplier relationships</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Suppliers</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage supplier relationships and orders
+          </p>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />Add Supplier</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Add Supplier</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2"><Label>Company Name</Label><Input placeholder="Enter company name" /></div>
-              <div className="space-y-2"><Label>Contact Person</Label><Input placeholder="Contact name" /></div>
-              <div className="space-y-2"><Label>Phone</Label><Input placeholder="+234..." /></div>
-              <div className="space-y-2"><Label>Email</Label><Input type="email" placeholder="email@company.com" /></div>
-              <Button className="w-full">Add Supplier</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button size="sm">
+          <Plus className="mr-2 h-4 w-4" />
+          Add Supplier
+        </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {stats.map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                </div>
-                <stat.icon className="h-8 w-8 text-muted-foreground" />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Total Suppliers</p>
+            <p className="text-2xl font-semibold">24</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Active</p>
+            <p className="text-2xl font-semibold">20</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Outstanding</p>
+            <p className="text-2xl font-semibold text-red-600">₦760,000</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">This Month</p>
+            <p className="text-2xl font-semibold">₦2.4M</p>
+          </CardContent>
+        </Card>
       </div>
 
+      {/* Filters */}
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search suppliers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Button variant="outline" size="icon">
+          <Filter className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Suppliers Table */}
       <Card>
-        <CardHeader>
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search suppliers..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
-          </div>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="pl-6 w-12">
+                  <input type="checkbox" className="rounded border-border" />
+                </TableHead>
                 <TableHead>Company</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Outstanding</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="pr-6 w-12"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {suppliers.map((supplier) => (
-                <TableRow key={supplier.id}>
-                  <TableCell className="font-medium">{supplier.name}</TableCell>
+                <TableRow key={supplier.id} className="group cursor-pointer hover:bg-muted/50">
+                  <TableCell className="pl-6">
+                    <input type="checkbox" className="rounded border-border" />
+                  </TableCell>
+                  <TableCell>
+                    <p className="font-medium">{supplier.name}</p>
+                  </TableCell>
                   <TableCell>
                     <div>
-                      <p>{supplier.contact}</p>
-                      <p className="text-xs text-muted-foreground">{supplier.email}</p>
+                      <p className="font-medium">{supplier.contact}</p>
+                      <p className="text-sm text-muted-foreground">{supplier.email}</p>
                     </div>
                   </TableCell>
-                  <TableCell>{supplier.category}</TableCell>
-                  <TableCell>${supplier.outstanding.toFixed(2)}</TableCell>
                   <TableCell>
-                    <Badge variant={supplier.status === "active" ? "default" : "secondary"}>{supplier.status}</Badge>
+                    <Badge variant="secondary" className="font-normal">{supplier.category}</Badge>
+                  </TableCell>
+                  <TableCell className={cn("font-medium", supplier.outstanding !== "₦0" && "text-red-600")}>
+                    {supplier.outstanding}
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm">View</Button>
+                    <Badge 
+                      variant="secondary" 
+                      className={cn("font-normal", statusColors[supplier.status])}
+                    >
+                      {supplier.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="pr-6">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -107,6 +158,21 @@ export default function SuppliersPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          Showing 1-5 of 24 suppliers
+        </p>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" disabled>
+            Previous
+          </Button>
+          <Button variant="outline" size="sm">
+            Next
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
