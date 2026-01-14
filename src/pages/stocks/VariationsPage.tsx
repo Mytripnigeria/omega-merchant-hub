@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -26,6 +27,7 @@ import {
   Trash2,
   MoreHorizontal,
   Settings2,
+  Search,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -90,22 +92,27 @@ const mockVariations: VariationGroup[] = [
 export default function VariationsPage() {
   const [variations] = useState<VariationGroup[]>(mockVariations);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredVariations = variations.filter(v =>
+    v.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Variations</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight">Variations</h1>
+          <p className="text-sm text-muted-foreground">
             Create variation groups to customize products
           </p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gradient-primary text-primary-foreground">
+            <Button size="sm">
               <Plus className="mr-2 h-4 w-4" />
-              Add Variation Group
+              Add Variation
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -129,7 +136,7 @@ export default function VariationsPage() {
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button className="gradient-primary text-primary-foreground">
+              <Button>
                 Create Group
               </Button>
             </DialogFooter>
@@ -139,81 +146,115 @@ export default function VariationsPage() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Variation Groups</p>
-          <p className="text-2xl font-bold text-foreground">{variations.length}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Total Options</p>
-          <p className="text-2xl font-bold text-foreground">
-            {variations.reduce((acc, v) => acc + v.options.length, 0)}
-          </p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Products Using Variations</p>
-          <p className="text-2xl font-bold text-foreground">
-            {new Set(variations.flatMap(v => v.linkedProducts)).size}
-          </p>
-        </div>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Variation Groups</p>
+            <p className="text-2xl font-semibold">{variations.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Total Options</p>
+            <p className="text-2xl font-semibold">
+              {variations.reduce((acc, v) => acc + v.options.length, 0)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Products Using</p>
+            <p className="text-2xl font-semibold">
+              {variations.reduce((acc, v) => acc + v.linkedProducts, 0)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search variations..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-border bg-card shadow-card">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="text-muted-foreground">Group Name</TableHead>
-              <TableHead className="text-muted-foreground">Options</TableHead>
-              <TableHead className="text-muted-foreground">Linked Products</TableHead>
-              <TableHead className="text-right text-muted-foreground">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {variations.map((variation) => (
-              <TableRow key={variation.id} className="group">
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                      <Settings2 className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <span className="font-medium text-foreground">{variation.name}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {variation.options.map((option) => (
-                      <Badge key={option.id} variant="secondary" className="text-xs">
-                        {option.name}
-                      </Badge>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {variation.linkedProducts} products
-                </TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="pl-6">Group Name</TableHead>
+                <TableHead>Options</TableHead>
+                <TableHead>Linked Products</TableHead>
+                <TableHead className="pr-6 w-12"></TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredVariations.map((variation) => (
+                <TableRow key={variation.id} className="group cursor-pointer hover:bg-muted/50">
+                  <TableCell className="pl-6">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                        <Settings2 className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <span className="font-medium">{variation.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {variation.options.map((option) => (
+                        <Badge key={option.id} variant="secondary" className="text-xs">
+                          {option.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {variation.linkedProducts} products
+                  </TableCell>
+                  <TableCell className="pr-6">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive">
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          Showing 1-{filteredVariations.length} of {variations.length} variations
+        </p>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" disabled>
+            Previous
+          </Button>
+          <Button variant="outline" size="sm">
+            Next
+          </Button>
+        </div>
       </div>
     </div>
   );
