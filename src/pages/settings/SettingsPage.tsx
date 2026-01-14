@@ -1,386 +1,214 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Link, useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Store, Bell, CreditCard, Globe, Shield, Palette, Receipt, Users, Clock } from "lucide-react";
-import { useStore } from "@/contexts/StoreContext";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Search, Mail, Smartphone, Monitor, BellOff, Settings, CreditCard, Users, Building2, Shield, Webhook, Globe } from "lucide-react";
+
+const sidebarItems = [
+  { title: "General", href: "/settings" },
+  { title: "Billing", href: "/settings/billing" },
+  { title: "Team Members", href: "/settings/team" },
+  { title: "Stores", href: "/settings/stores" },
+  { title: "Security", href: "/settings/security" },
+  { title: "Webhooks", href: "/settings/webhooks" },
+  { title: "Domains", href: "/settings/domains" },
+];
 
 export default function SettingsPage() {
-  const { currentStore } = useStore();
-  const [notifications, setNotifications] = useState({
-    orders: true,
-    lowStock: true,
-    reviews: false,
-    marketing: true,
-  });
+  const location = useLocation();
+  const [searchQuery, setSearchQuery] = useState("");
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-        <p className="text-muted-foreground">Manage your store configuration and preferences</p>
+    <div className="animate-fade-in">
+      {/* Page Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
       </div>
 
-      <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 h-auto gap-2">
-          <TabsTrigger value="general" className="flex items-center gap-2">
-            <Store className="h-4 w-4" />
-            General
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center gap-2">
-            <Bell className="h-4 w-4" />
-            Notifications
-          </TabsTrigger>
-          <TabsTrigger value="payments" className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4" />
-            Payments
-          </TabsTrigger>
-          <TabsTrigger value="appearance" className="flex items-center gap-2">
-            <Palette className="h-4 w-4" />
-            Appearance
-          </TabsTrigger>
-          <TabsTrigger value="security" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            Security
-          </TabsTrigger>
-        </TabsList>
+      <div className="flex gap-12">
+        {/* Settings Sidebar */}
+        <aside className="w-56 flex-shrink-0">
+          {/* Search */}
+          <div className="relative mb-6">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9 pl-9 text-sm border-0 bg-muted/50"
+            />
+          </div>
 
-        <TabsContent value="general" className="space-y-6">
+          {/* Navigation */}
+          <nav className="space-y-1">
+            {sidebarItems.map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                    isActive
+                      ? "bg-accent text-foreground font-medium"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  )}
+                >
+                  {item.title}
+                </Link>
+              );
+            })}
+          </nav>
+        </aside>
+
+        {/* Settings Content */}
+        <div className="flex-1 max-w-2xl space-y-8">
+          {/* Team Name */}
           <Card>
-            <CardHeader>
-              <CardTitle>Store Information</CardTitle>
-              <CardDescription>Basic details about your store</CardDescription>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-medium">Team Name</CardTitle>
+              <CardDescription>
+                This is your team's visible name. For example, the name of your company or department.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="storeName">Store Name</Label>
-                  <Input id="storeName" defaultValue={currentStore?.name || "My Store"} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="storeEmail">Contact Email</Label>
-                  <Input id="storeEmail" type="email" defaultValue="contact@store.com" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="storePhone">Phone Number</Label>
-                  <Input id="storePhone" defaultValue="+1 234 567 8900" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="timezone">Timezone</Label>
-                  <Select defaultValue="utc">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="utc">UTC</SelectItem>
-                      <SelectItem value="est">Eastern Time</SelectItem>
-                      <SelectItem value="pst">Pacific Time</SelectItem>
-                      <SelectItem value="gmt">GMT</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <Input defaultValue="Omega Restaurant" className="max-w-sm" />
+              <div className="flex items-center justify-between pt-2 border-t">
+                <p className="text-sm text-muted-foreground">Please use 32 characters at maximum.</p>
+                <Button>Save</Button>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Textarea id="address" defaultValue="123 Main Street, City, Country" />
-              </div>
-              <Button>Save Changes</Button>
             </CardContent>
           </Card>
 
+          {/* Team URL */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Operating Hours
-              </CardTitle>
-              <CardDescription>Set your store's business hours</CardDescription>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-medium">Team URL</CardTitle>
+              <CardDescription>
+                This is your team's URL namespace. Within it, your team can inspect projects and configure settings.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => (
-                <div key={day} className="flex items-center justify-between">
-                  <span className="font-medium w-28">{day}</span>
-                  <div className="flex items-center gap-2">
-                    <Input type="time" defaultValue="09:00" className="w-32" />
-                    <span>to</span>
-                    <Input type="time" defaultValue="22:00" className="w-32" />
-                    <Switch defaultChecked />
+              <div className="flex items-center gap-0 max-w-sm">
+                <span className="flex h-10 items-center rounded-l-md border border-r-0 bg-muted px-3 text-sm text-muted-foreground">
+                  omega.app/
+                </span>
+                <Input defaultValue="omega-restaurant" className="rounded-l-none" />
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t">
+                <p className="text-sm text-muted-foreground">Please use 48 characters at maximum.</p>
+                <Button>Save</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Team Avatar */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-medium">Team Avatar</CardTitle>
+              <CardDescription>
+                This is your team's avatar. Click on the avatar to upload a custom one from your files.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16">
+                    <AvatarFallback className="bg-gradient-to-br from-orange-400 to-red-500 text-lg text-white">
+                      OR
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-medium">Upload a new avatar</p>
+                    <p className="text-sm text-muted-foreground">PNG, JPG up to 5MB</p>
                   </div>
                 </div>
-              ))}
-              <Button>Update Hours</Button>
+                <Button variant="outline">Upload</Button>
+              </div>
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-sm text-muted-foreground">An avatar is optional but strongly recommended.</p>
+              </div>
             </CardContent>
           </Card>
-        </TabsContent>
 
-        <TabsContent value="notifications" className="space-y-6">
+          {/* Notifications */}
           <Card>
-            <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
-              <CardDescription>Choose what notifications you receive</CardDescription>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-medium">Notifications</CardTitle>
+              <CardDescription>
+                Manage how you receive notifications for your team's activity.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">New Orders</p>
-                  <p className="text-sm text-muted-foreground">Get notified when new orders come in</p>
-                </div>
-                <Switch 
-                  checked={notifications.orders} 
-                  onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, orders: checked }))} 
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Low Stock Alerts</p>
-                  <p className="text-sm text-muted-foreground">Alert when inventory runs low</p>
-                </div>
-                <Switch 
-                  checked={notifications.lowStock} 
-                  onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, lowStock: checked }))} 
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Customer Reviews</p>
-                  <p className="text-sm text-muted-foreground">Notify on new reviews</p>
-                </div>
-                <Switch 
-                  checked={notifications.reviews} 
-                  onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, reviews: checked }))} 
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Marketing Updates</p>
-                  <p className="text-sm text-muted-foreground">Campaign performance updates</p>
-                </div>
-                <Switch 
-                  checked={notifications.marketing} 
-                  onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, marketing: checked }))} 
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="payments" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Payment Methods</CardTitle>
-              <CardDescription>Configure accepted payment methods</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {[
-                { name: "Cash", enabled: true, icon: "💵" },
-                { name: "Credit/Debit Cards", enabled: true, icon: "💳" },
-                { name: "Mobile Payments", enabled: true, icon: "📱" },
-                { name: "Bank Transfer", enabled: false, icon: "🏦" },
-              ].map((method) => (
-                <div key={method.name} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{method.icon}</span>
-                    <span className="font-medium">{method.name}</span>
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                    <Monitor className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <Switch defaultChecked={method.enabled} />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5" />
-                Tax Settings
-              </CardTitle>
-              <CardDescription>Configure tax rates and rules</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Default Tax Rate (%)</Label>
-                  <Input type="number" defaultValue="10" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Tax Included in Prices</Label>
-                  <Select defaultValue="included">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="included">Tax Included</SelectItem>
-                      <SelectItem value="excluded">Tax Excluded</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button>Save Tax Settings</Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="appearance" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Theme Settings</CardTitle>
-              <CardDescription>Customize the look of your dashboard</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Color Theme</Label>
-                <div className="flex gap-3">
-                  {["Default", "Dark", "Ocean", "Forest"].map((theme) => (
-                    <Button key={theme} variant={theme === "Default" ? "default" : "outline"} size="sm">
-                      {theme}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Accent Color</Label>
-                <div className="flex gap-2">
-                  {["#3B82F6", "#10B981", "#8B5CF6", "#F59E0B", "#EF4444"].map((color) => (
-                    <button
-                      key={color}
-                      className="w-8 h-8 rounded-full border-2 border-transparent hover:border-foreground transition-colors"
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Compact Mode</p>
-                  <p className="text-sm text-muted-foreground">Reduce spacing for more content</p>
-                </div>
-                <Switch />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Globe className="h-5 w-5" />
-                Localization
-              </CardTitle>
-              <CardDescription>Language and regional settings</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Language</Label>
-                  <Select defaultValue="en">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="es">Spanish</SelectItem>
-                      <SelectItem value="fr">French</SelectItem>
-                      <SelectItem value="de">German</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Currency</Label>
-                  <Select defaultValue="usd">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="usd">USD ($)</SelectItem>
-                      <SelectItem value="eur">EUR (€)</SelectItem>
-                      <SelectItem value="gbp">GBP (£)</SelectItem>
-                      <SelectItem value="jpy">JPY (¥)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button>Save Preferences</Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="security" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Access Control
-              </CardTitle>
-              <CardDescription>Manage user permissions and access</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Two-Factor Authentication</p>
-                  <p className="text-sm text-muted-foreground">Require 2FA for all admin users</p>
-                </div>
-                <Switch />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Session Timeout</p>
-                  <p className="text-sm text-muted-foreground">Auto logout after inactivity</p>
-                </div>
-                <Select defaultValue="30">
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="15">15 minutes</SelectItem>
-                    <SelectItem value="30">30 minutes</SelectItem>
-                    <SelectItem value="60">1 hour</SelectItem>
-                    <SelectItem value="never">Never</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">IP Whitelisting</p>
-                  <p className="text-sm text-muted-foreground">Restrict access to specific IPs</p>
-                </div>
-                <Switch />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Security Log</CardTitle>
-              <CardDescription>Recent security events</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {[
-                  { event: "Login from new device", time: "2 hours ago", status: "warning" },
-                  { event: "Password changed", time: "1 day ago", status: "success" },
-                  { event: "2FA enabled", time: "3 days ago", status: "success" },
-                  { event: "Failed login attempt", time: "5 days ago", status: "error" },
-                ].map((log, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
-                    <span>{log.event}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">{log.time}</span>
-                      <Badge variant={log.status === "success" ? "default" : log.status === "warning" ? "secondary" : "destructive"}>
-                        {log.status}
-                      </Badge>
-                    </div>
+                  <div>
+                    <p className="text-sm font-medium">Web</p>
+                    <p className="text-sm text-muted-foreground">Receive notifications in the dashboard.</p>
                   </div>
-                ))}
+                </div>
+                <Switch defaultChecked />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                    <Mail className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Email</p>
+                    <p className="text-sm text-muted-foreground">admin@omega.com</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                  <Switch defaultChecked />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                    <Smartphone className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Push</p>
+                    <p className="text-sm text-muted-foreground">Receive notifications on desktop or mobile.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                  <Switch defaultChecked />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                    <BellOff className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Mute</p>
+                    <p className="text-sm text-muted-foreground">Select projects to mute notifications for.</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm">No projects</Button>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </div>
   );
 }

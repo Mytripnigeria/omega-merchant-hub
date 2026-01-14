@@ -6,33 +6,28 @@ import {
   ShoppingCart,
   Package,
   Users,
-  TrendingUp,
   Settings,
   Store,
   Truck,
-  Receipt,
   Gift,
   ClipboardList,
   BarChart3,
   Calendar,
   Plug,
   Wallet,
-  ChevronDown,
-  ChevronLeft,
   ChevronRight,
-  Building2,
   UserCog,
   Boxes,
-  FileText,
   Monitor,
+  Search,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -174,27 +169,21 @@ const navItems: NavItem[] = [
       { title: "Shifts", href: "/workstation/shifts" },
       { title: "Activity Log", href: "/workstation/activity" },
       { title: "Delivery", href: "/workstation/delivery" },
-      { title: "Tables", href: "/workstation/tables" },
-      { title: "Messages", href: "/workstation/messages" },
-      { title: "Training", href: "/workstation/training" },
     ],
   },
   {
     title: "Settings",
     icon: Settings,
     children: [
+      { title: "General", href: "/settings" },
       { title: "Stores", href: "/settings/stores" },
       { title: "Payment Methods", href: "/settings/payments" },
-      { title: "Delivery Methods", href: "/settings/delivery" },
-      { title: "Notifications", href: "/settings/notifications" },
-      { title: "Business Profile", href: "/settings/profile" },
-      { title: "Tax Settings", href: "/settings/tax" },
       { title: "Team & Roles", href: "/settings/team" },
     ],
   },
 ];
 
-function NavMenuItem({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
+function NavMenuItem({ item }: { item: NavItem }) {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   
@@ -202,47 +191,46 @@ function NavMenuItem({ item, collapsed }: { item: NavItem; collapsed: boolean })
     ? location.pathname === item.href 
     : item.children?.some(child => location.pathname === child.href);
 
+  const isChildActive = (href: string) => location.pathname === href;
+
   if (item.children) {
     return (
-      <Collapsible open={isOpen && !collapsed} onOpenChange={setIsOpen}>
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CollapsibleTrigger asChild>
           <button
             className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all hover:bg-sidebar-accent",
-              isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground",
-              collapsed && "justify-center px-2"
+              "flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors",
+              isActive 
+                ? "bg-accent text-accent-foreground font-medium" 
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             )}
           >
-            <item.icon className={cn("h-5 w-5 shrink-0", isActive && "text-primary")} />
-            {!collapsed && (
-              <>
-                <span className="flex-1 text-left">{item.title}</span>
-                <ChevronDown className={cn(
-                  "h-4 w-4 transition-transform",
-                  isOpen && "rotate-180"
-                )} />
-              </>
-            )}
+            <div className="flex items-center gap-3">
+              <item.icon className="h-4 w-4" />
+              <span>{item.title}</span>
+            </div>
+            <ChevronRight className={cn(
+              "h-4 w-4 transition-transform",
+              isOpen && "rotate-90"
+            )} />
           </button>
         </CollapsibleTrigger>
-        {!collapsed && (
-          <CollapsibleContent className="space-y-1 pl-8 pt-1">
-            {item.children.map((child) => (
-              <Link
-                key={child.href}
-                to={child.href}
-                className={cn(
-                  "block rounded-lg px-3 py-2 text-sm transition-all hover:bg-sidebar-accent",
-                  location.pathname === child.href
-                    ? "bg-sidebar-accent text-primary"
-                    : "text-sidebar-foreground"
-                )}
-              >
-                {child.title}
-              </Link>
-            ))}
-          </CollapsibleContent>
-        )}
+        <CollapsibleContent className="mt-1 space-y-1 pl-10">
+          {item.children.map((child) => (
+            <Link
+              key={child.href}
+              to={child.href}
+              className={cn(
+                "block rounded-md px-3 py-2 text-sm transition-colors",
+                isChildActive(child.href)
+                  ? "bg-accent text-foreground font-medium"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              )}
+            >
+              {child.title}
+            </Link>
+          ))}
+        </CollapsibleContent>
       </Collapsible>
     );
   }
@@ -251,83 +239,42 @@ function NavMenuItem({ item, collapsed }: { item: NavItem; collapsed: boolean })
     <Link
       to={item.href!}
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all hover:bg-sidebar-accent",
-        isActive ? "bg-sidebar-accent text-primary" : "text-sidebar-foreground",
-        collapsed && "justify-center px-2"
+        "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+        isActive 
+          ? "bg-accent text-foreground font-medium" 
+          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
       )}
     >
-      <item.icon className={cn("h-5 w-5 shrink-0", isActive && "text-primary")} />
-      {!collapsed && <span>{item.title}</span>}
+      <item.icon className="h-4 w-4" />
+      <span>{item.title}</span>
     </Link>
   );
 }
 
-export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export function Sidebar({ collapsed }: SidebarProps) {
+  if (collapsed) return null;
+
   return (
-    <aside
-      className={cn(
-        "flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300",
-        collapsed ? "w-16" : "w-64"
-      )}
-    >
-      {/* Logo */}
-      <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
-        {!collapsed && (
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-primary">
-              <Building2 className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-sm font-bold text-foreground">OMEGA OS</h1>
-              <p className="text-xs text-muted-foreground">Merchant</p>
-            </div>
-          </div>
-        )}
-        {collapsed && (
-          <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg gradient-primary">
-            <Building2 className="h-5 w-5 text-primary-foreground" />
-          </div>
-        )}
+    <aside className="sticky top-0 flex h-screen w-64 flex-col border-r border-border bg-background">
+      {/* Search */}
+      <div className="p-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search..."
+            className="h-9 bg-muted/50 pl-9 text-sm border-0"
+          />
+        </div>
       </div>
 
-      {/* Store Selector */}
-      {!collapsed && (
-        <div className="border-b border-sidebar-border p-3">
-          <button className="flex w-full items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2 text-sm hover:bg-muted">
-            <Store className="h-4 w-4 text-primary" />
-            <span className="flex-1 text-left text-foreground">Lekki Phase 1</span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </button>
-        </div>
-      )}
-
       {/* Navigation */}
-      <ScrollArea className="flex-1 px-3 py-4">
+      <ScrollArea className="flex-1 px-3 pb-4">
         <nav className="space-y-1">
           {navItems.map((item) => (
-            <NavMenuItem key={item.title} item={item} collapsed={collapsed} />
+            <NavMenuItem key={item.title} item={item} />
           ))}
         </nav>
       </ScrollArea>
-
-      {/* Collapse Button */}
-      <div className="border-t border-sidebar-border p-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onToggle}
-          className="w-full justify-center text-muted-foreground hover:text-foreground"
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <>
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              <span>Collapse</span>
-            </>
-          )}
-        </Button>
-      </div>
     </aside>
   );
 }
