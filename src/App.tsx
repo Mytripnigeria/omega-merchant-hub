@@ -48,24 +48,48 @@ import RolesPage from "./pages/hr/RolesPage";
 
 // Bookings
 import BookingsPage from "./pages/bookings/BookingsPage";
+import ReservationsPage from "./pages/bookings/ReservationsPage";
+import EventsPage from "./pages/bookings/EventsPage";
+import CalendarPage from "./pages/bookings/CalendarPage";
 
 // Payouts
 import PayoutsPage from "./pages/payouts/PayoutsPage";
 
 // Reports
 import ReportsPage from "./pages/reports/ReportsPage";
+import DownloadReportsPage from "./pages/reports/DownloadReportsPage";
+import BestSellersPage from "./pages/reports/BestSellersPage";
+import DailySalesPage from "./pages/reports/DailySalesPage";
+import CategoryReportPage from "./pages/reports/CategoryReportPage";
+import StockReportPage from "./pages/reports/StockReportPage";
 
 // Storefront
 import StorefrontPage from "./pages/storefront/StorefrontPage";
+import ThemePage from "./pages/storefront/ThemePage";
+import PagesPage from "./pages/storefront/PagesPage";
+import StorefrontSettingsPage from "./pages/storefront/StorefrontSettingsPage";
 
 // Operations
 import OperationsPage from "./pages/operations/OperationsPage";
+import EquipmentPage from "./pages/operations/EquipmentPage";
+import ChecklistsPage from "./pages/operations/ChecklistsPage";
+import KpiPage from "./pages/operations/KpiPage";
+import ExpensesPage from "./pages/operations/ExpensesPage";
+import SalesTargetPage from "./pages/operations/SalesTargetPage";
+import FoodCostPage from "./pages/operations/FoodCostPage";
+import WastePage from "./pages/operations/WastePage";
 
 // Workstation
 import WorkstationPage from "./pages/workstation/WorkstationPage";
+import DeliveryPage from "./pages/workstation/DeliveryPage";
+import UsersPage from "./pages/workstation/UsersPage";
+import WorkstationShiftsPage from "./pages/workstation/WorkstationShiftsPage";
+import ActivityPage from "./pages/workstation/ActivityPage";
 
 // Plugins
 import PluginsPage from "./pages/plugins/PluginsPage";
+import OmnichannelPage from "./pages/plugins/OmnichannelPage";
+import IntegrationsPage from "./pages/plugins/IntegrationsPage";
 
 // Settings
 import SettingsPage from "./pages/settings/SettingsPage";
@@ -124,24 +148,48 @@ const App = () => (
               
               {/* Reports */}
               <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/reports/download" element={<DownloadReportsPage />} />
+              <Route path="/reports/bestsellers" element={<BestSellersPage />} />
+              <Route path="/reports/daily-sales" element={<DailySalesPage />} />
+              <Route path="/reports/category" element={<CategoryReportPage />} />
+              <Route path="/reports/stock" element={<StockReportPage />} />
               
               {/* Bookings */}
               <Route path="/bookings" element={<BookingsPage />} />
+              <Route path="/bookings/reservations" element={<ReservationsPage />} />
+              <Route path="/bookings/events" element={<EventsPage />} />
+              <Route path="/bookings/calendar" element={<CalendarPage />} />
               
               {/* Payouts */}
               <Route path="/payouts" element={<PayoutsPage />} />
               
               {/* Storefront */}
               <Route path="/storefront" element={<StorefrontPage />} />
+              <Route path="/storefront/theme" element={<ThemePage />} />
+              <Route path="/storefront/pages" element={<PagesPage />} />
+              <Route path="/storefront/settings" element={<StorefrontSettingsPage />} />
               
               {/* Operations */}
               <Route path="/operations" element={<OperationsPage />} />
+              <Route path="/operations/equipment" element={<EquipmentPage />} />
+              <Route path="/operations/checklists" element={<ChecklistsPage />} />
+              <Route path="/operations/kpi" element={<KpiPage />} />
+              <Route path="/operations/expenses" element={<ExpensesPage />} />
+              <Route path="/operations/sales-target" element={<SalesTargetPage />} />
+              <Route path="/operations/food-cost" element={<FoodCostPage />} />
+              <Route path="/operations/waste" element={<WastePage />} />
               
               {/* Workstation */}
               <Route path="/workstation" element={<WorkstationPage />} />
+              <Route path="/workstation/delivery" element={<DeliveryPage />} />
+              <Route path="/workstation/users" element={<UsersPage />} />
+              <Route path="/workstation/shifts" element={<WorkstationShiftsPage />} />
+              <Route path="/workstation/activity" element={<ActivityPage />} />
               
               {/* Plugins */}
               <Route path="/plugins" element={<PluginsPage />} />
+              <Route path="/plugins/omnichannel" element={<OmnichannelPage />} />
+              <Route path="/plugins/integrations" element={<IntegrationsPage />} />
               
               {/* Settings */}
               <Route path="/settings" element={<SettingsPage />} />
