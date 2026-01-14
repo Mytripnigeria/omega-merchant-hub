@@ -10,7 +10,13 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import Dashboard from "./pages/Dashboard";
+
+// Orders
 import OrdersPage from "./pages/orders/OrdersPage";
+import TransactionsPage from "./pages/orders/TransactionsPage";
+import AccountBalancingPage from "./pages/orders/AccountBalancingPage";
+
+// Stocks
 import ProductsPage from "./pages/stocks/ProductsPage";
 import CategoriesPage from "./pages/stocks/CategoriesPage";
 import IngredientsPage from "./pages/stocks/IngredientsPage";
@@ -18,23 +24,52 @@ import VariationsPage from "./pages/stocks/VariationsPage";
 import AddOnsPage from "./pages/stocks/AddOnsPage";
 import CombosPage from "./pages/stocks/CombosPage";
 
-const queryClient = new QueryClient();
+// Procurement
+import InventoriesPage from "./pages/procurement/InventoriesPage";
+import StockTransferPage from "./pages/procurement/StockTransferPage";
 
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
-      <div className="text-center space-y-4">
-        <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-muted">
-          <span className="text-3xl">🚧</span>
-        </div>
-        <h1 className="text-2xl font-bold text-foreground">{title}</h1>
-        <p className="text-muted-foreground max-w-md">
-          This section is under development. Check back soon for full functionality.
-        </p>
-      </div>
-    </div>
-  );
-}
+// Suppliers
+import SuppliersPage from "./pages/suppliers/SuppliersPage";
+
+// Customers
+import CustomersPage from "./pages/customers/CustomersPage";
+
+// Marketing
+import DiscountCodesPage from "./pages/marketing/DiscountCodesPage";
+import LoyaltyPage from "./pages/marketing/LoyaltyPage";
+import ReferralsPage from "./pages/marketing/ReferralsPage";
+
+// HR
+import StaffPage from "./pages/hr/StaffPage";
+import ShiftsPage from "./pages/hr/ShiftsPage";
+import PayslipsPage from "./pages/hr/PayslipsPage";
+import RolesPage from "./pages/hr/RolesPage";
+
+// Bookings
+import BookingsPage from "./pages/bookings/BookingsPage";
+
+// Payouts
+import PayoutsPage from "./pages/payouts/PayoutsPage";
+
+// Reports
+import ReportsPage from "./pages/reports/ReportsPage";
+
+// Storefront
+import StorefrontPage from "./pages/storefront/StorefrontPage";
+
+// Operations
+import OperationsPage from "./pages/operations/OperationsPage";
+
+// Workstation
+import WorkstationPage from "./pages/workstation/WorkstationPage";
+
+// Plugins
+import PluginsPage from "./pages/plugins/PluginsPage";
+
+// Settings
+import SettingsPage from "./pages/settings/SettingsPage";
+
+const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -53,8 +88,8 @@ const App = () => (
               
               {/* Orders */}
               <Route path="/orders" element={<OrdersPage />} />
-              <Route path="/orders/transactions" element={<PlaceholderPage title="Transactions" />} />
-              <Route path="/orders/account" element={<PlaceholderPage title="Account Balancing" />} />
+              <Route path="/orders/transactions" element={<TransactionsPage />} />
+              <Route path="/orders/account" element={<AccountBalancingPage />} />
               
               {/* Stocks */}
               <Route path="/stocks/products" element={<ProductsPage />} />
@@ -64,20 +99,50 @@ const App = () => (
               <Route path="/stocks/addons" element={<AddOnsPage />} />
               <Route path="/stocks/combos" element={<CombosPage />} />
               
-              {/* Other modules - placeholders */}
-              <Route path="/procurement/*" element={<PlaceholderPage title="Procurement" />} />
-              <Route path="/suppliers" element={<PlaceholderPage title="Suppliers" />} />
-              <Route path="/customers" element={<PlaceholderPage title="Customers" />} />
-              <Route path="/marketing/*" element={<PlaceholderPage title="Marketing" />} />
-              <Route path="/operations/*" element={<PlaceholderPage title="Operations" />} />
-              <Route path="/hr/*" element={<PlaceholderPage title="HR" />} />
-              <Route path="/reports/*" element={<PlaceholderPage title="Reports" />} />
-              <Route path="/bookings/*" element={<PlaceholderPage title="Bookings" />} />
-              <Route path="/payouts" element={<PlaceholderPage title="Payouts" />} />
-              <Route path="/storefront/*" element={<PlaceholderPage title="Storefront" />} />
-              <Route path="/plugins/*" element={<PlaceholderPage title="Plugins" />} />
-              <Route path="/workstation/*" element={<PlaceholderPage title="Workstation" />} />
-              <Route path="/settings/*" element={<PlaceholderPage title="Settings" />} />
+              {/* Procurement */}
+              <Route path="/procurement/inventories" element={<InventoriesPage />} />
+              <Route path="/procurement/transfers" element={<StockTransferPage />} />
+              
+              {/* Suppliers */}
+              <Route path="/suppliers" element={<SuppliersPage />} />
+              
+              {/* Customers */}
+              <Route path="/customers" element={<CustomersPage />} />
+              
+              {/* Marketing */}
+              <Route path="/marketing/discounts" element={<DiscountCodesPage />} />
+              <Route path="/marketing/loyalty" element={<LoyaltyPage />} />
+              <Route path="/marketing/referrals" element={<ReferralsPage />} />
+              
+              {/* HR */}
+              <Route path="/hr/staff" element={<StaffPage />} />
+              <Route path="/hr/shifts" element={<ShiftsPage />} />
+              <Route path="/hr/payslips" element={<PayslipsPage />} />
+              <Route path="/hr/roles" element={<RolesPage />} />
+              
+              {/* Reports */}
+              <Route path="/reports" element={<ReportsPage />} />
+              
+              {/* Bookings */}
+              <Route path="/bookings" element={<BookingsPage />} />
+              
+              {/* Payouts */}
+              <Route path="/payouts" element={<PayoutsPage />} />
+              
+              {/* Storefront */}
+              <Route path="/storefront" element={<StorefrontPage />} />
+              
+              {/* Operations */}
+              <Route path="/operations" element={<OperationsPage />} />
+              
+              {/* Workstation */}
+              <Route path="/workstation" element={<WorkstationPage />} />
+              
+              {/* Plugins */}
+              <Route path="/plugins" element={<PluginsPage />} />
+              
+              {/* Settings */}
+              <Route path="/settings" element={<SettingsPage />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
