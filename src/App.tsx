@@ -27,6 +27,7 @@ import CombosPage from "./pages/stocks/CombosPage";
 // Procurement
 import InventoriesPage from "./pages/procurement/InventoriesPage";
 import StockTransferPage from "./pages/procurement/StockTransferPage";
+import LocationsPage from "./pages/procurement/LocationsPage";
 
 // Suppliers
 import SuppliersPage from "./pages/suppliers/SuppliersPage";
@@ -102,6 +103,7 @@ const App = () => (
               {/* Procurement */}
               <Route path="/procurement/inventories" element={<InventoriesPage />} />
               <Route path="/procurement/transfers" element={<StockTransferPage />} />
+              <Route path="/procurement/locations" element={<LocationsPage />} />
               
               {/* Suppliers */}
               <Route path="/suppliers" element={<SuppliersPage />} />
