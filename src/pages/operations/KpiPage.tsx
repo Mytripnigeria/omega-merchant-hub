@@ -1,64 +1,110 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Target, BarChart3 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TrendingUp, TrendingDown, Target, BarChart3, Users, DollarSign, Clock, Star } from "lucide-react";
 
 const KpiPage = () => {
   const kpis = [
-    { name: "Revenue Target", current: 85000, target: 100000, trend: "up", change: "+12%" },
-    { name: "Customer Satisfaction", current: 4.5, target: 5, trend: "up", change: "+0.3" },
-    { name: "Average Order Value", current: 28.50, target: 35, trend: "down", change: "-2%" },
-    { name: "Table Turnover Rate", current: 3.2, target: 4, trend: "up", change: "+0.5" },
+    { name: "Revenue Target", current: 85000, target: 100000, trend: "up", change: "+12%", icon: DollarSign, format: "currency" },
+    { name: "Customer Satisfaction", current: 4.5, target: 5, trend: "up", change: "+0.3", icon: Star, format: "rating" },
+    { name: "Average Order Value", current: 28.50, target: 35, trend: "down", change: "-2%", icon: BarChart3, format: "currency" },
+    { name: "Table Turnover Rate", current: 3.2, target: 4, trend: "up", change: "+0.5", icon: Clock, format: "number" },
+    { name: "Customer Retention", current: 78, target: 85, trend: "up", change: "+5%", icon: Users, format: "percentage" },
+    { name: "Staff Efficiency", current: 92, target: 95, trend: "up", change: "+3%", icon: TrendingUp, format: "percentage" },
   ];
 
+  const formatValue = (value: number, format: string) => {
+    switch (format) {
+      case "currency": return value >= 1000 ? `$${(value / 1000).toFixed(0)}K` : `$${value.toFixed(2)}`;
+      case "rating": return value.toFixed(1);
+      case "percentage": return `${value}%`;
+      default: return value.toString();
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Key Performance Indicators</h1>
-        <p className="text-muted-foreground">Track your business performance metrics</p>
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Key Performance Indicators</h1>
+          <p className="text-sm text-muted-foreground">Track your business performance metrics</p>
+        </div>
+        <Select defaultValue="this-month">
+          <SelectTrigger className="w-[140px] h-9 bg-muted/50 border-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="this-week">This Week</SelectItem>
+            <SelectItem value="this-month">This Month</SelectItem>
+            <SelectItem value="this-quarter">This Quarter</SelectItem>
+            <SelectItem value="this-year">This Year</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {kpis.map((kpi) => (
-          <Card key={kpi.name}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">{kpi.name}</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {typeof kpi.current === "number" && kpi.current > 100 
-                  ? `$${kpi.current.toLocaleString()}` 
-                  : kpi.current}
-              </div>
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-xs text-muted-foreground">
-                  Target: {typeof kpi.target === "number" && kpi.target > 100 
-                    ? `$${kpi.target.toLocaleString()}` 
-                    : kpi.target}
-                </span>
-                <div className={`flex items-center text-xs ${kpi.trend === "up" ? "text-green-500" : "text-red-500"}`}>
-                  {kpi.trend === "up" ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
-                  {kpi.change}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {kpis.map((kpi) => {
+          const progress = Math.min((kpi.current / kpi.target) * 100, 100);
+          const Icon = kpi.icon;
+
+          return (
+            <Card key={kpi.name} className="border-border/50">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                      <Icon className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <span className="text-sm font-medium">{kpi.name}</span>
+                  </div>
+                  <div className={`flex items-center text-xs ${kpi.trend === "up" ? "text-green-600" : "text-red-500"}`}>
+                    {kpi.trend === "up" ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                    {kpi.change}
+                  </div>
                 </div>
-              </div>
-              <div className="w-full bg-secondary rounded-full h-2 mt-2">
-                <div 
-                  className="bg-primary h-2 rounded-full" 
-                  style={{ width: `${Math.min((kpi.current / kpi.target) * 100, 100)}%` }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                
+                <div className="mb-3">
+                  <span className="text-2xl font-semibold">
+                    {formatValue(kpi.current, kpi.format)}
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-2">
+                    / {formatValue(kpi.target, kpi.format)}
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <Progress value={progress} className="h-1.5" />
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{progress.toFixed(0)}% of target</span>
+                    <span>{(kpi.target - kpi.current).toFixed(kpi.format === "rating" ? 1 : 0)} to go</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" /> Performance Overview
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">Detailed KPI analytics and trends will be displayed here.</p>
+      <Card className="border-border/50">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Target className="h-4 w-4 text-muted-foreground" />
+            <h3 className="font-medium">Performance Summary</h3>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="text-center p-4 bg-muted/50 rounded-lg">
+              <p className="text-2xl font-semibold text-green-600">4</p>
+              <p className="text-xs text-muted-foreground">KPIs On Track</p>
+            </div>
+            <div className="text-center p-4 bg-muted/50 rounded-lg">
+              <p className="text-2xl font-semibold text-yellow-600">1</p>
+              <p className="text-xs text-muted-foreground">Needs Attention</p>
+            </div>
+            <div className="text-center p-4 bg-muted/50 rounded-lg">
+              <p className="text-2xl font-semibold text-red-500">1</p>
+              <p className="text-xs text-muted-foreground">Below Target</p>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
