@@ -11,7 +11,7 @@ import {
 import { useStore } from "@/contexts/StoreContext";
 
 export default function WorkstationPage() {
-  const { selectedStore } = useStore();
+  const { currentStore } = useStore();
   const [search, setSearch] = useState("");
 
   const activeOrders = [
@@ -53,7 +53,7 @@ export default function WorkstationPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Workstation</h1>
-          <p className="text-muted-foreground">Live order management for {selectedStore?.name}</p>
+          <p className="text-muted-foreground">Live order management for {currentStore?.name}</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="default" className="gap-1">

@@ -12,7 +12,7 @@ import {
 import { useStore } from "@/contexts/StoreContext";
 
 export default function OperationsPage() {
-  const { selectedStore } = useStore();
+  const { currentStore } = useStore();
   const [kitchenDisplay, setKitchenDisplay] = useState(true);
 
   const devices = [
@@ -41,7 +41,7 @@ export default function OperationsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Operations</h1>
-          <p className="text-muted-foreground">Manage devices, kitchen, and delivery for {selectedStore?.name}</p>
+          <p className="text-muted-foreground">Manage devices, kitchen, and delivery for {currentStore?.name}</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="default" className="gap-1">
