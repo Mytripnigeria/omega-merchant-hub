@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -27,6 +28,7 @@ import {
   Trash2,
   MoreHorizontal,
   PlusCircle,
+  Search,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -87,6 +89,7 @@ const mockAddOnGroups: AddOnGroup[] = [
 export default function AddOnsPage() {
   const [addOnGroups] = useState<AddOnGroup[]>(mockAddOnGroups);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const formatPrice = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -96,19 +99,23 @@ export default function AddOnsPage() {
     }).format(amount);
   };
 
+  const filteredGroups = addOnGroups.filter(group =>
+    group.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Add-ons</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight">Add-ons</h1>
+          <p className="text-sm text-muted-foreground">
             Create add-on groups for extra items and upgrades
           </p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gradient-primary text-primary-foreground">
+            <Button size="sm">
               <Plus className="mr-2 h-4 w-4" />
               Add Group
             </Button>
@@ -140,7 +147,7 @@ export default function AddOnsPage() {
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button className="gradient-primary text-primary-foreground">
+              <Button>
                 Create Group
               </Button>
             </DialogFooter>
@@ -150,44 +157,61 @@ export default function AddOnsPage() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Add-on Groups</p>
-          <p className="text-2xl font-bold text-foreground">{addOnGroups.length}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Total Add-ons</p>
-          <p className="text-2xl font-bold text-foreground">
-            {addOnGroups.reduce((acc, g) => acc + g.addOns.length, 0)}
-          </p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Available</p>
-          <p className="text-2xl font-bold text-success">
-            {addOnGroups.reduce((acc, g) => acc + g.addOns.filter(a => a.isAvailable).length, 0)}
-          </p>
-        </div>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Add-on Groups</p>
+            <p className="text-2xl font-semibold">{addOnGroups.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Total Add-ons</p>
+            <p className="text-2xl font-semibold">
+              {addOnGroups.reduce((acc, g) => acc + g.addOns.length, 0)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Available</p>
+            <p className="text-2xl font-semibold text-green-600">
+              {addOnGroups.reduce((acc, g) => acc + g.addOns.filter(a => a.isAvailable).length, 0)}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Groups */}
-      <div className="space-y-6">
-        {addOnGroups.map((group) => (
-          <div key={group.id} className="rounded-xl border border-border bg-card shadow-card">
-            <div className="flex items-center justify-between border-b border-border p-4">
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search add-on groups..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
+      {/* Groups - Two column layout on large screens */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {filteredGroups.map((group) => (
+          <Card key={group.id}>
+            <div className="flex items-center justify-between border-b p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                   <PlusCircle className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">{group.name}</h3>
+                  <h3 className="font-semibold">{group.name}</h3>
                   <p className="text-sm text-muted-foreground">
-                    {group.minSelection === 0 ? "Optional" : `Min ${group.minSelection}`} · Max {group.maxSelection} selections · {group.linkedProducts} products
+                    {group.minSelection === 0 ? "Optional" : `Min ${group.minSelection}`} · Max {group.maxSelection} · {group.linkedProducts} products
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm">
                   <Plus className="mr-1 h-4 w-4" />
-                  Add Item
+                  Add
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -208,36 +232,40 @@ export default function AddOnsPage() {
                 </DropdownMenu>
               </div>
             </div>
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="text-muted-foreground">Add-on</TableHead>
-                  <TableHead className="text-muted-foreground">Price</TableHead>
-                  <TableHead className="text-muted-foreground">Available</TableHead>
-                  <TableHead className="text-right text-muted-foreground">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {group.addOns.map((addon) => (
-                  <TableRow key={addon.id}>
-                    <TableCell className="font-medium text-foreground">{addon.name}</TableCell>
-                    <TableCell className="text-foreground">{formatPrice(addon.price)}</TableCell>
-                    <TableCell>
-                      <Switch checked={addon.isAvailable} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="pl-6">Add-on</TableHead>
+                    <TableHead>Price</TableHead>
+                    <TableHead>Available</TableHead>
+                    <TableHead className="pr-6 w-20">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {group.addOns.map((addon) => (
+                    <TableRow key={addon.id} className="group">
+                      <TableCell className="pl-6 font-medium">{addon.name}</TableCell>
+                      <TableCell>{formatPrice(addon.price)}</TableCell>
+                      <TableCell>
+                        <Switch checked={addon.isAvailable} />
+                      </TableCell>
+                      <TableCell className="pr-6">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         ))}
       </div>
     </div>

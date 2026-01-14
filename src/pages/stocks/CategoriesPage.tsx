@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ import {
   Trash2,
   MoreHorizontal,
   GripVertical,
+  Search,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -51,6 +52,7 @@ export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>(mockCategories);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: "", emoji: "" });
+  const [searchQuery, setSearchQuery] = useState("");
 
   const toggleCategory = (categoryId: string) => {
     setCategories(categories.map(c => 
@@ -76,17 +78,21 @@ export default function CategoriesPage() {
     }
   };
 
+  const filteredCategories = categories.filter(cat =>
+    cat.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Categories</h1>
-          <p className="text-muted-foreground">Organize your menu with categories</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Categories</h1>
+          <p className="text-sm text-muted-foreground">Organize your menu with categories</p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gradient-primary text-primary-foreground">
+            <Button size="sm">
               <Plus className="mr-2 h-4 w-4" />
               Add Category
             </Button>
@@ -123,7 +129,7 @@ export default function CategoriesPage() {
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleAddCategory} className="gradient-primary text-primary-foreground">
+              <Button onClick={handleAddCategory}>
                 Create Category
               </Button>
             </DialogFooter>
@@ -133,75 +139,94 @@ export default function CategoriesPage() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Total Categories</p>
-          <p className="text-2xl font-bold text-foreground">{categories.length}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Active</p>
-          <p className="text-2xl font-bold text-success">{categories.filter(c => c.isActive).length}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Total Products</p>
-          <p className="text-2xl font-bold text-foreground">
-            {categories.reduce((acc, c) => acc + c.productCount, 0)}
-          </p>
-        </div>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Total Categories</p>
+            <p className="text-2xl font-semibold">{categories.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Active</p>
+            <p className="text-2xl font-semibold text-green-600">{categories.filter(c => c.isActive).length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Total Products</p>
+            <p className="text-2xl font-semibold">
+              {categories.reduce((acc, c) => acc + c.productCount, 0)}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Categories Grid */}
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search categories..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
+      {/* Categories Grid - Two columns on desktop */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {categories.map((category) => (
-          <div
+        {filteredCategories.map((category) => (
+          <Card
             key={category.id}
-            className="group relative rounded-xl border border-border bg-card p-6 shadow-card transition-all hover:shadow-elevated"
+            className="group transition-all hover:shadow-md"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-2xl">
-                  {category.emoji}
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-2xl">
+                    {category.emoji}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">{category.name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {category.productCount} products
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">{category.name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {category.productCount} products
-                  </p>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="mt-4 flex items-center justify-between border-t pt-4">
+                <div className="flex items-center gap-2">
+                  <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+                  <span className="text-xs text-muted-foreground">Order: {category.order}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {category.isActive ? "Active" : "Hidden"}
+                  </span>
+                  <Switch
+                    checked={category.isActive}
+                    onCheckedChange={() => toggleCategory(category.id)}
+                  />
                 </div>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="text-destructive">
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-              <div className="flex items-center gap-2">
-                <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-                <span className="text-xs text-muted-foreground">Order: {category.order}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {category.isActive ? "Active" : "Hidden"}
-                </span>
-                <Switch
-                  checked={category.isActive}
-                  onCheckedChange={() => toggleCategory(category.id)}
-                />
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
     </div>

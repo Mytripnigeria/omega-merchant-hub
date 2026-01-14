@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
@@ -20,6 +21,7 @@ import {
   MoreHorizontal,
   Layers,
   Tag,
+  Search,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -103,6 +105,7 @@ const mockCombos: Combo[] = [
 export default function CombosPage() {
   const [combos] = useState<Combo[]>(mockCombos);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const formatPrice = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -116,19 +119,23 @@ export default function CombosPage() {
     return Math.round(((original - discounted) / original) * 100);
   };
 
+  const filteredCombos = combos.filter(combo =>
+    combo.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Combo Meals</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight">Combo Meals</h1>
+          <p className="text-sm text-muted-foreground">
             Create meal bundles with special pricing
           </p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gradient-primary text-primary-foreground">
+            <Button size="sm">
               <Plus className="mr-2 h-4 w-4" />
               Create Combo
             </Button>
@@ -168,7 +175,7 @@ export default function CombosPage() {
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button className="gradient-primary text-primary-foreground">
+              <Button>
                 Create Combo
               </Button>
             </DialogFooter>
@@ -178,100 +185,121 @@ export default function CombosPage() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Total Combos</p>
-          <p className="text-2xl font-bold text-foreground">{combos.length}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Active</p>
-          <p className="text-2xl font-bold text-success">{combos.filter(c => c.isActive).length}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Total Sales</p>
-          <p className="text-2xl font-bold text-foreground">{combos.reduce((acc, c) => acc + c.sales, 0)}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Revenue</p>
-          <p className="text-2xl font-bold text-foreground">
-            {formatPrice(combos.reduce((acc, c) => acc + (c.sales * c.price), 0))}
-          </p>
-        </div>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Total Combos</p>
+            <p className="text-2xl font-semibold">{combos.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Active</p>
+            <p className="text-2xl font-semibold text-green-600">{combos.filter(c => c.isActive).length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Total Sales</p>
+            <p className="text-2xl font-semibold">{combos.reduce((acc, c) => acc + c.sales, 0)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Revenue</p>
+            <p className="text-2xl font-semibold">
+              {formatPrice(combos.reduce((acc, c) => acc + (c.sales * c.price), 0))}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Combos Grid */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {combos.map((combo) => (
-          <div
-            key={combo.id}
-            className="rounded-xl border border-border bg-card shadow-card transition-all hover:shadow-elevated"
-          >
-            <div className="flex items-start justify-between p-6">
-              <div className="flex items-start gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
-                  <Layers className="h-7 w-7 text-primary" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-foreground">{combo.name}</h3>
-                    <Badge 
-                      variant="outline" 
-                      className="bg-success/10 text-success border-success/20"
-                    >
-                      <Tag className="mr-1 h-3 w-3" />
-                      {calculateSavings(combo.originalPrice, combo.price)}% off
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{combo.description}</p>
-                </div>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="text-destructive">
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            
-            <div className="border-t border-border px-6 py-4">
-              <p className="text-xs font-medium text-muted-foreground mb-2">INCLUDES</p>
-              <div className="flex flex-wrap gap-2">
-                {combo.products.map((product, idx) => (
-                  <Badge key={idx} variant="secondary">
-                    {product.quantity}x {product.name}
-                  </Badge>
-                ))}
-              </div>
-            </div>
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search combos..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
+      </div>
 
-            <div className="flex items-center justify-between border-t border-border px-6 py-4">
-              <div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-bold text-foreground">{formatPrice(combo.price)}</span>
-                  <span className="text-sm text-muted-foreground line-through">
-                    {formatPrice(combo.originalPrice)}
-                  </span>
+      {/* Combos Grid - Two columns on desktop */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {filteredCombos.map((combo) => (
+          <Card
+            key={combo.id}
+            className="transition-all hover:shadow-md"
+          >
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
+                    <Layers className="h-7 w-7 text-primary" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold">{combo.name}</h3>
+                      <Badge 
+                        variant="secondary" 
+                        className="bg-green-100 text-green-700"
+                      >
+                        <Tag className="mr-1 h-3 w-3" />
+                        {calculateSavings(combo.originalPrice, combo.price)}% off
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{combo.description}</p>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">{combo.sales} sold</p>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                  {combo.isActive ? "Active" : "Inactive"}
-                </span>
-                <Switch checked={combo.isActive} />
+              
+              <div className="mt-4 border-t pt-4">
+                <p className="text-xs font-medium text-muted-foreground mb-2">INCLUDES</p>
+                <div className="flex flex-wrap gap-2">
+                  {combo.products.map((product, idx) => (
+                    <Badge key={idx} variant="secondary">
+                      {product.quantity}x {product.name}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            </div>
-          </div>
+
+              <div className="flex items-center justify-between border-t mt-4 pt-4">
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xl font-bold">{formatPrice(combo.price)}</span>
+                    <span className="text-sm text-muted-foreground line-through">
+                      {formatPrice(combo.originalPrice)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{combo.sales} sold</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {combo.isActive ? "Active" : "Inactive"}
+                  </span>
+                  <Switch checked={combo.isActive} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
     </div>
