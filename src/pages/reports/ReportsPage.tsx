@@ -11,7 +11,7 @@ import {
 import { useStore } from "@/contexts/StoreContext";
 
 export default function ReportsPage() {
-  const { selectedStore } = useStore();
+  const { currentStore } = useStore();
   const [period, setPeriod] = useState("month");
 
   const summaryStats = [
@@ -41,7 +41,7 @@ export default function ReportsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Reports & Analytics</h1>
-          <p className="text-muted-foreground">Insights and performance data for {selectedStore?.name}</p>
+          <p className="text-muted-foreground">Insights and performance data for {currentStore?.name}</p>
         </div>
         <div className="flex items-center gap-2">
           <Select value={period} onValueChange={setPeriod}>

@@ -14,7 +14,7 @@ import {
 import { useStore } from "@/contexts/StoreContext";
 
 export default function StorefrontPage() {
-  const { selectedStore } = useStore();
+  const { currentStore } = useStore();
   const [isLive, setIsLive] = useState(true);
 
   return (
@@ -73,7 +73,7 @@ export default function StorefrontPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-2">
-                <Input value={`${selectedStore?.name?.toLowerCase().replace(/\s+/g, "-")}.omegaos.com`} readOnly />
+                <Input value={`${currentStore?.name?.toLowerCase().replace(/\s+/g, "-")}.omegaos.com`} readOnly />
                 <Button variant="outline" size="icon">
                   <Link2 className="h-4 w-4" />
                 </Button>
@@ -96,7 +96,7 @@ export default function StorefrontPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Store Name</Label>
-                <Input defaultValue={selectedStore?.name || "My Store"} />
+                <Input defaultValue={currentStore?.name || "My Store"} />
               </div>
               <div className="space-y-2">
                 <Label>Tagline</Label>

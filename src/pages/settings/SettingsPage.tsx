@@ -12,7 +12,7 @@ import { Store, Bell, CreditCard, Globe, Shield, Palette, Receipt, Users, Clock 
 import { useStore } from "@/contexts/StoreContext";
 
 export default function SettingsPage() {
-  const { selectedStore } = useStore();
+  const { currentStore } = useStore();
   const [notifications, setNotifications] = useState({
     orders: true,
     lowStock: true,
@@ -61,7 +61,7 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="storeName">Store Name</Label>
-                  <Input id="storeName" defaultValue={selectedStore?.name || "My Store"} />
+                  <Input id="storeName" defaultValue={currentStore?.name || "My Store"} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="storeEmail">Contact Email</Label>
