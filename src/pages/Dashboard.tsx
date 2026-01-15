@@ -6,18 +6,11 @@ import {
   DollarSign,
   ArrowUpRight,
   MoreHorizontal,
+  Clock,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
 import { 
   Select,
   SelectContent,
@@ -70,10 +63,10 @@ const orders = [
 ];
 
 const statusColors: Record<string, string> = {
-  Ready: "bg-green-100 text-green-700",
-  Preparing: "bg-yellow-100 text-yellow-700",
-  Delivered: "bg-blue-100 text-blue-700",
-  Cancelled: "bg-red-100 text-red-700",
+  Ready: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  Preparing: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+  Delivered: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  Cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
 interface StatCardProps {
@@ -87,24 +80,24 @@ interface StatCardProps {
 function StatCard({ title, value, change, trend, icon }: StatCardProps) {
   return (
     <Card>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">{title}</p>
-            <p className="text-2xl font-semibold tracking-tight">{value}</p>
-            <div className="flex items-center gap-1 text-sm">
+      <CardContent className="p-4 sm:p-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-1 min-w-0">
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">{title}</p>
+            <p className="text-xl sm:text-2xl font-semibold tracking-tight truncate">{value}</p>
+            <div className="flex items-center gap-1 text-xs sm:text-sm flex-wrap">
               {trend === "up" ? (
-                <TrendingUp className="h-4 w-4 text-green-600" />
+                <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
               ) : (
-                <TrendingDown className="h-4 w-4 text-red-600" />
+                <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4 text-red-600 flex-shrink-0" />
               )}
               <span className={trend === "up" ? "text-green-600" : "text-red-600"}>
                 {change}
               </span>
-              <span className="text-muted-foreground">vs last period</span>
+              <span className="text-muted-foreground hidden sm:inline">vs last period</span>
             </div>
           </div>
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+          <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-muted flex-shrink-0">
             {icon}
           </div>
         </div>
@@ -115,18 +108,18 @@ function StatCard({ title, value, change, trend, icon }: StatCardProps) {
 
 export default function Dashboard() {
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-6 sm:space-y-8 animate-fade-in">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Overview of your restaurant performance
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Select defaultValue="7d">
-            <SelectTrigger className="w-36 h-9">
+            <SelectTrigger className="w-full sm:w-36 h-9 text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -136,61 +129,61 @@ export default function Dashboard() {
               <SelectItem value="90d">Last 90 days</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="h-9 w-9 p-0 sm:w-auto sm:px-3">
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* Stats Grid - 2 cols on mobile, 4 on desktop */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
           title="Total Revenue"
-          value="₦2,590,000"
+          value="₦2.59M"
           change="+12.5%"
           trend="up"
-          icon={<DollarSign className="h-5 w-5 text-muted-foreground" />}
+          icon={<DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
         />
         <StatCard
           title="Orders"
           value="489"
           change="+8.2%"
           trend="up"
-          icon={<ShoppingCart className="h-5 w-5 text-muted-foreground" />}
+          icon={<ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
         />
         <StatCard
           title="Customers"
           value="1,284"
           change="+23.1%"
           trend="up"
-          icon={<Users className="h-5 w-5 text-muted-foreground" />}
+          icon={<Users className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
         />
         <StatCard
-          title="Avg Order Value"
+          title="Avg Order"
           value="₦5,300"
           change="-2.3%"
           trend="down"
-          icon={<TrendingUp className="h-5 w-5 text-muted-foreground" />}
+          icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
         />
       </div>
 
-      {/* Charts Row */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Charts Row - stacked on mobile, 2 cols on desktop */}
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
         {/* Revenue Chart */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 sm:px-6">
             <div>
-              <CardTitle className="text-base font-medium">Revenue</CardTitle>
-              <p className="text-sm text-muted-foreground">Daily revenue trend</p>
+              <CardTitle className="text-sm sm:text-base font-medium">Revenue</CardTitle>
+              <p className="text-xs sm:text-sm text-muted-foreground">Daily revenue trend</p>
             </div>
-            <Button variant="ghost" size="sm" className="text-muted-foreground">
+            <Button variant="ghost" size="sm" className="text-muted-foreground h-8 w-8 p-0">
               <ArrowUpRight className="h-4 w-4" />
             </Button>
           </CardHeader>
-          <CardContent>
-            <div className="h-[240px]">
+          <CardContent className="px-2 sm:px-6">
+            <div className="h-[180px] sm:h-[240px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0.2} />
@@ -201,13 +194,15 @@ export default function Dashboard() {
                     dataKey="name" 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                    interval="preserveStartEnd"
                   />
                   <YAxis 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
                     tickFormatter={(value) => `${value}k`}
+                    width={35}
                   />
                   <Tooltip
                     contentStyle={{
@@ -233,19 +228,19 @@ export default function Dashboard() {
 
         {/* Orders Chart */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 sm:px-6">
             <div>
-              <CardTitle className="text-base font-medium">Orders</CardTitle>
-              <p className="text-sm text-muted-foreground">Daily order count</p>
+              <CardTitle className="text-sm sm:text-base font-medium">Orders</CardTitle>
+              <p className="text-xs sm:text-sm text-muted-foreground">Daily order count</p>
             </div>
-            <Button variant="ghost" size="sm" className="text-muted-foreground">
+            <Button variant="ghost" size="sm" className="text-muted-foreground h-8 w-8 p-0">
               <ArrowUpRight className="h-4 w-4" />
             </Button>
           </CardHeader>
-          <CardContent>
-            <div className="h-[240px]">
+          <CardContent className="px-2 sm:px-6">
+            <div className="h-[180px] sm:h-[240px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="ordersGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0.2} />
@@ -256,12 +251,14 @@ export default function Dashboard() {
                     dataKey="name" 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                    interval="preserveStartEnd"
                   />
                   <YAxis 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                    width={35}
                   />
                   <Tooltip
                     contentStyle={{
@@ -286,49 +283,77 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Recent Orders */}
+      {/* Recent Orders - Mobile cards, Desktop table */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between px-4 sm:px-6">
           <div>
-            <CardTitle className="text-base font-medium">Recent Orders</CardTitle>
-            <p className="text-sm text-muted-foreground">Latest orders from all channels</p>
+            <CardTitle className="text-sm sm:text-base font-medium">Recent Orders</CardTitle>
+            <p className="text-xs sm:text-sm text-muted-foreground">Latest orders from all channels</p>
           </div>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="text-xs sm:text-sm">
             View All
           </Button>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-6">Order ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead className="pr-6">Time</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.map((order) => (
-                <TableRow key={order.id} className="group cursor-pointer">
-                  <TableCell className="pl-6 font-mono text-sm">
-                    #{order.id}
-                  </TableCell>
-                  <TableCell>{order.customer}</TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant="secondary" 
-                      className={cn("font-normal", statusColors[order.status])}
-                    >
-                      {order.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-medium">{order.total}</TableCell>
-                  <TableCell className="pr-6 text-muted-foreground">{order.time}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {/* Mobile view - Card list */}
+          <div className="block sm:hidden divide-y divide-border">
+            {orders.map((order) => (
+              <div key={order.id} className="p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-sm font-medium">#{order.id}</span>
+                  <Badge 
+                    variant="secondary" 
+                    className={cn("font-normal text-xs", statusColors[order.status])}
+                  >
+                    {order.status}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground truncate max-w-[150px]">{order.customer}</span>
+                  <span className="font-medium">{order.total}</span>
+                </div>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  {order.time}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Desktop view - Table */}
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4 pl-6">Order ID</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Customer</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Total</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4 pr-6">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((order) => (
+                  <tr key={order.id} className="group cursor-pointer hover:bg-muted/50 border-b border-border last:border-0">
+                    <td className="p-4 pl-6 font-mono text-sm">
+                      #{order.id}
+                    </td>
+                    <td className="p-4">{order.customer}</td>
+                    <td className="p-4">
+                      <Badge 
+                        variant="secondary" 
+                        className={cn("font-normal", statusColors[order.status])}
+                      >
+                        {order.status}
+                      </Badge>
+                    </td>
+                    <td className="p-4 font-medium">{order.total}</td>
+                    <td className="p-4 pr-6 text-muted-foreground">{order.time}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>
