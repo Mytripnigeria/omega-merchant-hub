@@ -93,18 +93,6 @@ import IntegrationsPage from "./pages/plugins/IntegrationsPage";
 
 // Settings
 import SettingsPage from "./pages/settings/SettingsPage";
-import StoreSettingsPage from "./pages/settings/StoreSettingsPage";
-import PaymentSettingsPage from "./pages/settings/PaymentSettingsPage";
-import TaxSettingsPage from "./pages/settings/TaxSettingsPage";
-import ReceiptSettingsPage from "./pages/settings/ReceiptSettingsPage";
-import PrinterSettingsPage from "./pages/settings/PrinterSettingsPage";
-import HoursSettingsPage from "./pages/settings/HoursSettingsPage";
-import LocationSettingsPage from "./pages/settings/LocationSettingsPage";
-import NotificationSettingsPage from "./pages/settings/NotificationSettingsPage";
-import TeamSettingsPage from "./pages/settings/TeamSettingsPage";
-import SecuritySettingsPage from "./pages/settings/SecuritySettingsPage";
-import WebhookSettingsPage from "./pages/settings/WebhookSettingsPage";
-import DomainSettingsPage from "./pages/settings/DomainSettingsPage";
 
 const queryClient = new QueryClient();
 
@@ -205,18 +193,6 @@ const App = () => (
               
               {/* Settings */}
               <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/settings/store" element={<StoreSettingsPage />} />
-              <Route path="/settings/payments" element={<PaymentSettingsPage />} />
-              <Route path="/settings/tax" element={<TaxSettingsPage />} />
-              <Route path="/settings/receipt" element={<ReceiptSettingsPage />} />
-              <Route path="/settings/printers" element={<PrinterSettingsPage />} />
-              <Route path="/settings/hours" element={<HoursSettingsPage />} />
-              <Route path="/settings/locations" element={<LocationSettingsPage />} />
-              <Route path="/settings/notifications" element={<NotificationSettingsPage />} />
-              <Route path="/settings/team" element={<TeamSettingsPage />} />
-              <Route path="/settings/security" element={<SecuritySettingsPage />} />
-              <Route path="/settings/webhooks" element={<WebhookSettingsPage />} />
-              <Route path="/settings/domains" element={<DomainSettingsPage />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
