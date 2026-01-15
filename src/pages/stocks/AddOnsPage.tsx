@@ -182,7 +182,7 @@ export default function AddOnsPage() {
       </div>
 
       {/* Search */}
-      <div className="relative max-w-sm">
+      <div className="relative w-full sm:max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search add-on groups..."
@@ -209,7 +209,7 @@ export default function AddOnsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="hidden sm:flex">
                   <Plus className="mr-1 h-4 w-4" />
                   Add
                 </Button>
@@ -220,6 +220,10 @@ export default function AddOnsPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem className="sm:hidden">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Add-on
+                    </DropdownMenuItem>
                     <DropdownMenuItem>
                       <Edit className="mr-2 h-4 w-4" />
                       Edit Group
@@ -233,37 +237,72 @@ export default function AddOnsPage() {
               </div>
             </div>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="pl-6">Add-on</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Available</TableHead>
-                    <TableHead className="pr-6 w-20">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {group.addOns.map((addon) => (
-                    <TableRow key={addon.id} className="group">
-                      <TableCell className="pl-6 font-medium">{addon.name}</TableCell>
-                      <TableCell>{formatPrice(addon.price)}</TableCell>
-                      <TableCell>
-                        <Switch checked={addon.isAvailable} />
-                      </TableCell>
-                      <TableCell className="pr-6">
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <Edit className="h-3.5 w-3.5" />
+              {/* Mobile List View */}
+              <div className="block sm:hidden divide-y divide-border">
+                {group.addOns.map((addon) => (
+                  <div key={addon.id} className="p-4 flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium">{addon.name}</p>
+                      <p className="text-sm text-muted-foreground">{formatPrice(addon.price)}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Switch checked={addon.isAvailable} />
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="pl-6">Add-on</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Available</TableHead>
+                      <TableHead className="pr-6 w-20">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {group.addOns.map((addon) => (
+                      <TableRow key={addon.id} className="group">
+                        <TableCell className="pl-6 font-medium">{addon.name}</TableCell>
+                        <TableCell>{formatPrice(addon.price)}</TableCell>
+                        <TableCell>
+                          <Switch checked={addon.isAvailable} />
+                        </TableCell>
+                        <TableCell className="pr-6">
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         ))}

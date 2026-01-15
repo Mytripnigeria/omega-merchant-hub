@@ -213,7 +213,7 @@ export default function IngredientsPage() {
       </div>
 
       {/* Search */}
-      <div className="relative max-w-sm">
+      <div className="relative w-full sm:max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search ingredients..."
@@ -226,88 +226,149 @@ export default function IngredientsPage() {
       {/* Table */}
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-6">Ingredient</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Cost/Unit</TableHead>
-                <TableHead>Supplier</TableHead>
-                <TableHead>Linked</TableHead>
-                <TableHead className="pr-6 w-12"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredIngredients.map((ingredient) => {
-                const status = getStockStatus(ingredient.currentStock, ingredient.minStock);
-                return (
-                  <TableRow key={ingredient.id} className="group cursor-pointer hover:bg-muted/50">
-                    <TableCell className="pl-6">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                          <Package className="h-5 w-5 text-muted-foreground" />
+          {/* Mobile Card View */}
+          <div className="block sm:hidden divide-y divide-border">
+            {filteredIngredients.map((ingredient) => {
+              const status = getStockStatus(ingredient.currentStock, ingredient.minStock);
+              return (
+                <div key={ingredient.id} className="p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted shrink-0">
+                      <Package className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-medium">{ingredient.name}</p>
+                          <p className="text-xs font-mono text-muted-foreground">{ingredient.sku}</p>
                         </div>
-                        <span className="font-medium">{ingredient.name}</span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add Stock
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm text-muted-foreground">
-                      {ingredient.sku}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">
-                          {ingredient.currentStock}
-                        </span>
-                        <span className="text-muted-foreground">{ingredient.unit}</span>
-                        {ingredient.currentStock <= ingredient.minStock && (
-                          <TrendingDown className="h-4 w-4 text-red-600" />
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className={cn("font-normal", status.class)}>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{ingredient.currentStock} {ingredient.unit}</span>
+                      {ingredient.currentStock <= ingredient.minStock && (
+                        <TrendingDown className="h-4 w-4 text-destructive" />
+                      )}
+                      <Badge variant="secondary" className={cn("font-normal text-xs", status.class)}>
                         {status.label}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {formatPrice(ingredient.costPerUnit)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {ingredient.supplier}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {ingredient.linkedProducts} products
-                    </TableCell>
-                    <TableCell className="pr-6">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Stock
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                    </div>
+                    <span className="text-muted-foreground">{formatPrice(ingredient.costPerUnit)}/{ingredient.unit}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{ingredient.supplier}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden sm:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-6">Ingredient</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Stock</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Cost/Unit</TableHead>
+                  <TableHead>Supplier</TableHead>
+                  <TableHead>Linked</TableHead>
+                  <TableHead className="pr-6 w-12"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredIngredients.map((ingredient) => {
+                  const status = getStockStatus(ingredient.currentStock, ingredient.minStock);
+                  return (
+                    <TableRow key={ingredient.id} className="group cursor-pointer hover:bg-muted/50">
+                      <TableCell className="pl-6">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                            <Package className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                          <span className="font-medium">{ingredient.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm text-muted-foreground">
+                        {ingredient.sku}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">
+                            {ingredient.currentStock}
+                          </span>
+                          <span className="text-muted-foreground">{ingredient.unit}</span>
+                          {ingredient.currentStock <= ingredient.minStock && (
+                            <TrendingDown className="h-4 w-4 text-destructive" />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className={cn("font-normal", status.class)}>
+                          {status.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {formatPrice(ingredient.costPerUnit)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {ingredient.supplier}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {ingredient.linkedProducts} products
+                      </TableCell>
+                      <TableCell className="pr-6">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add Stock
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
