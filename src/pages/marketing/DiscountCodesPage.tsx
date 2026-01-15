@@ -3,11 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Search, Plus, Tag, Percent, Users, MoreHorizontal } from "lucide-react";
+import { Search, Plus, Tag, Percent, Users, MoreHorizontal, Calendar } from "lucide-react";
 
 export default function DiscountCodesPage() {
   const [search, setSearch] = useState("");
@@ -27,16 +26,16 @@ export default function DiscountCodesPage() {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Discount Codes</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Discount Codes</h1>
           <p className="text-sm text-muted-foreground">Create and manage promotional codes</p>
         </div>
         <Dialog>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-2" />Create Code</Button>
+            <Button size="sm"><Plus className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Create Code</span></Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Create Discount Code</DialogTitle></DialogHeader>
@@ -68,18 +67,18 @@ export default function DiscountCodesPage() {
       {/* Two-column layout for desktop */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           {/* Stats */}
           <div className="grid gap-3 grid-cols-3">
             {stats.map((stat) => (
               <Card key={stat.label} className="border-border/50">
-                <CardContent className="p-4">
+                <CardContent className="p-3 sm:p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                      <stat.icon className="h-4 w-4 text-muted-foreground" />
+                    <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-muted flex items-center justify-center">
+                      <stat.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                     </div>
                   </div>
-                  <p className="text-2xl font-semibold">{stat.value}</p>
+                  <p className="text-xl sm:text-2xl font-semibold">{stat.value}</p>
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
                 </CardContent>
               </Card>
@@ -109,56 +108,87 @@ export default function DiscountCodesPage() {
             </Select>
           </div>
 
-          {/* Discount Codes Table */}
+          {/* Discount Codes List */}
           <Card className="border-border/50">
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border/50 hover:bg-transparent">
-                      <TableHead className="text-xs font-medium text-muted-foreground">Code</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Discount</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden sm:table-cell">Min.</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden md:table-cell">Uses</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden md:table-cell">Expires</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Status</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+              {/* Mobile Card View */}
+              <div className="block sm:hidden divide-y divide-border">
+                {discounts.map((discount) => (
+                  <div key={discount.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-mono font-medium">{discount.code}</p>
+                        <p className="text-lg font-semibold">
+                          {discount.type === "percentage" ? `${discount.value}%` : `$${discount.value}`} off
+                        </p>
+                      </div>
+                      <Badge 
+                        variant={discount.status === "active" ? "default" : "secondary"} 
+                        className="text-xs font-normal shrink-0"
+                      >
+                        {discount.status}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Min. ${discount.minOrder}</span>
+                      <span>{discount.uses}/{discount.maxUses} uses</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      <span>Expires {discount.expires}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Code</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Discount</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Min.</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Uses</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Expires</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {discounts.map((discount) => (
-                      <TableRow key={discount.id} className="border-border/50 group cursor-pointer">
-                        <TableCell className="font-mono font-medium text-sm">{discount.code}</TableCell>
-                        <TableCell className="text-sm">
+                      <tr key={discount.id} className="border-b border-border last:border-0 group cursor-pointer hover:bg-muted/50">
+                        <td className="p-4 font-mono font-medium text-sm">{discount.code}</td>
+                        <td className="p-4 text-sm">
                           {discount.type === "percentage" ? `${discount.value}%` : `$${discount.value}`}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">${discount.minOrder}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground hidden md:table-cell">{discount.uses}/{discount.maxUses}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground hidden md:table-cell">{discount.expires}</TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="p-4 text-sm text-muted-foreground">${discount.minOrder}</td>
+                        <td className="p-4 text-sm text-muted-foreground">{discount.uses}/{discount.maxUses}</td>
+                        <td className="p-4 text-sm text-muted-foreground">{discount.expires}</td>
+                        <td className="p-4">
                           <Badge 
                             variant={discount.status === "active" ? "default" : "secondary"} 
                             className="text-xs font-normal"
                           >
                             {discount.status}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="p-4">
                           <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
+        {/* Sidebar - Hidden on mobile */}
+        <div className="hidden lg:block space-y-6">
           <Card className="border-border/50">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium">Top Performing</CardTitle>
