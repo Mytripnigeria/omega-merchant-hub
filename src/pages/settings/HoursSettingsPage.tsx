@@ -21,21 +21,24 @@ export default function HoursSettingsPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {days.map((day, index) => (
-              <div key={day} className="flex items-center justify-between p-3 rounded-lg border">
-                <span className="font-medium text-sm w-24">{day}</span>
-                <div className="flex items-center gap-3">
+              <div key={day} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border gap-3">
+                <div className="flex items-center justify-between sm:justify-start">
+                  <span className="font-medium text-sm w-24">{day}</span>
+                  <Switch defaultChecked={index !== 6} className="sm:hidden" />
+                </div>
+                <div className="flex items-center gap-2 sm:gap-3">
                   <Input 
                     type="time" 
                     defaultValue="09:00" 
-                    className="w-28 h-9" 
+                    className="flex-1 sm:w-28 h-9" 
                   />
-                  <span className="text-muted-foreground">to</span>
+                  <span className="text-muted-foreground text-sm">to</span>
                   <Input 
                     type="time" 
                     defaultValue={index === 6 ? "18:00" : "22:00"} 
-                    className="w-28 h-9" 
+                    className="flex-1 sm:w-28 h-9" 
                   />
-                  <Switch defaultChecked={index !== 6} />
+                  <Switch defaultChecked={index !== 6} className="hidden sm:flex" />
                 </div>
               </div>
             ))}
