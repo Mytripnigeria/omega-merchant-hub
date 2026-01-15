@@ -20,9 +20,13 @@ import {
   Boxes,
   Monitor,
   Search,
+  Menu,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Collapsible,
   CollapsibleContent,
@@ -252,10 +256,11 @@ function NavMenuItem({ item }: { item: NavItem }) {
 }
 
 export function Sidebar({ collapsed }: SidebarProps) {
-  if (collapsed) return null;
+  const isMobile = useIsMobile();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  return (
-    <aside className="sticky top-0 flex h-screen w-64 flex-col border-r border-border bg-background">
+  const sidebarContent = (
+    <>
       {/* Search */}
       <div className="p-4">
         <div className="relative">
@@ -275,6 +280,36 @@ export function Sidebar({ collapsed }: SidebarProps) {
           ))}
         </nav>
       </ScrollArea>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetTrigger asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            className="fixed left-3 top-3 z-50 h-10 w-10 rounded-xl md:hidden"
+            aria-label="Open navigation"
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-80 max-w-[85vw] p-0">
+          <aside className="flex h-full flex-col border-r border-border bg-background">
+            {sidebarContent}
+          </aside>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  if (collapsed) return null;
+
+  return (
+    <aside className="sticky top-0 flex h-screen w-64 flex-col border-r border-border bg-background">
+      {sidebarContent}
     </aside>
   );
 }

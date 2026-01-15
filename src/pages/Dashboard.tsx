@@ -63,10 +63,10 @@ const orders = [
 ];
 
 const statusColors: Record<string, string> = {
-  Ready: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  Preparing: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-  Delivered: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  Cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  Ready: "bg-success/10 text-success border-success/20",
+  Preparing: "bg-warning/10 text-warning border-warning/20",
+  Delivered: "bg-info/10 text-info border-info/20",
+  Cancelled: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
 interface StatCardProps {
