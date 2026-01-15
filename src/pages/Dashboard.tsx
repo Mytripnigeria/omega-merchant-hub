@@ -11,6 +11,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Select,
   SelectContent,
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { cn } from "@/lib/utils";
+import { useLoading } from "@/hooks/use-loading";
 
 const chartData = [
   { name: "Mon", value: 245 },
@@ -75,9 +77,27 @@ interface StatCardProps {
   change: string;
   trend: "up" | "down";
   icon: React.ReactNode;
+  isLoading?: boolean;
 }
 
-function StatCard({ title, value, change, trend, icon }: StatCardProps) {
+function StatCard({ title, value, change, trend, icon, isLoading }: StatCardProps) {
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="space-y-2 min-w-0 flex-1">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-7 w-24" />
+              <Skeleton className="h-4 w-16" />
+            </div>
+            <Skeleton className="h-10 w-10 sm:h-12 sm:w-12 rounded-full flex-shrink-0" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardContent className="p-4 sm:p-6">
@@ -106,7 +126,81 @@ function StatCard({ title, value, change, trend, icon }: StatCardProps) {
   );
 }
 
+function ChartSkeleton() {
+  return (
+    <div className="h-[180px] sm:h-[240px] flex items-center justify-center">
+      <div className="w-full h-full flex flex-col justify-end px-4 gap-2">
+        <div className="flex items-end justify-between gap-2 h-full">
+          {[40, 60, 50, 75, 85, 95, 70].map((height, i) => (
+            <Skeleton 
+              key={i} 
+              className="flex-1 rounded-t" 
+              style={{ height: `${height}%` }} 
+            />
+          ))}
+        </div>
+        <div className="flex justify-between">
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+            <Skeleton key={day} className="h-3 w-6" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrdersSkeleton() {
+  return (
+    <>
+      {/* Mobile skeleton */}
+      <div className="block sm:hidden divide-y divide-border">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-5 w-16 rounded-full" />
+            </div>
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-16" />
+            </div>
+            <Skeleton className="h-3 w-12" />
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop skeleton */}
+      <div className="hidden sm:block">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border">
+              {["Order ID", "Customer", "Status", "Total", "Time"].map((header) => (
+                <th key={header} className="text-left p-4 first:pl-6 last:pr-6">
+                  <Skeleton className="h-3 w-16" />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <tr key={i} className="border-b border-border last:border-0">
+                <td className="p-4 pl-6"><Skeleton className="h-4 w-20" /></td>
+                <td className="p-4"><Skeleton className="h-4 w-32" /></td>
+                <td className="p-4"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                <td className="p-4"><Skeleton className="h-4 w-16" /></td>
+                <td className="p-4 pr-6"><Skeleton className="h-4 w-12" /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
 export default function Dashboard() {
+  const isLoading = useLoading(1200);
+
   return (
     <div className="space-y-6 sm:space-y-8 animate-fade-in">
       {/* Page Header */}
@@ -143,6 +237,7 @@ export default function Dashboard() {
           change="+12.5%"
           trend="up"
           icon={<DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
+          isLoading={isLoading}
         />
         <StatCard
           title="Orders"
@@ -150,6 +245,7 @@ export default function Dashboard() {
           change="+8.2%"
           trend="up"
           icon={<ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
+          isLoading={isLoading}
         />
         <StatCard
           title="Customers"
@@ -157,6 +253,7 @@ export default function Dashboard() {
           change="+23.1%"
           trend="up"
           icon={<Users className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
+          isLoading={isLoading}
         />
         <StatCard
           title="Avg Order"
@@ -164,6 +261,7 @@ export default function Dashboard() {
           change="-2.3%"
           trend="down"
           icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
+          isLoading={isLoading}
         />
       </div>
 
@@ -181,48 +279,52 @@ export default function Dashboard() {
             </Button>
           </CardHeader>
           <CardContent className="px-2 sm:px-6">
-            <div className="h-[180px] sm:h-[240px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0.2} />
-                      <stop offset="100%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
-                    tickFormatter={(value) => `${value}k`}
-                    width={35}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--background))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      fontSize: "12px",
-                    }}
-                    formatter={(value: number) => [`₦${value}k`, "Revenue"]}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke="hsl(217, 91%, 60%)"
-                    strokeWidth={2}
-                    fill="url(#revenueGradient)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            {isLoading ? (
+              <ChartSkeleton />
+            ) : (
+              <div className="h-[180px] sm:h-[240px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0.2} />
+                        <stop offset="100%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                      tickFormatter={(value) => `${value}k`}
+                      width={35}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--background))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                      }}
+                      formatter={(value: number) => [`₦${value}k`, "Revenue"]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="hsl(217, 91%, 60%)"
+                      strokeWidth={2}
+                      fill="url(#revenueGradient)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -238,47 +340,51 @@ export default function Dashboard() {
             </Button>
           </CardHeader>
           <CardContent className="px-2 sm:px-6">
-            <div className="h-[180px] sm:h-[240px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="ordersGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0.2} />
-                      <stop offset="100%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
-                    width={35}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--background))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      fontSize: "12px",
-                    }}
-                    formatter={(value: number) => [value, "Orders"]}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke="hsl(142, 76%, 36%)"
-                    strokeWidth={2}
-                    fill="url(#ordersGradient)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            {isLoading ? (
+              <ChartSkeleton />
+            ) : (
+              <div className="h-[180px] sm:h-[240px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="ordersGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0.2} />
+                        <stop offset="100%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                      width={35}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--background))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                      }}
+                      formatter={(value: number) => [value, "Orders"]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="hsl(142, 76%, 36%)"
+                      strokeWidth={2}
+                      fill="url(#ordersGradient)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -295,65 +401,71 @@ export default function Dashboard() {
           </Button>
         </CardHeader>
         <CardContent className="p-0">
-          {/* Mobile view - Card list */}
-          <div className="block sm:hidden divide-y divide-border">
-            {orders.map((order) => (
-              <div key={order.id} className="p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm font-medium">#{order.id}</span>
-                  <Badge 
-                    variant="secondary" 
-                    className={cn("font-normal text-xs", statusColors[order.status])}
-                  >
-                    {order.status}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground truncate max-w-[150px]">{order.customer}</span>
-                  <span className="font-medium">{order.total}</span>
-                </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  {order.time}
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          {/* Desktop view - Table */}
-          <div className="hidden sm:block overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4 pl-6">Order ID</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Customer</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Total</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4 pr-6">Time</th>
-                </tr>
-              </thead>
-              <tbody>
+          {isLoading ? (
+            <OrdersSkeleton />
+          ) : (
+            <>
+              {/* Mobile view - Card list */}
+              <div className="block sm:hidden divide-y divide-border">
                 {orders.map((order) => (
-                  <tr key={order.id} className="group cursor-pointer hover:bg-muted/50 border-b border-border last:border-0">
-                    <td className="p-4 pl-6 font-mono text-sm">
-                      #{order.id}
-                    </td>
-                    <td className="p-4">{order.customer}</td>
-                    <td className="p-4">
+                  <div key={order.id} className="p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-sm font-medium">#{order.id}</span>
                       <Badge 
                         variant="secondary" 
-                        className={cn("font-normal", statusColors[order.status])}
+                        className={cn("font-normal text-xs", statusColors[order.status])}
                       >
                         {order.status}
                       </Badge>
-                    </td>
-                    <td className="p-4 font-medium">{order.total}</td>
-                    <td className="p-4 pr-6 text-muted-foreground">{order.time}</td>
-                  </tr>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground truncate max-w-[150px]">{order.customer}</span>
+                      <span className="font-medium">{order.total}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      {order.time}
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+              
+              {/* Desktop view - Table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4 pl-6">Order ID</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Customer</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Total</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4 pr-6">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orders.map((order) => (
+                      <tr key={order.id} className="group cursor-pointer hover:bg-muted/50 border-b border-border last:border-0">
+                        <td className="p-4 pl-6 font-mono text-sm">
+                          #{order.id}
+                        </td>
+                        <td className="p-4">{order.customer}</td>
+                        <td className="p-4">
+                          <Badge 
+                            variant="secondary" 
+                            className={cn("font-normal", statusColors[order.status])}
+                          >
+                            {order.status}
+                          </Badge>
+                        </td>
+                        <td className="p-4 font-medium">{order.total}</td>
+                        <td className="p-4 pr-6 text-muted-foreground">{order.time}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
