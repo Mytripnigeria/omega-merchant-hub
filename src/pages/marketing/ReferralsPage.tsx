@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Users, Gift, DollarSign, Download, Settings, MoreHorizontal } from "lucide-react";
@@ -24,6 +23,11 @@ export default function ReferralsPage() {
     { label: "Completed", value: "198", icon: Gift },
     { label: "Rewards Paid", value: "$1,980", icon: DollarSign },
   ];
+
+  const statusColors: Record<string, string> = {
+    completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -83,45 +87,65 @@ export default function ReferralsPage() {
             </Select>
           </div>
 
-          {/* Referrals Table */}
-          <Card className="border-border/50">
+          {/* Mobile Card View */}
+          <div className="block sm:hidden space-y-3">
+            {referrals.map((ref) => (
+              <Card key={ref.id} className="border-border/50">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="font-medium">{ref.referrer}</p>
+                      <p className="text-xs text-muted-foreground">referred {ref.referred}</p>
+                    </div>
+                    <Badge className={statusColors[ref.status]} variant="secondary">
+                      {ref.status}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between mt-2 text-sm">
+                    <span className="text-muted-foreground">{ref.date}</span>
+                    <span className="font-medium">${ref.reward.toFixed(2)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <Card className="border-border/50 hidden sm:block">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border/50 hover:bg-transparent">
-                      <TableHead className="text-xs font-medium text-muted-foreground">Referrer</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Referred</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden sm:table-cell">Date</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground text-right">Reward</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Status</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border/50">
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Referrer</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Referred</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Date</th>
+                      <th className="text-right text-xs font-medium text-muted-foreground p-4">Reward</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                      <th className="w-10 p-4"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {referrals.map((ref) => (
-                      <TableRow key={ref.id} className="border-border/50 group cursor-pointer">
-                        <TableCell className="font-medium text-sm">{ref.referrer}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{ref.referred}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">{ref.date}</TableCell>
-                        <TableCell className="text-sm font-medium text-right">${ref.reward.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={ref.status === "completed" ? "default" : "secondary"} 
-                            className="text-xs font-normal"
-                          >
+                      <tr key={ref.id} className="border-b border-border/50 last:border-0 group cursor-pointer hover:bg-muted/50">
+                        <td className="font-medium text-sm p-4">{ref.referrer}</td>
+                        <td className="text-sm text-muted-foreground p-4">{ref.referred}</td>
+                        <td className="text-sm text-muted-foreground p-4">{ref.date}</td>
+                        <td className="text-sm font-medium text-right p-4">${ref.reward.toFixed(2)}</td>
+                        <td className="p-4">
+                          <Badge className={statusColors[ref.status]} variant="secondary">
                             {ref.status}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="p-4">
                           <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
