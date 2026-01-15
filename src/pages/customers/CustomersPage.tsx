@@ -3,16 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, MoreHorizontal, Plus, Filter, Mail } from "lucide-react";
+import { Search, MoreHorizontal, Plus, Filter, Mail, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Customer {
@@ -89,58 +81,58 @@ export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Customers</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Customers</h1>
           <p className="text-sm text-muted-foreground">
             View and manage your customer database
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
             <Mail className="mr-2 h-4 w-4" />
-            Email All
+            <span className="hidden xs:inline">Email All</span>
           </Button>
-          <Button size="sm">
+          <Button size="sm" className="flex-1 sm:flex-none">
             <Plus className="mr-2 h-4 w-4" />
-            Add Customer
+            <span className="hidden xs:inline">Add Customer</span>
           </Button>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total Customers</p>
-            <p className="text-2xl font-semibold">1,284</p>
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">Total Customers</p>
+            <p className="text-xl sm:text-2xl font-semibold">1,284</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Active</p>
-            <p className="text-2xl font-semibold">1,156</p>
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">Active</p>
+            <p className="text-xl sm:text-2xl font-semibold">1,156</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">VIP Members</p>
-            <p className="text-2xl font-semibold">89</p>
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">VIP Members</p>
+            <p className="text-xl sm:text-2xl font-semibold">89</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">New This Month</p>
-            <p className="text-2xl font-semibold">156</p>
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">New This Month</p>
+            <p className="text-xl sm:text-2xl font-semibold">156</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex items-center gap-3 sm:gap-4">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search customers..."
@@ -149,74 +141,118 @@ export default function CustomersPage() {
             className="pl-9"
           />
         </div>
-        <Button variant="outline" size="icon">
+        <Button variant="outline" size="icon" className="shrink-0">
           <Filter className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* Customers Table */}
+      {/* Customers List */}
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-6 w-12">
-                  <input type="checkbox" className="rounded border-border" />
-                </TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Orders</TableHead>
-                <TableHead>Total Spent</TableHead>
-                <TableHead>Last Order</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="pr-6 w-12"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {customers.map((customer) => (
-                <TableRow key={customer.id} className="group cursor-pointer hover:bg-muted/50">
-                  <TableCell className="pl-6">
-                    <input type="checkbox" className="rounded border-border" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9">
-                        <AvatarFallback className="bg-muted text-xs">
-                          {customer.name.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{customer.name}</p>
-                        <p className="text-sm text-muted-foreground">{customer.email}</p>
-                      </div>
+          {/* Mobile Card View */}
+          <div className="block sm:hidden divide-y divide-border">
+            {customers.map((customer) => (
+              <div key={customer.id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar className="h-10 w-10 shrink-0">
+                      <AvatarFallback className="bg-muted text-xs">
+                        {customer.name.split(' ').map(n => n[0]).join('')}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{customer.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{customer.email}</p>
                     </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{customer.phone}</TableCell>
-                  <TableCell>{customer.orders}</TableCell>
-                  <TableCell className="font-medium">{customer.spent}</TableCell>
-                  <TableCell className="text-muted-foreground">{customer.lastOrder}</TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant="secondary" 
-                      className={cn("font-normal", statusColors[customer.status])}
-                    >
-                      {customer.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="pr-6">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </div>
+                  <Badge 
+                    variant="secondary" 
+                    className={cn("text-xs font-normal shrink-0", statusColors[customer.status])}
+                  >
+                    {customer.status}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Phone className="h-3 w-3" />
+                  <span>{customer.phone}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="space-y-0.5">
+                    <p className="text-muted-foreground text-xs">{customer.orders} orders</p>
+                    <p className="font-medium">{customer.spent}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-muted-foreground text-xs">Last order</p>
+                    <p className="text-sm">{customer.lastOrder}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4 pl-6 w-12">
+                    <input type="checkbox" className="rounded border-border" />
+                  </th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Customer</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Phone</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Orders</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Total Spent</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Last Order</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4 pr-6 w-12"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {customers.map((customer) => (
+                  <tr key={customer.id} className="group cursor-pointer hover:bg-muted/50 border-b border-border last:border-0">
+                    <td className="p-4 pl-6">
+                      <input type="checkbox" className="rounded border-border" />
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9">
+                          <AvatarFallback className="bg-muted text-xs">
+                            {customer.name.split(' ').map(n => n[0]).join('')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{customer.name}</p>
+                          <p className="text-sm text-muted-foreground">{customer.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4 text-muted-foreground">{customer.phone}</td>
+                    <td className="p-4">{customer.orders}</td>
+                    <td className="p-4 font-medium">{customer.spent}</td>
+                    <td className="p-4 text-muted-foreground">{customer.lastOrder}</td>
+                    <td className="p-4">
+                      <Badge 
+                        variant="secondary" 
+                        className={cn("font-normal", statusColors[customer.status])}
+                      >
+                        {customer.status}
+                      </Badge>
+                    </td>
+                    <td className="p-4 pr-6">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
           Showing 1-5 of 1,284 customers
         </p>
