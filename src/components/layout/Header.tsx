@@ -7,7 +7,6 @@ import {
   LogOut,
   HelpCircle,
   ChevronDown,
-  Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,11 +30,7 @@ const mainNavItems = [
   { title: "Settings", href: "/settings" },
 ];
 
-export function Header({
-  onToggleSidebar,
-}: {
-  onToggleSidebar?: () => void;
-}) {
+export function Header() {
   const location = useLocation();
 
   const isActive = (href: string) => {
@@ -44,23 +39,11 @@ export function Header({
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background">
+    <header className="sticky top-0 z-40 border-b border-border bg-background">
       {/* Top Bar */}
       <div className="flex h-14 items-center justify-between px-4 sm:px-6">
         {/* Left: Logo & Project */}
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          {onToggleSidebar && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 md:hidden flex-shrink-0"
-              onClick={onToggleSidebar}
-              aria-label="Open menu"
-            >
-              <Menu className="h-5 w-5 text-muted-foreground" />
-            </Button>
-          )}
-
           <Link to="/dashboard" className="flex items-center gap-2 flex-shrink-0">
             <div className="flex h-6 w-6 items-center justify-center rounded bg-foreground">
               <span className="text-xs font-bold text-background">Ω</span>

@@ -4,21 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { 
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Download, FileText, MoreHorizontal, DollarSign, Users, Clock, Calendar } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Search, Download, FileText, MoreHorizontal, DollarSign, Users, Clock, Calendar, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Payslip {
@@ -41,6 +34,15 @@ const payslips: Payslip[] = [
   { id: "5", staff: "David Wilson", email: "david@store.com", period: "Jan 2026", baseSalary: "₦350,000", overtime: "+₦30,000", deductions: "-₦19,000", netPay: "₦361,000", status: "Paid" },
 ];
 
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case "Paid": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+    case "Pending": return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+    case "Processing": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+    default: return "";
+  }
+};
+
 export default function PayslipsPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -52,21 +54,21 @@ export default function PayslipsPage() {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Payslips</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Payslips</h1>
           <p className="text-sm text-muted-foreground">Manage staff salaries and payments</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
             <Download className="mr-2 h-4 w-4" />
-            Export
+            <span className="hidden xs:inline">Export</span>
           </Button>
-          <Button size="sm">
+          <Button size="sm" className="flex-1 sm:flex-none">
             <FileText className="mr-2 h-4 w-4" />
-            Generate
+            <span className="hidden xs:inline">Generate</span>
           </Button>
         </div>
       </div>
@@ -74,18 +76,18 @@ export default function PayslipsPage() {
       {/* Two-column layout for desktop */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main content - 2 columns on desktop */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           {/* Stats - 2x2 grid on mobile, 4 columns on desktop */}
           <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
             {stats.map((stat) => (
               <Card key={stat.label} className="border-border/50">
-                <CardContent className="p-4">
+                <CardContent className="p-3 sm:p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                      <stat.icon className="h-4 w-4 text-muted-foreground" />
+                    <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-muted flex items-center justify-center">
+                      <stat.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                     </div>
                   </div>
-                  <p className="text-2xl font-semibold">{stat.value}</p>
+                  <p className="text-xl sm:text-2xl font-semibold">{stat.value}</p>
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
                 </CardContent>
               </Card>
@@ -126,63 +128,104 @@ export default function PayslipsPage() {
             </Select>
           </div>
 
-          {/* Payslips Table */}
+          {/* Payslips List */}
           <Card className="border-border/50">
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border/50 hover:bg-transparent">
-                      <TableHead className="text-xs font-medium text-muted-foreground">Staff</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden sm:table-cell">Base</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden md:table-cell">Overtime</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden md:table-cell">Deductions</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Net Pay</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Status</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+              {/* Mobile Card View */}
+              <div className="block sm:hidden divide-y divide-border">
+                {payslips.map((slip) => (
+                  <div key={slip.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="h-9 w-9 shrink-0">
+                          <AvatarFallback className="bg-muted text-xs">
+                            {slip.staff.split(' ').map(n => n[0]).join('')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{slip.staff}</p>
+                          <p className="text-xs text-muted-foreground truncate">{slip.email}</p>
+                        </div>
+                      </div>
+                      <Badge 
+                        variant="secondary" 
+                        className={cn("text-xs font-normal shrink-0", getStatusColor(slip.status))}
+                      >
+                        {slip.status}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <p className="text-muted-foreground">Base</p>
+                        <p className="font-medium">{slip.baseSalary}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Overtime</p>
+                        <p className="font-medium text-green-600">{slip.overtime}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Deductions</p>
+                        <p className="font-medium text-red-600">{slip.deductions}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-border">
+                      <span className="text-xs text-muted-foreground">{slip.period}</span>
+                      <span className="font-semibold">{slip.netPay}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Staff</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Base</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Overtime</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Deductions</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Net Pay</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {payslips.map((slip) => (
-                      <TableRow key={slip.id} className="border-border/50 group cursor-pointer">
-                        <TableCell>
+                      <tr key={slip.id} className="border-b border-border last:border-0 group cursor-pointer hover:bg-muted/50">
+                        <td className="p-4">
                           <div>
                             <p className="font-medium text-sm">{slip.staff}</p>
                             <p className="text-xs text-muted-foreground">{slip.email}</p>
                           </div>
-                        </TableCell>
-                        <TableCell className="text-sm hidden sm:table-cell">{slip.baseSalary}</TableCell>
-                        <TableCell className="text-sm text-green-600 hidden md:table-cell">{slip.overtime}</TableCell>
-                        <TableCell className="text-sm text-red-600 hidden md:table-cell">{slip.deductions}</TableCell>
-                        <TableCell className="font-semibold text-sm">{slip.netPay}</TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="p-4 text-sm">{slip.baseSalary}</td>
+                        <td className="p-4 text-sm text-green-600">{slip.overtime}</td>
+                        <td className="p-4 text-sm text-red-600">{slip.deductions}</td>
+                        <td className="p-4 font-semibold text-sm">{slip.netPay}</td>
+                        <td className="p-4">
                           <Badge 
                             variant="secondary" 
-                            className={cn(
-                              "text-xs font-normal",
-                              slip.status === "Paid" && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                              slip.status === "Pending" && "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-                              slip.status === "Processing" && "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                            )}
+                            className={cn("text-xs font-normal", getStatusColor(slip.status))}
                           >
                             {slip.status}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="p-4">
                           <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">Showing 1-5 of 24 payslips</p>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" disabled className="h-8">Previous</Button>
@@ -191,8 +234,8 @@ export default function PayslipsPage() {
           </div>
         </div>
 
-        {/* Sidebar - 1 column on desktop */}
-        <div className="space-y-6">
+        {/* Sidebar - Hidden on mobile */}
+        <div className="hidden lg:block space-y-6">
           <Card className="border-border/50">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>

@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -28,11 +27,11 @@ export default function InventoriesPage() {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Inventories</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Inventories</h1>
           <p className="text-sm text-muted-foreground">Manage stock levels across locations</p>
         </div>
         <Dialog>
@@ -57,18 +56,18 @@ export default function InventoriesPage() {
       {/* Two-column layout for desktop */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           {/* Stats */}
           <div className="grid gap-3 grid-cols-3">
             {stats.map((stat) => (
               <Card key={stat.label} className="border-border/50">
-                <CardContent className="p-4">
+                <CardContent className="p-3 sm:p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                      <stat.icon className={`h-4 w-4 ${stat.color || "text-muted-foreground"}`} />
+                    <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-muted flex items-center justify-center">
+                      <stat.icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${stat.color || "text-muted-foreground"}`} />
                     </div>
                   </div>
-                  <p className="text-2xl font-semibold">{stat.value}</p>
+                  <p className="text-xl sm:text-2xl font-semibold">{stat.value}</p>
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
                 </CardContent>
               </Card>
@@ -99,54 +98,83 @@ export default function InventoriesPage() {
             </Select>
           </div>
 
-          {/* Inventory Table */}
+          {/* Inventory List */}
           <Card className="border-border/50">
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border/50 hover:bg-transparent">
-                      <TableHead className="text-xs font-medium text-muted-foreground">Item</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden sm:table-cell">SKU</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Qty</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden md:table-cell">Location</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden sm:table-cell">Value</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Status</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+              {/* Mobile Card View */}
+              <div className="block sm:hidden divide-y divide-border">
+                {inventories.map((item) => (
+                  <div key={item.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium">{item.name}</p>
+                        <p className="text-xs text-muted-foreground">{item.sku}</p>
+                      </div>
+                      <Badge 
+                        variant={item.status === "ok" ? "default" : item.status === "low" ? "secondary" : "destructive"}
+                        className="text-xs shrink-0"
+                      >
+                        {item.status}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{item.quantity} {item.unit}</span>
+                      <span className="text-muted-foreground">${item.value.toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <MapPin className="h-3 w-3" />
+                      <span>{item.location}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Item</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">SKU</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Qty</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Location</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Value</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {inventories.map((item) => (
-                      <TableRow key={item.id} className="border-border/50 group cursor-pointer">
-                        <TableCell className="font-medium text-sm">{item.name}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">{item.sku}</TableCell>
-                        <TableCell className="text-sm">{item.quantity} {item.unit}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground hidden md:table-cell">{item.location}</TableCell>
-                        <TableCell className="text-sm hidden sm:table-cell">${item.value.toFixed(2)}</TableCell>
-                        <TableCell>
+                      <tr key={item.id} className="border-b border-border last:border-0 group cursor-pointer hover:bg-muted/50">
+                        <td className="p-4 font-medium text-sm">{item.name}</td>
+                        <td className="p-4 text-sm text-muted-foreground">{item.sku}</td>
+                        <td className="p-4 text-sm">{item.quantity} {item.unit}</td>
+                        <td className="p-4 text-sm text-muted-foreground">{item.location}</td>
+                        <td className="p-4 text-sm">${item.value.toFixed(2)}</td>
+                        <td className="p-4">
                           <Badge 
                             variant={item.status === "ok" ? "default" : item.status === "low" ? "secondary" : "destructive"}
                             className="text-xs"
                           >
                             {item.status}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="p-4">
                           <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
+        {/* Sidebar - Hidden on mobile */}
+        <div className="hidden lg:block space-y-6">
           <Card className="border-border/50">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium">Low Stock Alerts</CardTitle>

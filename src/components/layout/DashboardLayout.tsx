@@ -21,7 +21,7 @@ export function DashboardLayout() {
         onMobileOpenChange={setMobileMenuOpen}
       />
       <div className="flex flex-1 flex-col min-w-0">
-        <Header onToggleSidebar={() => setMobileMenuOpen(true)} />
+        <Header />
         <main className="flex-1 overflow-y-auto overflow-x-hidden">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 sm:py-8">
             <Outlet />

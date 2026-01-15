@@ -4,14 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { 
   Select,
   SelectContent,
   SelectItem,
@@ -19,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Plus, MoreHorizontal, Users, UserCheck, UserX, Building2 } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Users, UserCheck, UserX, Building2, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Staff {
@@ -59,12 +51,21 @@ export default function StaffPage() {
     { name: "Logistics", count: 2 },
   ];
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Active": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+      case "On Leave": return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+      case "Inactive": return "bg-gray-100 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400";
+      default: return "";
+    }
+  };
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Staff</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Staff</h1>
           <p className="text-sm text-muted-foreground">Manage your team members</p>
         </div>
         <Button size="sm">
@@ -76,18 +77,18 @@ export default function StaffPage() {
       {/* Two-column layout for desktop */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           {/* Stats */}
           <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
             {stats.map((stat) => (
               <Card key={stat.label} className="border-border/50">
-                <CardContent className="p-4">
+                <CardContent className="p-3 sm:p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                      <stat.icon className="h-4 w-4 text-muted-foreground" />
+                    <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-muted flex items-center justify-center">
+                      <stat.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                     </div>
                   </div>
-                  <p className="text-2xl font-semibold">{stat.value}</p>
+                  <p className="text-xl sm:text-2xl font-semibold">{stat.value}</p>
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
                 </CardContent>
               </Card>
@@ -130,25 +131,61 @@ export default function StaffPage() {
             </Select>
           </div>
 
-          {/* Staff Table */}
+          {/* Staff List */}
           <Card className="border-border/50">
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border/50 hover:bg-transparent">
-                      <TableHead className="text-xs font-medium text-muted-foreground">Name</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Role</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden sm:table-cell">Dept</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden md:table-cell">Joined</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Status</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+              {/* Mobile Card View */}
+              <div className="block sm:hidden divide-y divide-border">
+                {staff.map((member) => (
+                  <div key={member.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="h-10 w-10 shrink-0">
+                          <AvatarFallback className="bg-muted text-xs">
+                            {member.name.split(' ').map(n => n[0]).join('')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{member.name}</p>
+                          <p className="text-xs text-muted-foreground">{member.role}</p>
+                        </div>
+                      </div>
+                      <Badge 
+                        variant="secondary" 
+                        className={cn("text-xs font-normal shrink-0", getStatusColor(member.status))}
+                      >
+                        {member.status}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Mail className="h-3 w-3" />
+                      <span className="truncate">{member.email}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <Badge variant="secondary" className="font-normal">{member.department}</Badge>
+                      <span className="text-muted-foreground">Joined {member.joinDate}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Name</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Role</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Dept</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Joined</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {staff.map((member) => (
-                      <TableRow key={member.id} className="border-border/50 group cursor-pointer">
-                        <TableCell>
+                      <tr key={member.id} className="border-b border-border last:border-0 group cursor-pointer hover:bg-muted/50">
+                        <td className="p-4">
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
                               <AvatarFallback className="bg-muted text-xs">
@@ -157,43 +194,38 @@ export default function StaffPage() {
                             </Avatar>
                             <div>
                               <p className="font-medium text-sm">{member.name}</p>
-                              <p className="text-xs text-muted-foreground hidden sm:block">{member.email}</p>
+                              <p className="text-xs text-muted-foreground">{member.email}</p>
                             </div>
                           </div>
-                        </TableCell>
-                        <TableCell className="text-sm">{member.role}</TableCell>
-                        <TableCell className="hidden sm:table-cell">
+                        </td>
+                        <td className="p-4 text-sm">{member.role}</td>
+                        <td className="p-4">
                           <Badge variant="secondary" className="font-normal text-xs">{member.department}</Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground hidden md:table-cell">{member.joinDate}</TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="p-4 text-sm text-muted-foreground">{member.joinDate}</td>
+                        <td className="p-4">
                           <Badge 
                             variant="secondary" 
-                            className={cn(
-                              "text-xs font-normal",
-                              member.status === "Active" && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                              member.status === "On Leave" && "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-                              member.status === "Inactive" && "bg-gray-100 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400"
-                            )}
+                            className={cn("text-xs font-normal", getStatusColor(member.status))}
                           >
                             {member.status}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="p-4">
                           <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">Showing 1-6 of 24 staff</p>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" disabled className="h-8">Previous</Button>
@@ -202,8 +234,8 @@ export default function StaffPage() {
           </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
+        {/* Sidebar - Hidden on mobile, shown on lg */}
+        <div className="hidden lg:block space-y-6">
           <Card className="border-border/50">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium">By Department</CardTitle>
