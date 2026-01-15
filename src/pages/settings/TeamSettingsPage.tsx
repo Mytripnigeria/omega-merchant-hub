@@ -25,12 +25,12 @@ export default function TeamSettingsPage() {
 
       <div className="grid gap-6 max-w-3xl">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-lg">Team Members</CardTitle>
               <CardDescription>{teamMembers.length} members</CardDescription>
             </div>
-            <Button size="sm">
+            <Button size="sm" className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Invite Member
             </Button>
@@ -48,19 +48,19 @@ export default function TeamSettingsPage() {
             
             <div className="space-y-2">
               {teamMembers.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+                <div key={member.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border gap-3 hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
+                    <Avatar className="h-10 w-10 shrink-0">
                       <AvatarFallback className="bg-primary/10 text-primary text-sm">
                         {member.avatar}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-medium text-sm">{member.name}</p>
-                      <p className="text-xs text-muted-foreground">{member.email}</p>
+                      <p className="text-xs text-muted-foreground truncate">{member.email}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between sm:justify-end gap-2 pl-13 sm:pl-0">
                     <Badge variant={member.role === "Owner" ? "default" : "secondary"}>
                       {member.role}
                     </Badge>

@@ -21,15 +21,15 @@ export default function ReceiptSettingsPage() {
             <CardDescription>Information shown at the top of receipts</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center gap-4 p-4 rounded-lg border border-dashed">
-              <div className="h-16 w-16 rounded-lg bg-muted flex items-center justify-center">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-lg border border-dashed">
+              <div className="h-16 w-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
                 <ReceiptIcon className="h-8 w-8 text-muted-foreground" />
               </div>
               <div className="flex-1">
                 <p className="font-medium text-sm">Receipt Logo</p>
                 <p className="text-xs text-muted-foreground">Upload a logo for your receipts</p>
               </div>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">
                 <Upload className="mr-2 h-4 w-4" />
                 Upload
               </Button>

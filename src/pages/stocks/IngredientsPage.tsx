@@ -180,32 +180,32 @@ export default function IngredientsPage() {
         </div>
       )}
 
-      {/* Stats - Two column on desktop */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total Ingredients</p>
-            <p className="text-2xl font-semibold">{ingredients.length}</p>
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">Total Ingredients</p>
+            <p className="text-xl sm:text-2xl font-semibold">{ingredients.length}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Low Stock</p>
-            <p className="text-2xl font-semibold text-yellow-600">{lowStockItems.length}</p>
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">Low Stock</p>
+            <p className="text-xl sm:text-2xl font-semibold text-yellow-600">{lowStockItems.length}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total Value</p>
-            <p className="text-2xl font-semibold">
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">Total Value</p>
+            <p className="text-xl sm:text-2xl font-semibold">
               {formatPrice(ingredients.reduce((acc, i) => acc + (i.currentStock * i.costPerUnit), 0))}
             </p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Suppliers</p>
-            <p className="text-2xl font-semibold">
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">Suppliers</p>
+            <p className="text-xl sm:text-2xl font-semibold">
               {new Set(ingredients.map(i => i.supplier)).size}
             </p>
           </CardContent>

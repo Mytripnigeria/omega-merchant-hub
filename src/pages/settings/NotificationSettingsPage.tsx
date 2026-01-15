@@ -30,16 +30,16 @@ export default function NotificationSettingsPage() {
             <CardTitle className="text-lg">Notification Channels</CardTitle>
             <CardDescription>Choose how to receive notifications</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
+          <CardContent className="grid gap-3 sm:grid-cols-2">
             {channels.map((channel) => (
-              <div key={channel.id} className="flex items-center justify-between p-4 rounded-lg border">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+              <div key={channel.id} className="flex items-center justify-between p-4 rounded-lg border gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
                     <channel.icon className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium text-sm">{channel.name}</p>
-                    <p className="text-xs text-muted-foreground">{channel.description}</p>
+                    <p className="text-xs text-muted-foreground truncate">{channel.description}</p>
                   </div>
                 </div>
                 <Switch defaultChecked={channel.enabled} />
@@ -55,12 +55,12 @@ export default function NotificationSettingsPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {notifications.map((notification) => (
-              <div key={notification.id} className="flex items-center justify-between p-4 rounded-lg border">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+              <div key={notification.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
                     <notification.icon className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium text-sm">{notification.name}</p>
                     <p className="text-xs text-muted-foreground">{notification.description}</p>
                   </div>

@@ -24,9 +24,9 @@ export default function SecuritySettingsPage() {
             <CardDescription>Change your account password</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 rounded-lg border">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border gap-3">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
                   <Key className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>
@@ -34,7 +34,7 @@ export default function SecuritySettingsPage() {
                   <p className="text-sm text-muted-foreground">Last changed 30 days ago</p>
                 </div>
               </div>
-              <Button variant="outline" size="sm">Change</Button>
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">Change</Button>
             </div>
           </CardContent>
         </Card>
@@ -45,9 +45,9 @@ export default function SecuritySettingsPage() {
             <CardDescription>Add an extra layer of security</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 rounded-lg border">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border gap-3">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
                   <Smartphone className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>
@@ -57,9 +57,9 @@ export default function SecuritySettingsPage() {
               </div>
               <Switch />
             </div>
-            <div className="flex items-center justify-between p-4 rounded-lg border">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border gap-3">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
                   <Shield className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>
@@ -73,24 +73,24 @@ export default function SecuritySettingsPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-lg">Active Sessions</CardTitle>
               <CardDescription>Manage your logged-in devices</CardDescription>
             </div>
-            <Button variant="outline" size="sm" className="text-destructive">
+            <Button variant="outline" size="sm" className="text-destructive w-full sm:w-auto">
               Sign Out All
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
             {sessions.map((session) => (
-              <div key={session.id} className="flex items-center justify-between p-4 rounded-lg border">
+              <div key={session.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
                     <History className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="font-medium text-sm">{session.device}</p>
                       {session.current && <Badge variant="secondary" className="text-xs">Current</Badge>}
                     </div>
@@ -98,7 +98,7 @@ export default function SecuritySettingsPage() {
                   </div>
                 </div>
                 {!session.current && (
-                  <Button variant="ghost" size="sm" className="text-destructive">
+                  <Button variant="ghost" size="sm" className="text-destructive w-full sm:w-auto">
                     Revoke
                   </Button>
                 )}
