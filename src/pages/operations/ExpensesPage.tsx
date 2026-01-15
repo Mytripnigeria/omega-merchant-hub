@@ -3,26 +3,116 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useLoading } from "@/hooks/use-loading";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Plus, DollarSign, TrendingUp, Receipt, MoreHorizontal, Calendar } from "lucide-react";
+
+interface Expense {
+  id: number;
+  description: string;
+  category: string;
+  amount: number;
+  date: string;
+  vendor: string;
+  status: "approved" | "pending";
+}
+
+const expenses: Expense[] = [
+  { id: 1, description: "Monthly Supplies Order", category: "Supplies", amount: 2500, date: "2026-01-15", vendor: "FoodCo", status: "approved" },
+  { id: 2, description: "Utility Bill - Electric", category: "Utilities", amount: 1200, date: "2026-01-14", vendor: "PowerGrid", status: "pending" },
+  { id: 3, description: "New Mixer Purchase", category: "Equipment", amount: 5000, date: "2026-01-12", vendor: "KitchenPro", status: "approved" },
+  { id: 4, description: "Staff Training", category: "Training", amount: 800, date: "2026-01-10", vendor: "TrainCorp", status: "approved" },
+];
+
+const stats = [
+  { label: "Total This Month", value: "$24,500", icon: DollarSign },
+  { label: "Pending Approval", value: "$3,200", icon: Receipt },
+  { label: "vs Last Month", value: "-8%", icon: TrendingUp, trend: "down" },
+];
+
+function StatsSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <Card key={i} className={i === 2 ? "col-span-2 sm:col-span-1" : ""}>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-7 w-20" />
+              </div>
+              <Skeleton className="h-7 w-7 sm:h-8 sm:w-8 rounded-full" />
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function ExpensesSkeleton() {
+  return (
+    <>
+      {/* Mobile skeleton */}
+      <div className="block sm:hidden divide-y divide-border -mx-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="px-3 py-4 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+              <Skeleton className="h-5 w-16 rounded-full" />
+            </div>
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-20" />
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Desktop skeleton */}
+      <div className="hidden sm:block overflow-x-auto -mx-4">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <th key={i} className="p-4"><Skeleton className="h-3 w-16" /></th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <tr key={i} className="border-b last:border-0">
+                <td className="p-4"><Skeleton className="h-4 w-36" /></td>
+                <td className="p-4"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                <td className="p-4"><Skeleton className="h-4 w-20" /></td>
+                <td className="p-4"><Skeleton className="h-4 w-24" /></td>
+                <td className="p-4"><Skeleton className="h-4 w-16" /></td>
+                <td className="p-4"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                <td className="p-4"><Skeleton className="h-8 w-8" /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
 
 const ExpensesPage = () => {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const isLoading = useLoading(1000);
 
-  const expenses = [
-    { id: 1, description: "Monthly Supplies Order", category: "Supplies", amount: 2500, date: "2026-01-15", vendor: "FoodCo", status: "approved" },
-    { id: 2, description: "Utility Bill - Electric", category: "Utilities", amount: 1200, date: "2026-01-14", vendor: "PowerGrid", status: "pending" },
-    { id: 3, description: "New Mixer Purchase", category: "Equipment", amount: 5000, date: "2026-01-12", vendor: "KitchenPro", status: "approved" },
-    { id: 4, description: "Staff Training", category: "Training", amount: 800, date: "2026-01-10", vendor: "TrainCorp", status: "approved" },
-  ];
-
-  const stats = [
-    { label: "Total This Month", value: "$24,500", icon: DollarSign },
-    { label: "Pending Approval", value: "$3,200", icon: Receipt },
-    { label: "vs Last Month", value: "-8%", icon: TrendingUp, trend: "down" },
-  ];
+  const filteredExpenses = expenses.filter(e => {
+    const matchesSearch = e.description.toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = categoryFilter === "all" || e.category.toLowerCase() === categoryFilter;
+    const matchesStatus = statusFilter === "all" || e.status === statusFilter;
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
@@ -31,31 +121,35 @@ const ExpensesPage = () => {
           <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Expenses</h1>
           <p className="text-sm text-muted-foreground">Track and manage business expenses</p>
         </div>
-        <Button size="sm">
+        <Button size="sm" className="w-full sm:w-auto">
           <Plus className="h-4 w-4 sm:mr-2" />
-          <span className="hidden sm:inline">Add Expense</span>
+          <span className="sm:inline">Add Expense</span>
         </Button>
       </div>
 
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
-        {stats.map((stat) => (
-          <Card key={stat.label} className="border-border/50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
-                  <p className={`text-xl sm:text-2xl font-semibold ${stat.trend === "down" ? "text-green-600" : ""}`}>
-                    {stat.value}
-                  </p>
+      {isLoading ? (
+        <StatsSkeleton />
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3">
+          {stats.map((stat, index) => (
+            <Card key={stat.label} className={`border-border/50 ${index === 2 ? "col-span-2 sm:col-span-1" : ""}`}>
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{stat.label}</p>
+                    <p className={`text-xl sm:text-2xl font-semibold ${stat.trend === "down" ? "text-green-600" : ""}`}>
+                      {stat.value}
+                    </p>
+                  </div>
+                  <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    <stat.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+                  </div>
                 </div>
-                <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-muted flex items-center justify-center">
-                  <stat.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <Card className="border-border/50">
         <CardContent className="p-3 sm:p-4">
@@ -66,11 +160,11 @@ const ExpensesPage = () => {
                 placeholder="Search expenses..." 
                 value={search} 
                 onChange={(e) => setSearch(e.target.value)} 
-                className="pl-9 h-9 bg-muted/50 border-0" 
+                className="pl-9" 
               />
             </div>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-full sm:w-[140px] h-9 bg-muted/50 border-0">
+              <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -81,7 +175,7 @@ const ExpensesPage = () => {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[120px] h-9 bg-muted/50 border-0">
+              <SelectTrigger className="w-full sm:w-[120px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -92,80 +186,90 @@ const ExpensesPage = () => {
             </Select>
           </div>
 
-          {/* Mobile Card View */}
-          <div className="block sm:hidden divide-y divide-border -mx-3">
-            {expenses.map((expense) => (
-              <div key={expense.id} className="px-3 py-4 space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">{expense.description}</p>
-                    <p className="text-xs text-muted-foreground">{expense.vendor}</p>
-                  </div>
-                  <Badge 
-                    variant={expense.status === "approved" ? "default" : "secondary"}
-                    className="text-xs font-normal shrink-0"
-                  >
-                    {expense.status}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <Badge variant="outline" className="text-xs font-normal">
-                    {expense.category}
-                  </Badge>
-                  <span className="font-semibold">${expense.amount.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  <span>{expense.date}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Desktop Table View */}
-          <div className="hidden sm:block overflow-x-auto -mx-4">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Description</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Category</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Vendor</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Date</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground p-4">Amount</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4 w-10"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.map((expense) => (
-                  <tr key={expense.id} className="border-b border-border last:border-0 hover:bg-muted/50">
-                    <td className="p-4 font-medium text-sm">{expense.description}</td>
-                    <td className="p-4">
-                      <Badge variant="outline" className="text-xs font-normal">
-                        {expense.category}
-                      </Badge>
-                    </td>
-                    <td className="p-4 text-sm text-muted-foreground">{expense.vendor}</td>
-                    <td className="p-4 text-sm text-muted-foreground">{expense.date}</td>
-                    <td className="p-4 text-sm font-medium text-right">${expense.amount.toLocaleString()}</td>
-                    <td className="p-4">
+          {isLoading ? (
+            <ExpensesSkeleton />
+          ) : (
+            <>
+              {/* Mobile Card View */}
+              <div className="block sm:hidden divide-y divide-border -mx-3">
+                {filteredExpenses.map((expense) => (
+                  <div key={expense.id} className="px-3 py-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{expense.description}</p>
+                        <p className="text-xs text-muted-foreground">{expense.vendor}</p>
+                      </div>
                       <Badge 
-                        variant={expense.status === "approved" ? "default" : "secondary"}
-                        className="text-xs font-normal"
+                        className={expense.status === "approved" 
+                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" 
+                          : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                        }
                       >
                         {expense.status}
                       </Badge>
-                    </td>
-                    <td className="p-4">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <Badge variant="outline" className="text-xs font-normal">
+                        {expense.category}
+                      </Badge>
+                      <span className="font-semibold">${expense.amount.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      <span>{expense.date}</span>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto -mx-4">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Description</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Category</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Vendor</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Date</th>
+                      <th className="text-right text-xs font-medium text-muted-foreground p-4">Amount</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredExpenses.map((expense) => (
+                      <tr key={expense.id} className="border-b border-border last:border-0 hover:bg-muted/50 group cursor-pointer">
+                        <td className="p-4 font-medium text-sm">{expense.description}</td>
+                        <td className="p-4">
+                          <Badge variant="outline" className="text-xs font-normal">
+                            {expense.category}
+                          </Badge>
+                        </td>
+                        <td className="p-4 text-sm text-muted-foreground">{expense.vendor}</td>
+                        <td className="p-4 text-sm text-muted-foreground">{expense.date}</td>
+                        <td className="p-4 text-sm font-medium text-right">${expense.amount.toLocaleString()}</td>
+                        <td className="p-4">
+                          <Badge 
+                            className={expense.status === "approved" 
+                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" 
+                              : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                            }
+                          >
+                            {expense.status}
+                          </Badge>
+                        </td>
+                        <td className="p-4">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
