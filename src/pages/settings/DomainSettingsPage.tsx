@@ -21,48 +21,48 @@ export default function DomainSettingsPage() {
 
       <div className="grid gap-6 max-w-2xl">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-lg">Connected Domains</CardTitle>
               <CardDescription>Domains pointing to your store</CardDescription>
             </div>
-            <Button size="sm">
+            <Button size="sm" className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add Domain
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
             {domains.map((domain) => (
-              <div key={domain.id} className="p-4 rounded-lg border">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+              <div key={domain.id} className="p-4 rounded-lg border space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
                       <Globe className="h-5 w-5 text-muted-foreground" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{domain.domain}</p>
-                        {domain.primary && <Badge variant="secondary" className="text-xs">Primary</Badge>}
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-sm break-all">{domain.domain}</p>
+                        {domain.primary && <Badge variant="secondary" className="text-xs shrink-0">Primary</Badge>}
                       </div>
                       <p className="text-xs text-muted-foreground">{domain.type} domain</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {domain.status === "active" ? (
-                      <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Active
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                        Pending
-                      </Badge>
-                    )}
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex items-center justify-end sm:justify-start sm:pl-13">
+                  {domain.status === "active" ? (
+                    <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Active
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary">
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                      Pending
+                    </Badge>
+                  )}
                 </div>
               </div>
             ))}

@@ -20,38 +20,40 @@ export default function LocationSettingsPage() {
 
       <div className="grid gap-6 max-w-2xl">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-lg">Store Locations</CardTitle>
               <CardDescription>{locations.filter(l => l.status === "active").length} active locations</CardDescription>
             </div>
-            <Button size="sm">
+            <Button size="sm" className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add Location
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
             {locations.map((location) => (
-              <div key={location.id} className="flex items-center justify-between p-4 rounded-lg border">
-                <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
-                    <MapPin className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{location.name}</p>
-                      {location.isMain && <Badge variant="secondary" className="text-xs">Main</Badge>}
+              <div key={location.id} className="p-4 rounded-lg border space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                      <MapPin className="h-5 w-5 text-muted-foreground" />
                     </div>
-                    <p className="text-sm text-muted-foreground">{location.address}</p>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium">{location.name}</p>
+                        {location.isMain && <Badge variant="secondary" className="text-xs shrink-0">Main</Badge>}
+                      </div>
+                      <p className="text-sm text-muted-foreground break-words">{location.address}</p>
+                    </div>
                   </div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-end sm:justify-start sm:pl-13">
                   <Badge variant={location.status === "active" ? "default" : "secondary"}>
                     {location.status}
                   </Badge>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
                 </div>
               </div>
             ))}
