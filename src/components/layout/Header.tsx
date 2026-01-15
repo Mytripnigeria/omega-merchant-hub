@@ -7,6 +7,11 @@ import {
   LogOut,
   HelpCircle,
   ChevronDown,
+  Moon,
+  Sun,
+  Monitor,
+  Maximize,
+  Minimize,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +25,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/use-theme";
+import { useFullscreen } from "@/hooks/use-fullscreen";
 
 const mainNavItems = [
   { title: "Overview", href: "/dashboard" },
@@ -32,6 +39,8 @@ const mainNavItems = [
 
 export function Header() {
   const location = useLocation();
+  const { theme, setTheme } = useTheme();
+  const { isFullscreen, toggleFullscreen } = useFullscreen();
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return location.pathname === "/dashboard";
@@ -58,7 +67,7 @@ export function Header() {
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           {/* Search */}
           <div className="relative hidden md:block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -72,13 +81,56 @@ export function Header() {
             Feedback
           </Button>
 
+          {/* Fullscreen Toggle - Desktop only */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-9 w-9 hidden lg:inline-flex"
+            onClick={toggleFullscreen}
+            title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          >
+            {isFullscreen ? (
+              <Minimize className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <Maximize className="h-4 w-4 text-muted-foreground" />
+            )}
+          </Button>
+
+          {/* Theme Toggle */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-9 w-9">
+                <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-muted-foreground" />
+                <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-muted-foreground" />
+                <span className="sr-only">Toggle theme</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setTheme("light")}>
+                <Sun className="mr-2 h-4 w-4" />
+                Light
+                {theme === "light" && <span className="ml-auto">✓</span>}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("dark")}>
+                <Moon className="mr-2 h-4 w-4" />
+                Dark
+                {theme === "dark" && <span className="ml-auto">✓</span>}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("system")}>
+                <Monitor className="mr-2 h-4 w-4" />
+                System
+                {theme === "system" && <span className="ml-auto">✓</span>}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {/* Notifications */}
           <Button variant="ghost" size="icon" className="h-9 w-9">
             <Bell className="h-4 w-4 text-muted-foreground" />
           </Button>
 
           {/* Help */}
-          <Button variant="ghost" size="icon" className="h-9 w-9">
+          <Button variant="ghost" size="icon" className="h-9 w-9 hidden sm:inline-flex">
             <HelpCircle className="h-4 w-4 text-muted-foreground" />
           </Button>
 

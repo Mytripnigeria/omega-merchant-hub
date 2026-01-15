@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useLoading } from "@/hooks/use-loading";
 import {
   Table,
   TableBody,
@@ -86,10 +88,63 @@ const mockAddOnGroups: AddOnGroup[] = [
   },
 ];
 
+function StatsSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <Card key={i}>
+          <CardContent className="p-3 sm:p-4">
+            <Skeleton className="h-4 w-24 mb-2" />
+            <Skeleton className="h-7 w-16" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function AddOnsSkeleton() {
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <Card key={i}>
+          <div className="flex items-center justify-between border-b p-4">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-10 w-10 rounded-lg" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+            </div>
+            <Skeleton className="h-8 w-8" />
+          </div>
+          <CardContent className="p-0">
+            <div className="divide-y divide-border">
+              {Array.from({ length: 3 }).map((_, j) => (
+                <div key={j} className="p-4 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-6 w-10 rounded-full" />
+                    <Skeleton className="h-8 w-8" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 export default function AddOnsPage() {
   const [addOnGroups] = useState<AddOnGroup[]>(mockAddOnGroups);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const isLoading = useLoading(1000);
 
   const formatPrice = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -104,18 +159,18 @@ export default function AddOnsPage() {
   );
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Add-ons</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Add-ons</h1>
           <p className="text-sm text-muted-foreground">
             Create add-on groups for extra items and upgrades
           </p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="sm">
+            <Button size="sm" className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add Group
             </Button>
@@ -143,11 +198,11 @@ export default function AddOnsPage() {
                 </div>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button>
+              <Button className="w-full sm:w-auto">
                 Create Group
               </Button>
             </DialogFooter>
@@ -156,30 +211,34 @@ export default function AddOnsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Add-on Groups</p>
-            <p className="text-2xl font-semibold">{addOnGroups.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total Add-ons</p>
-            <p className="text-2xl font-semibold">
-              {addOnGroups.reduce((acc, g) => acc + g.addOns.length, 0)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Available</p>
-            <p className="text-2xl font-semibold text-green-600">
-              {addOnGroups.reduce((acc, g) => acc + g.addOns.filter(a => a.isAvailable).length, 0)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {isLoading ? (
+        <StatsSkeleton />
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-muted-foreground">Add-on Groups</p>
+              <p className="text-xl sm:text-2xl font-semibold">{addOnGroups.length}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-muted-foreground">Total Add-ons</p>
+              <p className="text-xl sm:text-2xl font-semibold">
+                {addOnGroups.reduce((acc, g) => acc + g.addOns.length, 0)}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="col-span-2 md:col-span-1">
+            <CardContent className="p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-muted-foreground">Available</p>
+              <p className="text-xl sm:text-2xl font-semibold text-green-600">
+                {addOnGroups.reduce((acc, g) => acc + g.addOns.filter(a => a.isAvailable).length, 0)}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative w-full sm:max-w-sm">
@@ -192,121 +251,125 @@ export default function AddOnsPage() {
         />
       </div>
 
-      {/* Groups - Two column layout on large screens */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {filteredGroups.map((group) => (
-          <Card key={group.id}>
-            <div className="flex items-center justify-between border-b p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <PlusCircle className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">{group.name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {group.minSelection === 0 ? "Optional" : `Min ${group.minSelection}`} · Max {group.maxSelection} · {group.linkedProducts} products
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="hidden sm:flex">
-                  <Plus className="mr-1 h-4 w-4" />
-                  Add
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem className="sm:hidden">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Add-on
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit Group
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Group
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-            <CardContent className="p-0">
-              {/* Mobile List View */}
-              <div className="block sm:hidden divide-y divide-border">
-                {group.addOns.map((addon) => (
-                  <div key={addon.id} className="p-4 flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium">{addon.name}</p>
-                      <p className="text-sm text-muted-foreground">{formatPrice(addon.price)}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Switch checked={addon.isAvailable} />
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+      {/* Groups */}
+      {isLoading ? (
+        <AddOnsSkeleton />
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {filteredGroups.map((group) => (
+            <Card key={group.id}>
+              <div className="flex items-center justify-between border-b p-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <PlusCircle className="h-5 w-5 text-primary" />
                   </div>
-                ))}
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-sm sm:text-base truncate">{group.name}</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      {group.minSelection === 0 ? "Optional" : `Min ${group.minSelection}`} · Max {group.maxSelection} · {group.linkedProducts} products
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button variant="outline" size="sm" className="hidden sm:flex">
+                    <Plus className="mr-1 h-4 w-4" />
+                    Add
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem className="sm:hidden">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Add-on
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Group
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Group
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
+              <CardContent className="p-0">
+                {/* Mobile List View */}
+                <div className="block sm:hidden divide-y divide-border">
+                  {group.addOns.map((addon) => (
+                    <div key={addon.id} className="p-4 flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{addon.name}</p>
+                        <p className="text-xs text-muted-foreground">{formatPrice(addon.price)}</p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <Switch checked={addon.isAvailable} />
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
-              {/* Desktop Table View */}
-              <div className="hidden sm:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="pl-6">Add-on</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Available</TableHead>
-                      <TableHead className="pr-6 w-20">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {group.addOns.map((addon) => (
-                      <TableRow key={addon.id} className="group">
-                        <TableCell className="pl-6 font-medium">{addon.name}</TableCell>
-                        <TableCell>{formatPrice(addon.price)}</TableCell>
-                        <TableCell>
-                          <Switch checked={addon.isAvailable} />
-                        </TableCell>
-                        <TableCell className="pr-6">
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                              <Edit className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                {/* Desktop Table View */}
+                <div className="hidden sm:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="pl-6">Add-on</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead>Available</TableHead>
+                        <TableHead className="pr-6 w-20">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                    </TableHeader>
+                    <TableBody>
+                      {group.addOns.map((addon) => (
+                        <TableRow key={addon.id} className="group">
+                          <TableCell className="pl-6 font-medium">{addon.name}</TableCell>
+                          <TableCell>{formatPrice(addon.price)}</TableCell>
+                          <TableCell>
+                            <Switch checked={addon.isAvailable} />
+                          </TableCell>
+                          <TableCell className="pr-6">
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
