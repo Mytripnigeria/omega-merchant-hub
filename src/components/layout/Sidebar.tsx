@@ -181,18 +181,6 @@ const navItems: NavItem[] = [
     icon: Settings,
     children: [
       { title: "General", href: "/settings" },
-      { title: "Store Info", href: "/settings/store" },
-      { title: "Payment Methods", href: "/settings/payments" },
-      { title: "Tax Settings", href: "/settings/tax" },
-      { title: "Receipt", href: "/settings/receipt" },
-      { title: "Printers", href: "/settings/printers" },
-      { title: "Operating Hours", href: "/settings/hours" },
-      { title: "Locations", href: "/settings/locations" },
-      { title: "Notifications", href: "/settings/notifications" },
-      { title: "Team & Roles", href: "/settings/team" },
-      { title: "Security", href: "/settings/security" },
-      { title: "Webhooks", href: "/settings/webhooks" },
-      { title: "Domains", href: "/settings/domains" },
     ],
   },
 ];
