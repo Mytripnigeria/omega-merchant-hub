@@ -1,15 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { Eye, MoreHorizontal } from "lucide-react";
+import { Eye, Clock } from "lucide-react";
 
 interface Order {
   id: string;
@@ -86,7 +78,7 @@ const typeStyles = {
 export function RecentOrders() {
   return (
     <div className="rounded-xl border border-border bg-card shadow-card">
-      <div className="flex items-center justify-between border-b border-border p-6">
+      <div className="flex items-center justify-between border-b border-border p-4 sm:p-6">
         <div>
           <h3 className="text-lg font-semibold text-foreground">Recent Orders</h3>
           <p className="text-sm text-muted-foreground">Latest orders across all channels</p>
@@ -95,51 +87,83 @@ export function RecentOrders() {
           View All
         </Button>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead className="text-muted-foreground">Order ID</TableHead>
-            <TableHead className="text-muted-foreground">Customer</TableHead>
-            <TableHead className="text-muted-foreground">Items</TableHead>
-            <TableHead className="text-muted-foreground">Total</TableHead>
-            <TableHead className="text-muted-foreground">Type</TableHead>
-            <TableHead className="text-muted-foreground">Status</TableHead>
-            <TableHead className="text-muted-foreground">Time</TableHead>
-            <TableHead className="text-right text-muted-foreground">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {orders.map((order) => (
-            <TableRow key={order.id} className="group">
-              <TableCell className="font-mono text-sm font-medium text-foreground">
-                #{order.id}
-              </TableCell>
-              <TableCell className="text-foreground">{order.customer}</TableCell>
-              <TableCell className="text-muted-foreground">{order.items}</TableCell>
-              <TableCell className="font-medium text-foreground">{order.total}</TableCell>
-              <TableCell>
-                <Badge variant="secondary" className={cn("capitalize", typeStyles[order.type])}>
-                  {order.type}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <Badge 
-                  variant="outline" 
-                  className={cn("capitalize", statusStyles[order.status])}
-                >
-                  {order.status}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-muted-foreground">{order.time}</TableCell>
-              <TableCell className="text-right">
-                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                  <Eye className="h-4 w-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+
+      {/* Mobile Card View */}
+      <div className="block sm:hidden divide-y divide-border">
+        {orders.map((order) => (
+          <div key={order.id} className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-sm font-medium">#{order.id}</span>
+              <Badge 
+                variant="outline" 
+                className={cn("capitalize text-xs", statusStyles[order.status])}
+              >
+                {order.status}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground truncate max-w-[180px]">{order.customer}</span>
+              <span className="font-medium">{order.total}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {order.time}
+              </div>
+              <Badge variant="secondary" className={cn("capitalize text-xs", typeStyles[order.type])}>
+                {order.type}
+              </Badge>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden sm:block overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left text-xs font-medium text-muted-foreground p-4 pl-6">Order ID</th>
+              <th className="text-left text-xs font-medium text-muted-foreground p-4">Customer</th>
+              <th className="text-left text-xs font-medium text-muted-foreground p-4">Items</th>
+              <th className="text-left text-xs font-medium text-muted-foreground p-4">Total</th>
+              <th className="text-left text-xs font-medium text-muted-foreground p-4">Type</th>
+              <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+              <th className="text-left text-xs font-medium text-muted-foreground p-4">Time</th>
+              <th className="text-right text-xs font-medium text-muted-foreground p-4 pr-6">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.map((order) => (
+              <tr key={order.id} className="group border-b border-border last:border-0 hover:bg-muted/50">
+                <td className="p-4 pl-6 font-mono text-sm font-medium">#{order.id}</td>
+                <td className="p-4">{order.customer}</td>
+                <td className="p-4 text-muted-foreground">{order.items}</td>
+                <td className="p-4 font-medium">{order.total}</td>
+                <td className="p-4">
+                  <Badge variant="secondary" className={cn("capitalize", typeStyles[order.type])}>
+                    {order.type}
+                  </Badge>
+                </td>
+                <td className="p-4">
+                  <Badge 
+                    variant="outline" 
+                    className={cn("capitalize", statusStyles[order.status])}
+                  >
+                    {order.status}
+                  </Badge>
+                </td>
+                <td className="p-4 text-muted-foreground">{order.time}</td>
+                <td className="p-4 pr-6 text-right">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

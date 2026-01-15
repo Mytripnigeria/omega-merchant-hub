@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
@@ -20,13 +20,12 @@ import {
   Boxes,
   Monitor,
   Search,
-  Menu,
+  X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   Collapsible,
   CollapsibleContent,
@@ -36,6 +35,8 @@ import {
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  mobileOpen?: boolean;
+  onMobileOpenChange?: (open: boolean) => void;
 }
 
 interface NavItem {
@@ -187,7 +188,7 @@ const navItems: NavItem[] = [
   },
 ];
 
-function NavMenuItem({ item }: { item: NavItem }) {
+function NavMenuItem({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   
@@ -196,6 +197,13 @@ function NavMenuItem({ item }: { item: NavItem }) {
     : item.children?.some(child => location.pathname === child.href);
 
   const isChildActive = (href: string) => location.pathname === href;
+
+  // Auto-expand if a child is active
+  useEffect(() => {
+    if (item.children?.some(child => location.pathname === child.href)) {
+      setIsOpen(true);
+    }
+  }, [location.pathname, item.children]);
 
   if (item.children) {
     return (
@@ -224,6 +232,7 @@ function NavMenuItem({ item }: { item: NavItem }) {
             <Link
               key={child.href}
               to={child.href}
+              onClick={onNavigate}
               className={cn(
                 "block rounded-md px-3 py-2 text-sm transition-colors",
                 isChildActive(child.href)
@@ -242,6 +251,7 @@ function NavMenuItem({ item }: { item: NavItem }) {
   return (
     <Link
       to={item.href!}
+      onClick={onNavigate}
       className={cn(
         "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
         isActive 
@@ -255,9 +265,10 @@ function NavMenuItem({ item }: { item: NavItem }) {
   );
 }
 
-export function Sidebar({ collapsed }: SidebarProps) {
-  const isMobile = useIsMobile();
-  const [mobileOpen, setMobileOpen] = useState(false);
+export function Sidebar({ collapsed, mobileOpen, onMobileOpenChange }: SidebarProps) {
+  const handleNavigate = () => {
+    onMobileOpenChange?.(false);
+  };
 
   const sidebarContent = (
     <>
@@ -276,40 +287,46 @@ export function Sidebar({ collapsed }: SidebarProps) {
       <ScrollArea className="flex-1 px-3 pb-4">
         <nav className="space-y-1">
           {navItems.map((item) => (
-            <NavMenuItem key={item.title} item={item} />
+            <NavMenuItem key={item.title} item={item} onNavigate={handleNavigate} />
           ))}
         </nav>
       </ScrollArea>
     </>
   );
 
-  if (isMobile) {
-    return (
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetTrigger asChild>
-          <Button
-            variant="outline"
-            size="icon"
-            className="fixed left-3 top-3 z-50 h-10 w-10 rounded-xl md:hidden"
-            aria-label="Open navigation"
-          >
-            <Menu className="h-4 w-4" />
-          </Button>
-        </SheetTrigger>
+  return (
+    <>
+      {/* Mobile Drawer */}
+      <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange}>
         <SheetContent side="left" className="w-80 max-w-[85vw] p-0">
-          <aside className="flex h-full flex-col border-r border-border bg-background">
+          <aside className="flex h-full flex-col bg-background">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded bg-foreground">
+                  <span className="text-xs font-bold text-background">Ω</span>
+                </div>
+                <span className="text-sm font-medium">omega-restaurant</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => onMobileOpenChange?.(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
             {sidebarContent}
           </aside>
         </SheetContent>
       </Sheet>
-    );
-  }
 
-  if (collapsed) return null;
-
-  return (
-    <aside className="sticky top-0 flex h-screen w-64 flex-col border-r border-border bg-background">
-      {sidebarContent}
-    </aside>
+      {/* Desktop Sidebar */}
+      {!collapsed && (
+        <aside className="sticky top-0 hidden md:flex h-screen w-64 flex-col border-r border-border bg-background">
+          {sidebarContent}
+        </aside>
+      )}
+    </>
   );
 }

@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, DollarSign, Clock, CheckCircle2, Download, Filter, Wallet } from "lucide-react";
 
@@ -25,34 +24,34 @@ export default function PayoutsPage() {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Payouts</h1>
-          <p className="text-muted-foreground">Track your earnings and settlements</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Payouts</h1>
+          <p className="text-sm text-muted-foreground">Track your earnings and settlements</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
+            <Download className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Export</span>
           </Button>
-          <Button>
-            <DollarSign className="h-4 w-4 mr-2" />
-            Request Payout
+          <Button size="sm" className="flex-1 sm:flex-none">
+            <DollarSign className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Request Payout</span>
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-3">
         {stats.map((stat) => (
           <Card key={stat.label}>
-            <CardContent className="pt-6">
+            <CardContent className="p-4 sm:pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{stat.label}</p>
+                  <p className="text-xl sm:text-2xl font-bold">{stat.value}</p>
                 </div>
-                <stat.icon className="h-8 w-8 text-muted-foreground" />
+                <stat.icon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
@@ -60,14 +59,14 @@ export default function PayoutsPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row gap-4">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search payouts..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger className="w-full sm:w-[150px]">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue />
               </SelectTrigger>
@@ -79,37 +78,62 @@ export default function PayoutsPage() {
             </Select>
           </div>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Method</TableHead>
-                <TableHead>Account</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {payouts.map((payout) => (
-                <TableRow key={payout.id}>
-                  <TableCell className="font-medium">{payout.id}</TableCell>
-                  <TableCell>{payout.date}</TableCell>
-                  <TableCell className="font-bold">${payout.amount.toLocaleString()}</TableCell>
-                  <TableCell>{payout.method}</TableCell>
-                  <TableCell>{payout.account}</TableCell>
-                  <TableCell>
-                    <Badge variant={payout.status === "completed" ? "default" : "secondary"}>{payout.status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm">View</Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <CardContent className="p-0 sm:px-6 sm:pb-6">
+          {/* Mobile Card View */}
+          <div className="block sm:hidden divide-y divide-border">
+            {payouts.map((payout) => (
+              <div key={payout.id} className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-sm font-medium">{payout.id}</span>
+                  <Badge variant={payout.status === "completed" ? "default" : "secondary"}>
+                    {payout.status}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">{payout.date}</span>
+                  <span className="text-lg font-bold">${payout.amount.toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{payout.method}</span>
+                  <span>{payout.account}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">ID</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Date</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Amount</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Method</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Account</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payouts.map((payout) => (
+                  <tr key={payout.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                    <td className="p-4 font-medium">{payout.id}</td>
+                    <td className="p-4 text-muted-foreground">{payout.date}</td>
+                    <td className="p-4 font-bold">${payout.amount.toLocaleString()}</td>
+                    <td className="p-4 text-muted-foreground">{payout.method}</td>
+                    <td className="p-4 text-muted-foreground">{payout.account}</td>
+                    <td className="p-4">
+                      <Badge variant={payout.status === "completed" ? "default" : "secondary"}>{payout.status}</Badge>
+                    </td>
+                    <td className="p-4">
+                      <Button variant="ghost" size="sm">View</Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>
