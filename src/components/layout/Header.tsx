@@ -7,6 +7,7 @@ import {
   LogOut,
   HelpCircle,
   ChevronDown,
+  Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,11 @@ const mainNavItems = [
   { title: "Settings", href: "/settings" },
 ];
 
-export function Header() {
+export function Header({
+  onToggleSidebar,
+}: {
+  onToggleSidebar?: () => void;
+}) {
   const location = useLocation();
 
   const isActive = (href: string) => {
@@ -41,19 +46,31 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background">
       {/* Top Bar */}
-      <div className="flex h-14 items-center justify-between px-6">
+      <div className="flex h-14 items-center justify-between px-4 sm:px-6">
         {/* Left: Logo & Project */}
-        <div className="flex items-center gap-4">
-          <Link to="/dashboard" className="flex items-center gap-2">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          {onToggleSidebar && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 md:hidden flex-shrink-0"
+              onClick={onToggleSidebar}
+              aria-label="Open menu"
+            >
+              <Menu className="h-5 w-5 text-muted-foreground" />
+            </Button>
+          )}
+
+          <Link to="/dashboard" className="flex items-center gap-2 flex-shrink-0">
             <div className="flex h-6 w-6 items-center justify-center rounded bg-foreground">
               <span className="text-xs font-bold text-background">Ω</span>
             </div>
           </Link>
-          <span className="text-muted-foreground">/</span>
-          <div className="flex items-center gap-2">
-            <div className="h-5 w-5 rounded-full bg-gradient-to-br from-orange-400 to-red-500" />
-            <span className="text-sm font-medium">omega-restaurant</span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground hidden sm:inline">/</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-5 w-5 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex-shrink-0" />
+            <span className="text-sm font-medium truncate max-w-[140px] sm:max-w-none">omega-restaurant</span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
           </div>
         </div>
 
@@ -68,7 +85,7 @@ export function Header() {
             />
           </div>
 
-          <Button variant="ghost" size="sm" className="text-muted-foreground">
+          <Button variant="ghost" size="sm" className="hidden sm:inline-flex text-muted-foreground">
             Feedback
           </Button>
 
@@ -120,13 +137,13 @@ export function Header() {
       </div>
 
       {/* Navigation Tabs */}
-      <nav className="flex h-10 items-center gap-1 px-6">
+      <nav className="flex h-10 items-center gap-1 px-4 sm:px-6 overflow-x-auto">
         {mainNavItems.map((item) => (
           <Link
             key={item.href}
             to={item.href}
             className={cn(
-              "relative px-3 py-2 text-sm transition-colors",
+              "relative px-3 py-2 text-sm transition-colors shrink-0 whitespace-nowrap",
               isActive(item.href)
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground"
