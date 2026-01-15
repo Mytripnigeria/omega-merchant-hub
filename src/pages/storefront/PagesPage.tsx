@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, FileText, Eye, Edit, Search, MoreHorizontal, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -27,6 +26,11 @@ export default function PagesPage() {
   const filteredPages = pages.filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  const statusColors: Record<string, string> = {
+    published: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    draft: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -65,63 +69,114 @@ export default function PagesPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Page</TableHead>
-                <TableHead>URL</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Views</TableHead>
-                <TableHead>Last Updated</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPages.map((page) => (
-                <TableRow key={page.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-muted">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <span className="font-medium">{page.name}</span>
+          {/* Mobile Card View */}
+          <div className="block sm:hidden space-y-3">
+            {filteredPages.map((page) => (
+              <div key={page.id} className="p-4 border border-border rounded-lg">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-muted">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
                     </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm text-muted-foreground">{page.slug}</TableCell>
-                  <TableCell>
-                    <Badge variant={page.status === "published" ? "default" : "secondary"}>
-                      {page.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{page.views.toLocaleString()}</TableCell>
-                  <TableCell className="text-muted-foreground">{page.lastUpdated}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Preview
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    <div>
+                      <p className="font-medium">{page.name}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{page.slug}</p>
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Preview
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                <div className="flex items-center justify-between mt-3">
+                  <Badge className={statusColors[page.status]} variant="secondary">
+                    {page.status}
+                  </Badge>
+                  <div className="text-xs text-muted-foreground">
+                    {page.views.toLocaleString()} views • {page.lastUpdated}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Page</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">URL</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Views</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Last Updated</th>
+                  <th className="text-right text-xs font-medium text-muted-foreground p-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPages.map((page) => (
+                  <tr key={page.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-muted">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <span className="font-medium">{page.name}</span>
+                      </div>
+                    </td>
+                    <td className="font-mono text-sm text-muted-foreground p-4">{page.slug}</td>
+                    <td className="p-4">
+                      <Badge className={statusColors[page.status]} variant="secondary">
+                        {page.status}
+                      </Badge>
+                    </td>
+                    <td className="p-4">{page.views.toLocaleString()}</td>
+                    <td className="text-muted-foreground p-4">{page.lastUpdated}</td>
+                    <td className="text-right p-4">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Preview
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>

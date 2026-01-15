@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Plus, Calendar, PartyPopper, Users, MoreHorizontal } from "lucide-react";
 
@@ -23,6 +22,11 @@ export default function EventsPage() {
     { label: "This Month", value: "15", icon: PartyPopper },
     { label: "Total Guests", value: "320", icon: Users },
   ];
+
+  const statusColors: Record<string, string> = {
+    confirmed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -80,49 +84,71 @@ export default function EventsPage() {
             </Select>
           </div>
 
-          {/* Events Table */}
-          <Card className="border-border/50">
+          {/* Mobile Card View */}
+          <div className="block sm:hidden space-y-3">
+            {events.map((event) => (
+              <Card key={event.id} className="border-border/50">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="font-medium">{event.name}</p>
+                      <p className="text-xs text-muted-foreground">{event.organizer}</p>
+                    </div>
+                    <Badge className={statusColors[event.status]} variant="secondary">
+                      {event.status}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                    <span>{event.date} at {event.time}</span>
+                    <span>•</span>
+                    <span>{event.guests} guests</span>
+                  </div>
+                  <Badge variant="outline" className="text-xs mt-2">{event.type}</Badge>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <Card className="border-border/50 hidden sm:block">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border/50 hover:bg-transparent">
-                      <TableHead className="text-xs font-medium text-muted-foreground">Event</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden sm:table-cell">Organizer</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden md:table-cell">Date & Time</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Guests</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden sm:table-cell">Type</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Status</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border/50">
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Event</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Organizer</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Date & Time</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Guests</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Type</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                      <th className="w-10 p-4"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {events.map((event) => (
-                      <TableRow key={event.id} className="border-border/50 group cursor-pointer">
-                        <TableCell className="font-medium text-sm">{event.name}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">{event.organizer}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground hidden md:table-cell">{event.date} at {event.time}</TableCell>
-                        <TableCell className="text-sm">{event.guests}</TableCell>
-                        <TableCell className="hidden sm:table-cell">
+                      <tr key={event.id} className="border-b border-border/50 last:border-0 group cursor-pointer hover:bg-muted/50">
+                        <td className="font-medium text-sm p-4">{event.name}</td>
+                        <td className="text-sm text-muted-foreground p-4">{event.organizer}</td>
+                        <td className="text-sm text-muted-foreground p-4">{event.date} at {event.time}</td>
+                        <td className="text-sm p-4">{event.guests}</td>
+                        <td className="p-4">
                           <Badge variant="outline" className="text-xs font-normal">{event.type}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={event.status === "confirmed" ? "default" : "secondary"}
-                            className="text-xs font-normal"
-                          >
+                        </td>
+                        <td className="p-4">
+                          <Badge className={statusColors[event.status]} variant="secondary">
                             {event.status}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="p-4">
                           <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>

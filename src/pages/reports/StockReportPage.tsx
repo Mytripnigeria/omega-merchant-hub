@@ -4,7 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Package, AlertTriangle, TrendingDown, CheckCircle, Search, Filter, Download, MoreHorizontal } from "lucide-react";
 
 export default function StockReportPage() {
@@ -31,6 +30,12 @@ export default function StockReportPage() {
     item.name.toLowerCase().includes(search.toLowerCase()) &&
     (statusFilter === "all" || item.status === statusFilter)
   );
+
+  const statusColors: Record<string, string> = {
+    good: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    low: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    critical: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -92,45 +97,65 @@ export default function StockReportPage() {
             </Select>
           </div>
 
-          {/* Stock Table */}
-          <Card className="border-border/50">
+          {/* Mobile Card View */}
+          <div className="block sm:hidden space-y-3">
+            {filteredItems.map((item) => (
+              <Card key={item.sku} className="border-border/50">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="font-medium">{item.name}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{item.sku}</p>
+                    </div>
+                    <Badge className={statusColors[item.status]} variant="secondary">
+                      {item.status}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between mt-2 text-sm">
+                    <span className="text-muted-foreground">Current: {item.current} {item.unit}</span>
+                    <span className="text-muted-foreground">Min: {item.minimum} {item.unit}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <Card className="border-border/50 hidden sm:block">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border/50 hover:bg-transparent">
-                      <TableHead className="text-xs font-medium text-muted-foreground">Item</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden sm:table-cell">SKU</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Current</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground hidden md:table-cell">Minimum</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Status</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border/50">
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Item</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">SKU</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Current</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Minimum</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                      <th className="w-10 p-4"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {filteredItems.map((item) => (
-                      <TableRow key={item.sku} className="border-border/50 group cursor-pointer">
-                        <TableCell className="font-medium text-sm">{item.name}</TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground hidden sm:table-cell">{item.sku}</TableCell>
-                        <TableCell className="text-sm">{item.current} {item.unit}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground hidden md:table-cell">{item.minimum} {item.unit}</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={item.status === "good" ? "default" : item.status === "low" ? "secondary" : "destructive"}
-                            className="text-xs"
-                          >
+                      <tr key={item.sku} className="border-b border-border/50 last:border-0 group cursor-pointer hover:bg-muted/50">
+                        <td className="font-medium text-sm p-4">{item.name}</td>
+                        <td className="font-mono text-xs text-muted-foreground p-4">{item.sku}</td>
+                        <td className="text-sm p-4">{item.current} {item.unit}</td>
+                        <td className="text-sm text-muted-foreground p-4">{item.minimum} {item.unit}</td>
+                        <td className="p-4">
+                          <Badge className={statusColors[item.status]} variant="secondary">
                             {item.status}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="p-4">
                           <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
