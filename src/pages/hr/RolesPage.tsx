@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Plus, Shield, Users } from "lucide-react";
+import { Search, Plus, Shield, Users, Settings, Key } from "lucide-react";
 
 export default function RolesPage() {
   const [search, setSearch] = useState("");
@@ -23,16 +23,23 @@ export default function RolesPage() {
     "Orders", "Payments", "Inventory", "Staff", "Reports", "Settings", "Kitchen", "Customers"
   ];
 
+  const stats = [
+    { label: "Total Roles", value: "5", icon: Shield },
+    { label: "Total Users", value: "30", icon: Users },
+    { label: "Permissions", value: "8", icon: Key },
+  ];
+
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Roles & Permissions</h1>
-          <p className="text-muted-foreground">Define access levels for your team</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Roles & Permissions</h1>
+          <p className="text-sm text-muted-foreground">Define access levels for your team</p>
         </div>
         <Dialog>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />Add Role</Button>
+            <Button size="sm"><Plus className="h-4 w-4 mr-2" />Add Role</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Create Role</DialogTitle></DialogHeader>
@@ -56,37 +63,122 @@ export default function RolesPage() {
         </Dialog>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search roles..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
-      </div>
+      {/* Two-column layout for desktop */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Main content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Stats */}
+          <div className="grid gap-3 grid-cols-3">
+            {stats.map((stat) => (
+              <Card key={stat.label} className="border-border/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
+                      <stat.icon className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-semibold">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {roles.map((role) => (
-          <Card key={role.id}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-lg">{role.name}</CardTitle>
-                </div>
-                <Badge variant="secondary">
-                  <Users className="h-3 w-3 mr-1" />
-                  {role.users}
-                </Badge>
-              </div>
+          {/* Search */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search roles..." 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)} 
+              className="pl-9 h-9 bg-muted/50 border-0" 
+            />
+          </div>
+
+          {/* Roles Grid */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {roles.map((role) => (
+              <Card key={role.id} className="border-border/50">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Shield className="h-4 w-4 text-primary" />
+                      </div>
+                      <CardTitle className="text-base">{role.name}</CardTitle>
+                    </div>
+                    <Badge variant="secondary" className="text-xs">
+                      <Users className="h-3 w-3 mr-1" />
+                      {role.users}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">{role.description}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {role.permissions.slice(0, 4).map((perm) => (
+                      <Badge key={perm} variant="outline" className="text-xs">{perm}</Badge>
+                    ))}
+                    {role.permissions.length > 4 && (
+                      <Badge variant="outline" className="text-xs">+{role.permissions.length - 4}</Badge>
+                    )}
+                  </div>
+                  <Button variant="outline" size="sm" className="w-full text-xs">
+                    Edit Role
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          <Card className="border-border/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">All Permissions</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">{role.description}</p>
-              <div className="flex flex-wrap gap-1 mb-4">
-                {role.permissions.map((perm) => (
-                  <Badge key={perm} variant="outline" className="text-xs">{perm}</Badge>
-                ))}
-              </div>
-              <Button variant="outline" size="sm" className="w-full">Edit Role</Button>
+            <CardContent className="space-y-2">
+              {permissions.map((perm) => (
+                <div key={perm} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <Key className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-sm">{perm}</span>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
-        ))}
+
+          <Card className="border-border/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button variant="outline" size="sm" className="w-full justify-start">
+                <Plus className="mr-2 h-4 w-4" />
+                Create New Role
+              </Button>
+              <Button variant="outline" size="sm" className="w-full justify-start">
+                <Key className="mr-2 h-4 w-4" />
+                Manage Permissions
+              </Button>
+              <Button variant="outline" size="sm" className="w-full justify-start">
+                <Settings className="mr-2 h-4 w-4" />
+                Role Settings
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50 bg-muted/30">
+            <CardContent className="p-4">
+              <h4 className="font-medium text-sm mb-2">Security Tip</h4>
+              <p className="text-xs text-muted-foreground">
+                Follow the principle of least privilege - only grant permissions that are necessary for each role.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
