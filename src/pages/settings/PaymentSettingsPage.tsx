@@ -28,21 +28,21 @@ export default function PaymentSettingsPage() {
 
       <div className="grid gap-6 max-w-2xl">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-lg">Accepted Payments</CardTitle>
               <CardDescription>Toggle payment methods on or off</CardDescription>
             </div>
-            <Button size="sm" variant="outline">
+            <Button size="sm" variant="outline" className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add Method
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
             {paymentMethods.map((method) => (
-              <div key={method.id} className="flex items-center justify-between p-4 rounded-lg border">
+              <div key={method.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border gap-3">
                 <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
                     <method.icon className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div>
@@ -50,7 +50,7 @@ export default function PaymentSettingsPage() {
                     <p className="text-sm text-muted-foreground">{method.description}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between sm:justify-end gap-3 pl-14 sm:pl-0">
                   <Badge variant={method.enabled ? "default" : "secondary"}>
                     {method.enabled ? "Active" : "Inactive"}
                   </Badge>
@@ -67,12 +67,12 @@ export default function PaymentSettingsPage() {
             <CardDescription>Connect your payment processor</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between p-4 rounded-lg border border-dashed">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-dashed gap-3">
               <div>
                 <p className="font-medium">No payment gateway connected</p>
                 <p className="text-sm text-muted-foreground">Connect Stripe, Paystack, or Flutterwave</p>
               </div>
-              <Button size="sm">
+              <Button size="sm" className="w-full sm:w-auto">
                 <Settings className="mr-2 h-4 w-4" />
                 Configure
               </Button>

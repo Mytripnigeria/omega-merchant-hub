@@ -145,25 +145,25 @@ export default function VariationsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Variation Groups</p>
-            <p className="text-2xl font-semibold">{variations.length}</p>
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">Variation Groups</p>
+            <p className="text-xl sm:text-2xl font-semibold">{variations.length}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total Options</p>
-            <p className="text-2xl font-semibold">
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">Total Options</p>
+            <p className="text-xl sm:text-2xl font-semibold">
               {variations.reduce((acc, v) => acc + v.options.length, 0)}
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Products Using</p>
-            <p className="text-2xl font-semibold">
+        <Card className="col-span-2 md:col-span-1">
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">Products Using</p>
+            <p className="text-xl sm:text-2xl font-semibold">
               {variations.reduce((acc, v) => acc + v.linkedProducts, 0)}
             </p>
           </CardContent>

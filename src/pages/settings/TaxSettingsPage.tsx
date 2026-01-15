@@ -22,26 +22,26 @@ export default function TaxSettingsPage() {
 
       <div className="grid gap-6 max-w-2xl">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-lg">Tax Rates</CardTitle>
               <CardDescription>Configure taxes applied to orders</CardDescription>
             </div>
-            <Button size="sm" variant="outline">
+            <Button size="sm" variant="outline" className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add Tax
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
             {taxes.map((tax) => (
-              <div key={tax.id} className="flex items-center justify-between p-4 rounded-lg border">
+              <div key={tax.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border gap-3">
                 <div className="flex items-center gap-4">
                   <div>
                     <p className="font-medium">{tax.name}</p>
                     <p className="text-sm text-muted-foreground">{tax.rate}%</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between sm:justify-end gap-3">
                   <Badge variant={tax.enabled ? "default" : "secondary"}>
                     {tax.enabled ? "Active" : "Inactive"}
                   </Badge>

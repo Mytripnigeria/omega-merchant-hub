@@ -109,29 +109,29 @@ export default function ProductsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total Products</p>
-            <p className="text-2xl font-semibold">42</p>
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">Total Products</p>
+            <p className="text-xl sm:text-2xl font-semibold">42</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Active</p>
-            <p className="text-2xl font-semibold">38</p>
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">Active</p>
+            <p className="text-xl sm:text-2xl font-semibold">38</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Out of Stock</p>
-            <p className="text-2xl font-semibold text-red-600">4</p>
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">Out of Stock</p>
+            <p className="text-xl sm:text-2xl font-semibold text-destructive">4</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Categories</p>
-            <p className="text-2xl font-semibold">6</p>
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">Categories</p>
+            <p className="text-xl sm:text-2xl font-semibold">6</p>
           </CardContent>
         </Card>
       </div>

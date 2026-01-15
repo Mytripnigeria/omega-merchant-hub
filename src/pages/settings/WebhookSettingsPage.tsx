@@ -19,12 +19,12 @@ export default function WebhookSettingsPage() {
 
       <div className="grid gap-6 max-w-2xl">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-lg">Webhook Endpoints</CardTitle>
               <CardDescription>{webhooks.length} configured endpoints</CardDescription>
             </div>
-            <Button size="sm">
+            <Button size="sm" className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add Webhook
             </Button>
@@ -32,13 +32,13 @@ export default function WebhookSettingsPage() {
           <CardContent className="space-y-3">
             {webhooks.length > 0 ? (
               webhooks.map((webhook) => (
-                <div key={webhook.id} className="p-4 rounded-lg border">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Webhook className="h-4 w-4 text-muted-foreground" />
-                      <p className="font-medium">{webhook.name}</p>
+                <div key={webhook.id} className="p-4 rounded-lg border space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Webhook className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <p className="font-medium truncate">{webhook.name}</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <Badge variant={webhook.status === "active" ? "default" : "secondary"}>
                         {webhook.status}
                       </Badge>
@@ -48,7 +48,7 @@ export default function WebhookSettingsPage() {
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground font-mono truncate">{webhook.url}</p>
-                  <div className="flex gap-1 mt-2">
+                  <div className="flex flex-wrap gap-1">
                     {webhook.events.map((event) => (
                       <Badge key={event} variant="secondary" className="text-xs">{event}</Badge>
                     ))}

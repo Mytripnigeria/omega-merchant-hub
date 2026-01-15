@@ -20,24 +20,24 @@ export default function PrinterSettingsPage() {
 
       <div className="grid gap-6 max-w-2xl">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-lg">Connected Printers</CardTitle>
               <CardDescription>{printers.filter(p => p.connected).length} of {printers.length} online</CardDescription>
             </div>
-            <Button size="sm">
+            <Button size="sm" className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add Printer
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
             {printers.map((printer) => (
-              <div key={printer.id} className="flex items-center justify-between p-4 rounded-lg border">
+              <div key={printer.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border gap-3">
                 <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
                     <Printer className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-medium">{printer.name}</p>
                       {printer.connected ? (
@@ -49,7 +49,7 @@ export default function PrinterSettingsPage() {
                     <p className="text-sm text-muted-foreground">{printer.location} • {printer.type}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between sm:justify-end gap-2 pl-14 sm:pl-0">
                   <Badge variant={printer.connected ? "default" : "secondary"}>
                     {printer.connected ? "Online" : "Offline"}
                   </Badge>
