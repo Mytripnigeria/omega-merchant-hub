@@ -4,17 +4,16 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLoading } from "@/hooks/use-loading";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Plus,
   Edit,
@@ -94,7 +93,9 @@ function CategoriesSkeleton() {
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>(mockCategories);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
+  const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [newCategory, setNewCategory] = useState({ name: "", emoji: "" });
   const [searchQuery, setSearchQuery] = useState("");
   const isLoading = useLoading(1000);
@@ -119,8 +120,13 @@ export default function CategoriesPage() {
         },
       ]);
       setNewCategory({ name: "", emoji: "" });
-      setIsAddDialogOpen(false);
+      setIsAddSheetOpen(false);
     }
+  };
+
+  const handleViewCategory = (category: Category) => {
+    setSelectedCategory(category);
+    setIsViewSheetOpen(true);
   };
 
   const filteredCategories = categories.filter(cat =>
@@ -135,51 +141,10 @@ export default function CategoriesPage() {
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Categories</h1>
           <p className="text-sm text-muted-foreground">Organize your menu with categories</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="w-full sm:w-auto">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Category
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Category</DialogTitle>
-              <DialogDescription>
-                Create a new category to organize your products
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Category Name</Label>
-                <Input
-                  id="name"
-                  placeholder="e.g., Breakfast"
-                  value={newCategory.name}
-                  onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="emoji">Emoji</Label>
-                <Input
-                  id="emoji"
-                  placeholder="e.g., 🍳"
-                  value={newCategory.emoji}
-                  onChange={(e) => setNewCategory({ ...newCategory, emoji: e.target.value })}
-                  className="text-2xl"
-                />
-              </div>
-            </div>
-            <DialogFooter className="flex-col sm:flex-row gap-2">
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="w-full sm:w-auto">
-                Cancel
-              </Button>
-              <Button onClick={handleAddCategory} className="w-full sm:w-auto">
-                Create Category
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button size="sm" className="w-full sm:w-auto" onClick={() => setIsAddSheetOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Category
+        </Button>
       </div>
 
       {/* Stats */}
@@ -229,7 +194,8 @@ export default function CategoriesPage() {
           {filteredCategories.map((category) => (
             <Card
               key={category.id}
-              className="group transition-all hover:shadow-md"
+              className="group transition-all hover:shadow-md cursor-pointer"
+              onClick={() => handleViewCategory(category)}
             >
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-start justify-between">
@@ -245,13 +211,13 @@ export default function CategoriesPage() {
                     </div>
                   </div>
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" className="h-8 w-8 sm:opacity-0 sm:group-hover:opacity-100">
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewCategory(category); }}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit
                       </DropdownMenuItem>
@@ -267,7 +233,7 @@ export default function CategoriesPage() {
                     <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
                     <span className="text-xs text-muted-foreground">Order: {category.order}</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     <span className="text-xs text-muted-foreground">
                       {category.isActive ? "Active" : "Hidden"}
                     </span>
@@ -282,6 +248,93 @@ export default function CategoriesPage() {
           ))}
         </div>
       )}
+
+      {/* Add Category Sheet */}
+      <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Add New Category</SheetTitle>
+            <SheetDescription>
+              Create a new category to organize your products
+            </SheetDescription>
+          </SheetHeader>
+          <div className="grid gap-4 py-6">
+            <div className="space-y-2">
+              <Label htmlFor="name">Category Name</Label>
+              <Input
+                id="name"
+                placeholder="e.g., Breakfast"
+                value={newCategory.name}
+                onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="emoji">Emoji</Label>
+              <Input
+                id="emoji"
+                placeholder="e.g., 🍳"
+                value={newCategory.emoji}
+                onChange={(e) => setNewCategory({ ...newCategory, emoji: e.target.value })}
+                className="text-2xl"
+              />
+            </div>
+          </div>
+          <SheetFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setIsAddSheetOpen(false)} className="w-full sm:w-auto">
+              Cancel
+            </Button>
+            <Button onClick={handleAddCategory} className="w-full sm:w-auto">
+              Create Category
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* View/Edit Category Sheet */}
+      <Sheet open={isViewSheetOpen} onOpenChange={setIsViewSheetOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          {selectedCategory && (
+            <>
+              <SheetHeader>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted text-3xl">
+                    {selectedCategory.emoji}
+                  </div>
+                  <div>
+                    <SheetTitle>{selectedCategory.name}</SheetTitle>
+                    <SheetDescription>{selectedCategory.productCount} products</SheetDescription>
+                  </div>
+                </div>
+              </SheetHeader>
+              <div className="py-6 space-y-4">
+                <div className="flex items-center justify-between py-3 border-b">
+                  <span className="text-sm text-muted-foreground">Display Order</span>
+                  <span className="font-medium">#{selectedCategory.order}</span>
+                </div>
+                <div className="flex items-center justify-between py-3 border-b">
+                  <span className="text-sm text-muted-foreground">Status</span>
+                  <Switch
+                    checked={selectedCategory.isActive}
+                    onCheckedChange={() => toggleCategory(selectedCategory.id)}
+                  />
+                </div>
+                <div className="flex items-center justify-between py-3">
+                  <span className="text-sm text-muted-foreground">Products</span>
+                  <span className="font-medium">{selectedCategory.productCount}</span>
+                </div>
+              </div>
+              <SheetFooter className="flex-col sm:flex-row gap-2">
+                <Button variant="outline" className="w-full sm:w-auto">
+                  <Edit className="h-4 w-4 mr-2" />Edit
+                </Button>
+                <Button variant="destructive" className="w-full sm:w-auto">
+                  <Trash2 className="h-4 w-4 mr-2" />Delete
+                </Button>
+              </SheetFooter>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
