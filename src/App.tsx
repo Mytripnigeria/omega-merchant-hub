@@ -28,6 +28,7 @@ import CombosPage from "./pages/stocks/CombosPage";
 import InventoriesPage from "./pages/procurement/InventoriesPage";
 import StockTransferPage from "./pages/procurement/StockTransferPage";
 import LocationsPage from "./pages/procurement/LocationsPage";
+import ProcurementEquipmentPage from "./pages/procurement/EquipmentPage";
 
 // Suppliers
 import SuppliersPage from "./pages/suppliers/SuppliersPage";
@@ -128,6 +129,7 @@ const App = () => (
               <Route path="/procurement/inventories" element={<InventoriesPage />} />
               <Route path="/procurement/transfers" element={<StockTransferPage />} />
               <Route path="/procurement/locations" element={<LocationsPage />} />
+              <Route path="/procurement/equipment" element={<ProcurementEquipmentPage />} />
               
               {/* Suppliers */}
               <Route path="/suppliers" element={<SuppliersPage />} />
