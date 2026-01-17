@@ -7,7 +7,9 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useLoading } from "@/hooks/use-loading";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Table, 
   TableBody, 
@@ -37,17 +39,28 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, MoreHorizontal, Plus, Filter, Image as ImageIcon, Edit, Trash2, Eye } from "lucide-react";
+import { Search, MoreHorizontal, Plus, Filter, Image as ImageIcon, Edit, Trash2, Eye, X, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Product {
   id: string;
   name: string;
   description: string;
+  productCode: string;
   category: string;
-  price: string;
+  price: number;
+  sellingPrice: number;
+  sku: string;
   stock: number;
   status: boolean;
+  supplier: string;
+  prepTime: number;
+  taxOption: string;
+  discountOption: string;
+  visibility: string[];
+  ingredients: { name: string; unit: string; quantity: number }[];
+  variations: { name: string; sku: string; price: number; sellingPrice: number }[];
+  addons: string[];
 }
 
 const products: Product[] = [
@@ -55,55 +68,71 @@ const products: Product[] = [
     id: "1",
     name: "Signature Jollof Rice",
     description: "Our famous smoky party jollof rice",
+    productCode: "PRD-001",
     category: "Mains",
-    price: "₦3,500",
+    price: 2500,
+    sellingPrice: 3500,
+    sku: "JOL-001",
     stock: 45,
     status: true,
+    supplier: "Fresh Farms Ltd",
+    prepTime: 25,
+    taxOption: "Standard VAT",
+    discountOption: "None",
+    visibility: ["pos", "storefront"],
+    ingredients: [
+      { name: "Basmati Rice", unit: "kg", quantity: 0.3 },
+      { name: "Tomato Paste", unit: "tin", quantity: 0.5 },
+    ],
+    variations: [
+      { name: "Small", sku: "JOL-001-S", price: 2000, sellingPrice: 2500 },
+      { name: "Large", sku: "JOL-001-L", price: 3000, sellingPrice: 4000 },
+    ],
+    addons: ["Extra Protein", "Sides"],
   },
   {
     id: "2",
     name: "Peppered Chicken",
     description: "Crispy fried chicken with spicy pepper sauce",
+    productCode: "PRD-002",
     category: "Mains",
-    price: "₦2,800",
+    price: 2000,
+    sellingPrice: 2800,
+    sku: "PPC-001",
     stock: 28,
     status: true,
+    supplier: "Quality Meats",
+    prepTime: 20,
+    taxOption: "Standard VAT",
+    discountOption: "WELCOME20",
+    visibility: ["pos", "storefront", "ubereats"],
+    ingredients: [
+      { name: "Chicken (Whole)", unit: "kg", quantity: 0.5 },
+    ],
+    variations: [],
+    addons: ["Sides", "Drinks"],
   },
   {
     id: "3",
     name: "Suya Platter",
     description: "Thinly sliced beef skewers with suya spice",
+    productCode: "PRD-003",
     category: "Specialties",
-    price: "₦4,500",
+    price: 3500,
+    sellingPrice: 4500,
+    sku: "SUY-001",
     stock: 0,
     status: false,
-  },
-  {
-    id: "4",
-    name: "Egusi Soup Combo",
-    description: "Rich melon seed soup with assorted meat",
-    category: "Specialties",
-    price: "₦5,500",
-    stock: 12,
-    status: true,
-  },
-  {
-    id: "5",
-    name: "Chapman",
-    description: "Classic Nigerian cocktail",
-    category: "Drinks",
-    price: "₦1,500",
-    stock: 120,
-    status: true,
-  },
-  {
-    id: "6",
-    name: "Small Chops Platter",
-    description: "Assorted finger foods",
-    category: "Starters",
-    price: "₦3,500",
-    stock: 34,
-    status: true,
+    supplier: "Quality Meats",
+    prepTime: 30,
+    taxOption: "Standard VAT",
+    discountOption: "None",
+    visibility: ["pos"],
+    ingredients: [
+      { name: "Suya Spice Mix", unit: "kg", quantity: 0.1 },
+    ],
+    variations: [],
+    addons: [],
   },
 ];
 
@@ -169,15 +198,31 @@ function TableSkeleton() {
   );
 }
 
+const formatPrice = (amount: number) => {
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    minimumFractionDigits: 0,
+  }).format(amount);
+};
+
 export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   const isLoading = useLoading(1000);
 
   const handleViewProduct = (product: Product) => {
     setSelectedProduct(product);
+    setIsEditMode(false);
+    setIsViewSheetOpen(true);
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setSelectedProduct(product);
+    setIsEditMode(true);
     setIsViewSheetOpen(true);
   };
 
@@ -299,7 +344,7 @@ export default function ProductsPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="font-normal">{product.category}</Badge>
-                      <span className="font-medium">{product.price}</span>
+                      <span className="font-medium">{formatPrice(product.sellingPrice)}</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className={cn("text-sm", product.stock === 0 && "text-destructive")}>
@@ -354,7 +399,7 @@ export default function ProductsPage() {
                       <TableCell>
                         <Badge variant="secondary" className="font-normal">{product.category}</Badge>
                       </TableCell>
-                      <TableCell className="font-medium">{product.price}</TableCell>
+                      <TableCell className="font-medium">{formatPrice(product.sellingPrice)}</TableCell>
                       <TableCell>
                         <span className={cn(product.stock === 0 && "text-destructive")}>
                           {product.stock}
@@ -379,7 +424,7 @@ export default function ProductsPage() {
                             <DropdownMenuItem onClick={() => handleViewProduct(product)}>
                               <Eye className="mr-2 h-4 w-4" />View
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditProduct(product)}>
                               <Edit className="mr-2 h-4 w-4" />Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem className="text-destructive">
@@ -400,7 +445,7 @@ export default function ProductsPage() {
       {/* Pagination */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Showing 1-6 of 42 products
+          Showing 1-{products.length} of 42 products
         </p>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" disabled>
@@ -414,25 +459,35 @@ export default function ProductsPage() {
 
       {/* Add Product Sheet */}
       <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Add New Product</SheetTitle>
-            <SheetDescription>Create a new menu item</SheetDescription>
+            <SheetDescription>Create a new menu item with full details</SheetDescription>
           </SheetHeader>
-          <div className="grid gap-4 py-6">
-            <div className="space-y-2">
-              <Label>Product Name</Label>
-              <Input placeholder="e.g., Jollof Rice" />
-            </div>
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea placeholder="Describe your product..." rows={3} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+          <Tabs defaultValue="details" className="mt-6">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="pricing">Pricing</TabsTrigger>
+              <TabsTrigger value="variations">Variants</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+            </TabsList>
+            <TabsContent value="details" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Product Name</Label>
+                <Input placeholder="e.g., Jollof Rice" />
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea placeholder="Describe your product..." rows={3} />
+              </div>
+              <div className="space-y-2">
+                <Label>Product Code</Label>
+                <Input placeholder="e.g., PRD-001" />
+              </div>
               <div className="space-y-2">
                 <Label>Category</Label>
                 <Select>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="mains">Mains</SelectItem>
                     <SelectItem value="specialties">Specialties</SelectItem>
@@ -442,66 +497,338 @@ export default function ProductsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Price (₦)</Label>
-                <Input type="number" placeholder="0.00" />
+                <Label>Images</Label>
+                <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                  <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Initial Stock</Label>
-              <Input type="number" placeholder="0" />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label>Active</Label>
-              <Switch defaultChecked />
-            </div>
-          </div>
-          <SheetFooter className="flex-col sm:flex-row gap-2">
+              <div className="space-y-2">
+                <Label>Supplier</Label>
+                <Select>
+                  <SelectTrigger><SelectValue placeholder="Select supplier" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fresh-farms">Fresh Farms Ltd</SelectItem>
+                    <SelectItem value="quality-meats">Quality Meats</SelectItem>
+                    <SelectItem value="metro">Metro Beverages</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </TabsContent>
+            <TabsContent value="pricing" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>SKU</Label>
+                <Input placeholder="e.g., JOL-001" />
+              </div>
+              <div className="space-y-2">
+                <Label>Costing Option</Label>
+                <Select>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Fixed Price</SelectItem>
+                    <SelectItem value="ingredient">Ingredient Based</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Cost Price (₦)</Label>
+                  <Input type="number" placeholder="0" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Selling Price (₦)</Label>
+                  <Input type="number" placeholder="0" />
+                </div>
+              </div>
+              <div className="space-y-4 border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <Label>Ingredients (Link to Stock)</Label>
+                  <Button variant="outline" size="sm"><Plus className="h-4 w-4 mr-1" />Add</Button>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-2 border rounded-lg">
+                    <Select>
+                      <SelectTrigger className="flex-1"><SelectValue placeholder="Select ingredient" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="rice">Basmati Rice</SelectItem>
+                        <SelectItem value="tomato">Tomato Paste</SelectItem>
+                        <SelectItem value="chicken">Chicken</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input type="number" placeholder="Qty" className="w-20" />
+                    <span className="text-sm text-muted-foreground">kg</span>
+                    <Button variant="ghost" size="icon" className="shrink-0"><X className="h-4 w-4" /></Button>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+            <TabsContent value="variations" className="space-y-4 mt-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label>Variations</Label>
+                  <Button variant="outline" size="sm"><Plus className="h-4 w-4 mr-1" />Add Variation</Button>
+                </div>
+                <div className="border rounded-lg p-4 space-y-3">
+                  <div className="space-y-2">
+                    <Label>Variation Option</Label>
+                    <Select>
+                      <SelectTrigger><SelectValue placeholder="Select (e.g., Small)" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="small">Small</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="large">Large</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>SKU</Label>
+                      <Input placeholder="SKU" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Price (₦)</Label>
+                      <Input type="number" placeholder="0" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Selling (₦)</Label>
+                      <Input type="number" placeholder="0" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4 border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <Label>Add-ons</Label>
+                  <Button variant="outline" size="sm"><Plus className="h-4 w-4 mr-1" />Add</Button>
+                </div>
+                <Select>
+                  <SelectTrigger><SelectValue placeholder="Select add-on group" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="protein">Extra Protein</SelectItem>
+                    <SelectItem value="sides">Sides</SelectItem>
+                    <SelectItem value="drinks">Drinks</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </TabsContent>
+            <TabsContent value="settings" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Prep Time (minutes)</Label>
+                <Input type="number" placeholder="e.g., 25" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Tax Option</Label>
+                  <Select>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard VAT</SelectItem>
+                      <SelectItem value="none">No Tax</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Discount Option</Label>
+                  <Select>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="welcome20">WELCOME20</SelectItem>
+                      <SelectItem value="vip25">VIP25</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <Label>Visibility</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="pos" />
+                    <label htmlFor="pos" className="text-sm">Show on POS</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="self" />
+                    <label htmlFor="self" className="text-sm">Show on Self-Order</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="storefront" />
+                    <label htmlFor="storefront" className="text-sm">Show on Storefront</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="omni" />
+                    <label htmlFor="omni" className="text-sm">Show on Omnichannels</label>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-4 border-t">
+                <Label>Publish Status</Label>
+                <Select defaultValue="active">
+                  <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </TabsContent>
+          </Tabs>
+          <SheetFooter className="flex-col sm:flex-row gap-2 mt-6">
             <Button variant="outline" onClick={() => setIsAddSheetOpen(false)} className="w-full sm:w-auto">Cancel</Button>
             <Button className="w-full sm:w-auto">Create Product</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
 
-      {/* View Product Sheet */}
+      {/* View/Edit Product Sheet */}
       <Sheet open={isViewSheetOpen} onOpenChange={setIsViewSheetOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
           {selectedProduct && (
             <>
               <SheetHeader>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-muted">
-                    <ImageIcon className="h-7 w-7 text-muted-foreground" />
+                <div className="flex items-start gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-muted">
+                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <SheetTitle>{selectedProduct.name}</SheetTitle>
                     <SheetDescription>{selectedProduct.description}</SheetDescription>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant="secondary">{selectedProduct.category}</Badge>
+                      <Badge variant={selectedProduct.status ? "default" : "secondary"}>
+                        {selectedProduct.status ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
               </SheetHeader>
-              <div className="py-6 space-y-4">
-                <div className="flex items-center justify-between py-3 border-b">
-                  <span className="text-sm text-muted-foreground">Category</span>
-                  <Badge variant="secondary">{selectedProduct.category}</Badge>
-                </div>
-                <div className="flex items-center justify-between py-3 border-b">
-                  <span className="text-sm text-muted-foreground">Price</span>
-                  <span className="font-semibold">{selectedProduct.price}</span>
-                </div>
-                <div className="flex items-center justify-between py-3 border-b">
-                  <span className="text-sm text-muted-foreground">Stock</span>
-                  <span className={cn("font-medium", selectedProduct.stock === 0 && "text-destructive")}>
-                    {selectedProduct.stock} units
-                  </span>
-                </div>
-                <div className="flex items-center justify-between py-3">
-                  <span className="text-sm text-muted-foreground">Status</span>
-                  <Badge className={selectedProduct.status ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : ""}>
-                    {selectedProduct.status ? "Active" : "Inactive"}
-                  </Badge>
-                </div>
-              </div>
-              <SheetFooter className="flex-col sm:flex-row gap-2">
-                <Button variant="outline" className="w-full sm:w-auto">
+              
+              <Tabs defaultValue="details" className="mt-6">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="details">Details</TabsTrigger>
+                  <TabsTrigger value="pricing">Pricing</TabsTrigger>
+                  <TabsTrigger value="variations">Variants</TabsTrigger>
+                  <TabsTrigger value="settings">Settings</TabsTrigger>
+                </TabsList>
+                <TabsContent value="details" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Product Code</p>
+                      <p className="font-medium">{selectedProduct.productCode}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">SKU</p>
+                      <p className="font-medium">{selectedProduct.sku}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Category</p>
+                      <p className="font-medium">{selectedProduct.category}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Stock</p>
+                      <p className={cn("font-medium", selectedProduct.stock === 0 && "text-destructive")}>{selectedProduct.stock}</p>
+                    </div>
+                    <div className="space-y-1 col-span-2">
+                      <p className="text-sm text-muted-foreground">Supplier</p>
+                      <p className="font-medium">{selectedProduct.supplier}</p>
+                    </div>
+                  </div>
+                </TabsContent>
+                <TabsContent value="pricing" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Cost Price</p>
+                      <p className="font-medium">{formatPrice(selectedProduct.price)}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Selling Price</p>
+                      <p className="font-medium text-lg">{formatPrice(selectedProduct.sellingPrice)}</p>
+                    </div>
+                  </div>
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-medium mb-3">Ingredients</p>
+                    {selectedProduct.ingredients.length > 0 ? (
+                      <div className="space-y-2">
+                        {selectedProduct.ingredients.map((ing, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-2 bg-muted rounded-lg">
+                            <span>{ing.name}</span>
+                            <span className="text-muted-foreground">{ing.quantity} {ing.unit}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No ingredients linked</p>
+                    )}
+                  </div>
+                </TabsContent>
+                <TabsContent value="variations" className="space-y-4 mt-4">
+                  <div>
+                    <p className="text-sm font-medium mb-3">Variations</p>
+                    {selectedProduct.variations.length > 0 ? (
+                      <div className="space-y-2">
+                        {selectedProduct.variations.map((v, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div>
+                              <p className="font-medium">{v.name}</p>
+                              <p className="text-xs text-muted-foreground">{v.sku}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-medium">{formatPrice(v.sellingPrice)}</p>
+                              <p className="text-xs text-muted-foreground line-through">{formatPrice(v.price)}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No variations</p>
+                    )}
+                  </div>
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-medium mb-3">Add-on Groups</p>
+                    {selectedProduct.addons.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {selectedProduct.addons.map((addon, idx) => (
+                          <Badge key={idx} variant="secondary">{addon}</Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No add-ons attached</p>
+                    )}
+                  </div>
+                </TabsContent>
+                <TabsContent value="settings" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Prep Time</p>
+                      <p className="font-medium">{selectedProduct.prepTime} minutes</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Tax Option</p>
+                      <p className="font-medium">{selectedProduct.taxOption}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Discount</p>
+                      <p className="font-medium">{selectedProduct.discountOption}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Status</p>
+                      <Badge variant={selectedProduct.status ? "default" : "secondary"}>
+                        {selectedProduct.status ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-medium mb-3">Visibility</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProduct.visibility.map((v, idx) => (
+                        <Badge key={idx} variant="outline" className="capitalize">{v}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              <SheetFooter className="flex-col sm:flex-row gap-2 mt-6">
+                <Button variant="outline" className="w-full sm:w-auto" onClick={() => handleEditProduct(selectedProduct)}>
                   <Edit className="h-4 w-4 mr-2" />Edit
                 </Button>
                 <Button variant="destructive" className="w-full sm:w-auto">

@@ -6,6 +6,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useLoading } from "@/hooks/use-loading";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
@@ -15,12 +18,20 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Plus,
   Edit,
   Trash2,
   MoreHorizontal,
   GripVertical,
   Search,
+  Upload,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -33,20 +44,21 @@ interface Category {
   id: string;
   name: string;
   emoji: string;
+  description: string;
+  image: string | null;
   productCount: number;
   isActive: boolean;
   order: number;
+  visibility: string[];
 }
 
 const mockCategories: Category[] = [
-  { id: "cat-1", name: "Popular", emoji: "🔥", productCount: 12, isActive: true, order: 1 },
-  { id: "cat-2", name: "New Release", emoji: "✨", productCount: 5, isActive: true, order: 2 },
-  { id: "cat-3", name: "Specialties", emoji: "🏆", productCount: 8, isActive: true, order: 3 },
-  { id: "cat-4", name: "Starters", emoji: "🥗", productCount: 6, isActive: true, order: 4 },
-  { id: "cat-5", name: "Mains", emoji: "🍛", productCount: 15, isActive: true, order: 5 },
-  { id: "cat-6", name: "Sides", emoji: "🍟", productCount: 8, isActive: true, order: 6 },
-  { id: "cat-7", name: "Drinks", emoji: "🧃", productCount: 10, isActive: true, order: 7 },
-  { id: "cat-8", name: "Desserts", emoji: "🍰", productCount: 4, isActive: false, order: 8 },
+  { id: "cat-1", name: "Popular", emoji: "🔥", description: "Most ordered items", image: null, productCount: 12, isActive: true, order: 1, visibility: ["pos", "storefront"] },
+  { id: "cat-2", name: "New Release", emoji: "✨", description: "Fresh additions to our menu", image: null, productCount: 5, isActive: true, order: 2, visibility: ["pos", "storefront", "ubereats"] },
+  { id: "cat-3", name: "Specialties", emoji: "🏆", description: "Chef's special dishes", image: null, productCount: 8, isActive: true, order: 3, visibility: ["pos", "storefront"] },
+  { id: "cat-4", name: "Starters", emoji: "🥗", description: "Appetizers and small plates", image: null, productCount: 6, isActive: true, order: 4, visibility: ["pos", "storefront"] },
+  { id: "cat-5", name: "Mains", emoji: "🍛", description: "Main course dishes", image: null, productCount: 15, isActive: true, order: 5, visibility: ["pos", "storefront", "ubereats"] },
+  { id: "cat-6", name: "Desserts", emoji: "🍰", description: "Sweet treats", image: null, productCount: 4, isActive: false, order: 6, visibility: ["pos"] },
 ];
 
 function StatsSkeleton() {
@@ -96,7 +108,7 @@ export default function CategoriesPage() {
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [newCategory, setNewCategory] = useState({ name: "", emoji: "" });
+  const [isEditMode, setIsEditMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const isLoading = useLoading(1000);
 
@@ -106,26 +118,15 @@ export default function CategoriesPage() {
     ));
   };
 
-  const handleAddCategory = () => {
-    if (newCategory.name && newCategory.emoji) {
-      setCategories([
-        ...categories,
-        {
-          id: `cat-${Date.now()}`,
-          name: newCategory.name,
-          emoji: newCategory.emoji,
-          productCount: 0,
-          isActive: true,
-          order: categories.length + 1,
-        },
-      ]);
-      setNewCategory({ name: "", emoji: "" });
-      setIsAddSheetOpen(false);
-    }
-  };
-
   const handleViewCategory = (category: Category) => {
     setSelectedCategory(category);
+    setIsEditMode(false);
+    setIsViewSheetOpen(true);
+  };
+
+  const handleEditCategory = (category: Category) => {
+    setSelectedCategory(category);
+    setIsEditMode(true);
     setIsViewSheetOpen(true);
   };
 
@@ -217,7 +218,7 @@ export default function CategoriesPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewCategory(category); }}>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditCategory(category); }}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit
                       </DropdownMenuItem>
@@ -261,29 +262,60 @@ export default function CategoriesPage() {
           <div className="grid gap-4 py-6">
             <div className="space-y-2">
               <Label htmlFor="name">Category Name</Label>
-              <Input
-                id="name"
-                placeholder="e.g., Breakfast"
-                value={newCategory.name}
-                onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-              />
+              <Input id="name" placeholder="e.g., Breakfast" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="emoji">Emoji</Label>
-              <Input
-                id="emoji"
-                placeholder="e.g., 🍳"
-                value={newCategory.emoji}
-                onChange={(e) => setNewCategory({ ...newCategory, emoji: e.target.value })}
-                className="text-2xl"
-              />
+              <Input id="emoji" placeholder="e.g., 🍳" className="text-2xl" />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea placeholder="Brief description of this category..." rows={3} />
+            </div>
+            <div className="space-y-2">
+              <Label>Image</Label>
+              <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <Label>Visibility</Label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="pos" defaultChecked />
+                  <label htmlFor="pos" className="text-sm">Show on POS</label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="self" />
+                  <label htmlFor="self" className="text-sm">Show on Self-Order</label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="storefront" defaultChecked />
+                  <label htmlFor="storefront" className="text-sm">Show on Storefront</label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="omni" />
+                  <label htmlFor="omni" className="text-sm">Show on Omnichannels</label>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-4 border-t">
+              <Label>Status</Label>
+              <Select defaultValue="active">
+                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <SheetFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setIsAddSheetOpen(false)} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button onClick={handleAddCategory} className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto">
               Create Category
             </Button>
           </SheetFooter>
@@ -307,29 +339,108 @@ export default function CategoriesPage() {
                 </div>
               </SheetHeader>
               <div className="py-6 space-y-4">
-                <div className="flex items-center justify-between py-3 border-b">
-                  <span className="text-sm text-muted-foreground">Display Order</span>
-                  <span className="font-medium">#{selectedCategory.order}</span>
-                </div>
-                <div className="flex items-center justify-between py-3 border-b">
-                  <span className="text-sm text-muted-foreground">Status</span>
-                  <Switch
-                    checked={selectedCategory.isActive}
-                    onCheckedChange={() => toggleCategory(selectedCategory.id)}
-                  />
-                </div>
-                <div className="flex items-center justify-between py-3">
-                  <span className="text-sm text-muted-foreground">Products</span>
-                  <span className="font-medium">{selectedCategory.productCount}</span>
-                </div>
+                {isEditMode ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Category Name</Label>
+                      <Input defaultValue={selectedCategory.name} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Emoji</Label>
+                      <Input defaultValue={selectedCategory.emoji} className="text-2xl" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Description</Label>
+                      <Textarea defaultValue={selectedCategory.description} rows={3} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Image</Label>
+                      <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                        <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <Label>Visibility</Label>
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id="edit-pos" defaultChecked={selectedCategory.visibility.includes("pos")} />
+                          <label htmlFor="edit-pos" className="text-sm">Show on POS</label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id="edit-self" defaultChecked={selectedCategory.visibility.includes("self")} />
+                          <label htmlFor="edit-self" className="text-sm">Show on Self-Order</label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id="edit-storefront" defaultChecked={selectedCategory.visibility.includes("storefront")} />
+                          <label htmlFor="edit-storefront" className="text-sm">Show on Storefront</label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id="edit-omni" defaultChecked={selectedCategory.visibility.includes("ubereats")} />
+                          <label htmlFor="edit-omni" className="text-sm">Show on Omnichannels</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-4 border-t">
+                      <Label>Status</Label>
+                      <Select defaultValue={selectedCategory.isActive ? "active" : "inactive"}>
+                        <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="inactive">Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between py-3 border-b">
+                      <span className="text-sm text-muted-foreground">Description</span>
+                      <span className="text-sm">{selectedCategory.description}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-3 border-b">
+                      <span className="text-sm text-muted-foreground">Display Order</span>
+                      <span className="font-medium">#{selectedCategory.order}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-3 border-b">
+                      <span className="text-sm text-muted-foreground">Products</span>
+                      <span className="font-medium">{selectedCategory.productCount}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-3 border-b">
+                      <span className="text-sm text-muted-foreground">Status</span>
+                      <Badge variant={selectedCategory.isActive ? "default" : "secondary"}>
+                        {selectedCategory.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                    <div className="py-3">
+                      <span className="text-sm text-muted-foreground">Visibility</span>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {selectedCategory.visibility.map((v, idx) => (
+                          <Badge key={idx} variant="outline" className="capitalize">{v}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
               <SheetFooter className="flex-col sm:flex-row gap-2">
-                <Button variant="outline" className="w-full sm:w-auto">
-                  <Edit className="h-4 w-4 mr-2" />Edit
-                </Button>
-                <Button variant="destructive" className="w-full sm:w-auto">
-                  <Trash2 className="h-4 w-4 mr-2" />Delete
-                </Button>
+                {isEditMode ? (
+                  <>
+                    <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsEditMode(false)}>
+                      Cancel
+                    </Button>
+                    <Button className="w-full sm:w-auto">Save Changes</Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsEditMode(true)}>
+                      <Edit className="h-4 w-4 mr-2" />Edit
+                    </Button>
+                    <Button variant="destructive" className="w-full sm:w-auto">
+                      <Trash2 className="h-4 w-4 mr-2" />Delete
+                    </Button>
+                  </>
+                )}
               </SheetFooter>
             </>
           )}
