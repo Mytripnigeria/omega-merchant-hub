@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { 
   Select,
   SelectContent,
@@ -10,31 +11,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Plus, MoreHorizontal, Users, UserCheck, UserX, Building2, Mail } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Users, UserCheck, UserX, Building2, Mail, Edit, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Staff {
   id: string;
   name: string;
   email: string;
+  phone: string;
   role: string;
   department: string;
   joinDate: string;
+  baseSalary: number;
   status: "Active" | "On Leave" | "Inactive";
 }
 
-const staff: Staff[] = [
-  { id: "1", name: "John Doe", email: "john@store.com", role: "Manager", department: "Operations", joinDate: "Jan 15, 2024", status: "Active" },
-  { id: "2", name: "Sarah Smith", email: "sarah@store.com", role: "Cashier", department: "Sales", joinDate: "Mar 20, 2024", status: "Active" },
-  { id: "3", name: "Mike Johnson", email: "mike@store.com", role: "Chef", department: "Kitchen", joinDate: "Feb 10, 2024", status: "Active" },
-  { id: "4", name: "Lisa Brown", email: "lisa@store.com", role: "Server", department: "Service", joinDate: "May 5, 2024", status: "On Leave" },
-  { id: "5", name: "David Wilson", email: "david@store.com", role: "Delivery", department: "Logistics", joinDate: "Jun 12, 2024", status: "Active" },
-  { id: "6", name: "Emma Davis", email: "emma@store.com", role: "Cashier", department: "Sales", joinDate: "Jul 8, 2024", status: "Inactive" },
+const staffData: Staff[] = [
+  { id: "1", name: "John Doe", email: "john@store.com", phone: "+234 801 234 5678", role: "Manager", department: "Operations", joinDate: "Jan 15, 2024", baseSalary: 350000, status: "Active" },
+  { id: "2", name: "Sarah Smith", email: "sarah@store.com", phone: "+234 802 345 6789", role: "Cashier", department: "Sales", joinDate: "Mar 20, 2024", baseSalary: 150000, status: "Active" },
+  { id: "3", name: "Mike Johnson", email: "mike@store.com", phone: "+234 803 456 7890", role: "Chef", department: "Kitchen", joinDate: "Feb 10, 2024", baseSalary: 280000, status: "Active" },
+  { id: "4", name: "Lisa Brown", email: "lisa@store.com", phone: "+234 804 567 8901", role: "Server", department: "Service", joinDate: "May 5, 2024", baseSalary: 120000, status: "On Leave" },
+  { id: "5", name: "David Wilson", email: "david@store.com", phone: "+234 805 678 9012", role: "Delivery", department: "Logistics", joinDate: "Jun 12, 2024", baseSalary: 100000, status: "Active" },
+  { id: "6", name: "Emma Davis", email: "emma@store.com", phone: "+234 806 789 0123", role: "Cashier", department: "Sales", joinDate: "Jul 8, 2024", baseSalary: 150000, status: "Inactive" },
 ];
 
 export default function StaffPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
+  const [sheetMode, setSheetMode] = useState<"view" | "add" | "edit">("view");
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const stats = [
     { label: "Total Staff", value: "24", icon: Users },
@@ -60,6 +67,12 @@ export default function StaffPage() {
     }
   };
 
+  const openSheet = (mode: "view" | "add" | "edit", staff?: Staff) => {
+    setSheetMode(mode);
+    setSelectedStaff(staff || null);
+    setIsSheetOpen(true);
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Header */}
@@ -68,7 +81,7 @@ export default function StaffPage() {
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Staff</h1>
           <p className="text-sm text-muted-foreground">Manage your team members</p>
         </div>
-        <Button size="sm">
+        <Button size="sm" onClick={() => openSheet("add")}>
           <Plus className="mr-2 h-4 w-4" />
           Add Staff
         </Button>
@@ -136,8 +149,12 @@ export default function StaffPage() {
             <CardContent className="p-0">
               {/* Mobile Card View */}
               <div className="block sm:hidden divide-y divide-border">
-                {staff.map((member) => (
-                  <div key={member.id} className="p-4 space-y-3">
+                {staffData.map((member) => (
+                  <div 
+                    key={member.id} 
+                    className="p-4 space-y-3 cursor-pointer hover:bg-muted/50"
+                    onClick={() => openSheet("view", member)}
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <Avatar className="h-10 w-10 shrink-0">
@@ -183,8 +200,12 @@ export default function StaffPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {staff.map((member) => (
-                      <tr key={member.id} className="border-b border-border last:border-0 group cursor-pointer hover:bg-muted/50">
+                    {staffData.map((member) => (
+                      <tr 
+                        key={member.id} 
+                        className="border-b border-border last:border-0 group cursor-pointer hover:bg-muted/50"
+                        onClick={() => openSheet("view", member)}
+                      >
                         <td className="p-4">
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
@@ -255,7 +276,7 @@ export default function StaffPage() {
               <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start">
+              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => openSheet("add")}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add New Staff
               </Button>
@@ -275,7 +296,7 @@ export default function StaffPage() {
               <CardTitle className="text-sm font-medium">Recent Hires</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {staff.slice(0, 3).map((member) => (
+              {staffData.slice(0, 3).map((member) => (
                 <div key={member.id} className="flex items-center gap-3">
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="bg-muted text-xs">
@@ -292,6 +313,162 @@ export default function StaffPage() {
           </Card>
         </div>
       </div>
+
+      {/* Action Sheet */}
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader className="space-y-1 pb-4 border-b">
+            <div className="flex items-center justify-between">
+              <SheetTitle>
+                {sheetMode === "add" ? "Add Staff Member" : sheetMode === "edit" ? "Edit Staff" : selectedStaff?.name}
+              </SheetTitle>
+              {sheetMode === "view" && selectedStaff && (
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSheetMode("edit")}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            {sheetMode === "view" && selectedStaff && (
+              <SheetDescription>{selectedStaff.role} • {selectedStaff.department}</SheetDescription>
+            )}
+          </SheetHeader>
+
+          {sheetMode === "view" && selectedStaff ? (
+            <div className="space-y-6 mt-4">
+              {/* Personal Info */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-muted-foreground">Personal Information</h4>
+                <div className="grid gap-3">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Full Name</span>
+                    <span className="text-sm font-medium">{selectedStaff.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Email</span>
+                    <span className="text-sm font-medium">{selectedStaff.email}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Phone</span>
+                    <span className="text-sm font-medium">{selectedStaff.phone}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Employment Info */}
+              <div className="space-y-4 pt-4 border-t">
+                <h4 className="text-sm font-medium text-muted-foreground">Employment Details</h4>
+                <div className="grid gap-3">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Role</span>
+                    <span className="text-sm font-medium">{selectedStaff.role}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Department</span>
+                    <span className="text-sm font-medium">{selectedStaff.department}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Join Date</span>
+                    <span className="text-sm font-medium">{selectedStaff.joinDate}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Base Salary</span>
+                    <span className="text-sm font-medium">₦{selectedStaff.baseSalary.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Status</span>
+                    <Badge className={cn("text-xs", getStatusColor(selectedStaff.status))}>
+                      {selectedStaff.status}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t">
+                <Button variant="outline" className="flex-1" onClick={() => setSheetMode("edit")}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+                <Button variant="destructive" className="flex-1">Deactivate</Button>
+              </div>
+            </div>
+          ) : (
+            /* Add/Edit Form */
+            <div className="space-y-6 mt-4">
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium">Personal Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>First Name</Label>
+                    <Input placeholder="John" defaultValue={selectedStaff?.name.split(' ')[0]} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Last Name</Label>
+                    <Input placeholder="Doe" defaultValue={selectedStaff?.name.split(' ')[1]} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input type="email" placeholder="john@store.com" defaultValue={selectedStaff?.email} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone</Label>
+                  <Input placeholder="+234 801 234 5678" defaultValue={selectedStaff?.phone} />
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t">
+                <h4 className="text-sm font-medium">Employment Details</h4>
+                <div className="space-y-2">
+                  <Label>Role</Label>
+                  <Select defaultValue={selectedStaff?.role.toLowerCase()}>
+                    <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manager">Manager</SelectItem>
+                      <SelectItem value="cashier">Cashier</SelectItem>
+                      <SelectItem value="chef">Chef</SelectItem>
+                      <SelectItem value="server">Server</SelectItem>
+                      <SelectItem value="delivery">Delivery</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Department</Label>
+                  <Select defaultValue={selectedStaff?.department.toLowerCase()}>
+                    <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="operations">Operations</SelectItem>
+                      <SelectItem value="sales">Sales</SelectItem>
+                      <SelectItem value="kitchen">Kitchen</SelectItem>
+                      <SelectItem value="service">Service</SelectItem>
+                      <SelectItem value="logistics">Logistics</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Base Salary (₦)</Label>
+                  <Input type="number" placeholder="150000" defaultValue={selectedStaff?.baseSalary} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select defaultValue={selectedStaff?.status.toLowerCase().replace(' ', '-') || "active"}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="on-leave">On Leave</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t">
+                <Button variant="outline" className="flex-1" onClick={() => setIsSheetOpen(false)}>Cancel</Button>
+                <Button className="flex-1">{sheetMode === "add" ? "Add Staff" : "Save Changes"}</Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
