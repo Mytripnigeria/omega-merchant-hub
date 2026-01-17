@@ -12,16 +12,16 @@ export default function ReferralsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
 
   const referrals = [
-    { id: 1, referrer: "John Doe", referred: "Mike Smith", date: "2026-01-12", status: "completed", reward: 10.00 },
-    { id: 2, referrer: "Sarah Lee", referred: "Lisa Brown", date: "2026-01-11", status: "pending", reward: 10.00 },
-    { id: 3, referrer: "John Doe", referred: "Tom Wilson", date: "2026-01-10", status: "completed", reward: 10.00 },
-    { id: 4, referrer: "Emma Davis", referred: "Anna White", date: "2026-01-09", status: "completed", reward: 10.00 },
+    { id: 1, referrer: "John Doe", referred: "Mike Smith", date: "2026-01-12", status: "completed", reward: 1000 },
+    { id: 2, referrer: "Sarah Lee", referred: "Lisa Brown", date: "2026-01-11", status: "pending", reward: 1000 },
+    { id: 3, referrer: "John Doe", referred: "Tom Wilson", date: "2026-01-10", status: "completed", reward: 1000 },
+    { id: 4, referrer: "Emma Davis", referred: "Anna White", date: "2026-01-09", status: "completed", reward: 1000 },
   ];
 
   const stats = [
     { label: "Total Referrals", value: "234", icon: Users },
     { label: "Completed", value: "198", icon: Gift },
-    { label: "Rewards Paid", value: "$1,980", icon: DollarSign },
+    { label: "Rewards Paid", value: "₦198,000", icon: DollarSign },
   ];
 
   const statusColors: Record<string, string> = {
@@ -103,7 +103,7 @@ export default function ReferralsPage() {
                   </div>
                   <div className="flex items-center justify-between mt-2 text-sm">
                     <span className="text-muted-foreground">{ref.date}</span>
-                    <span className="font-medium">${ref.reward.toFixed(2)}</span>
+                    <span className="font-medium">₦{ref.reward.toLocaleString()}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -131,7 +131,7 @@ export default function ReferralsPage() {
                         <td className="font-medium text-sm p-4">{ref.referrer}</td>
                         <td className="text-sm text-muted-foreground p-4">{ref.referred}</td>
                         <td className="text-sm text-muted-foreground p-4">{ref.date}</td>
-                        <td className="text-sm font-medium text-right p-4">${ref.reward.toFixed(2)}</td>
+                        <td className="text-sm font-medium text-right p-4">₦{ref.reward.toLocaleString()}</td>
                         <td className="p-4">
                           <Badge className={statusColors[ref.status]} variant="secondary">
                             {ref.status}
@@ -162,12 +162,12 @@ export default function ReferralsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Referrer Bonus ($)</Label>
-                <Input type="number" defaultValue="10" className="h-9 bg-muted/50 border-0" />
+                <Label className="text-xs text-muted-foreground">Referrer Bonus (₦)</Label>
+                <Input type="number" defaultValue="1000" className="h-9 bg-muted/50 border-0" />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Referred Bonus ($)</Label>
-                <Input type="number" defaultValue="5" className="h-9 bg-muted/50 border-0" />
+                <Label className="text-xs text-muted-foreground">Referred Bonus (₦)</Label>
+                <Input type="number" defaultValue="500" className="h-9 bg-muted/50 border-0" />
               </div>
               <Button size="sm" className="w-full">Save Settings</Button>
             </CardContent>

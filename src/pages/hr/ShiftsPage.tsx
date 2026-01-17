@@ -2,24 +2,78 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Clock, Plus, Users, ArrowLeftRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Calendar, Clock, Plus, Users, ArrowLeftRight, ChevronLeft, ChevronRight, Edit, Trash2 } from "lucide-react";
+
+interface ShiftSchedule {
+  id: number;
+  period: "Morning" | "Afternoon" | "Night";
+  role: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+}
+
+interface Shift {
+  id: number;
+  staffId: number;
+  staff: string;
+  schedules: ShiftSchedule[];
+}
+
+const shiftsData: Shift[] = [
+  { 
+    id: 1, 
+    staffId: 1,
+    staff: "John Doe", 
+    schedules: [
+      { id: 1, period: "Morning", role: "Manager", date: "2026-01-13", startTime: "06:00", endTime: "14:00" },
+      { id: 2, period: "Morning", role: "Manager", date: "2026-01-14", startTime: "06:00", endTime: "14:00" },
+    ]
+  },
+  { 
+    id: 2, 
+    staffId: 2,
+    staff: "Sarah Smith", 
+    schedules: [
+      { id: 3, period: "Afternoon", role: "Cashier", date: "2026-01-13", startTime: "14:00", endTime: "22:00" },
+    ]
+  },
+  { 
+    id: 3, 
+    staffId: 3,
+    staff: "Mike Johnson", 
+    schedules: [
+      { id: 4, period: "Morning", role: "Chef", date: "2026-01-13", startTime: "06:00", endTime: "14:00" },
+    ]
+  },
+  { 
+    id: 4, 
+    staffId: 4,
+    staff: "Lisa Brown", 
+    schedules: [
+      { id: 5, period: "Afternoon", role: "Waiter", date: "2026-01-14", startTime: "14:00", endTime: "22:00" },
+    ]
+  },
+  { 
+    id: 5, 
+    staffId: 5,
+    staff: "David Wilson", 
+    schedules: [
+      { id: 6, period: "Morning", role: "Rider", date: "2026-01-15", startTime: "06:00", endTime: "14:00" },
+    ]
+  },
+];
 
 export default function ShiftsPage() {
   const [view, setView] = useState("week");
-
-  const shifts = [
-    { id: 1, staff: "John Doe", day: "Mon", time: "06:00 - 14:00", type: "Morning" },
-    { id: 2, staff: "Sarah Smith", day: "Mon", time: "14:00 - 22:00", type: "Afternoon" },
-    { id: 3, staff: "Mike Johnson", day: "Mon", time: "06:00 - 14:00", type: "Morning" },
-    { id: 4, staff: "Lisa Brown", day: "Tue", time: "14:00 - 22:00", type: "Afternoon" },
-    { id: 5, staff: "David Wilson", day: "Wed", time: "06:00 - 14:00", type: "Morning" },
-    { id: 6, staff: "Emma Davis", day: "Thu", time: "14:00 - 22:00", type: "Afternoon" },
-    { id: 7, staff: "Chris Lee", day: "Fri", time: "06:00 - 14:00", type: "Morning" },
-  ];
+  const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
+  const [sheetMode, setSheetMode] = useState<"view" | "add" | "edit">("view");
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [schedules, setSchedules] = useState<Partial<ShiftSchedule>[]>([{ period: "Morning", role: "", date: "", startTime: "", endTime: "" }]);
 
   const swapRequests = [
     { id: 1, from: "John Doe", to: "Sarah Smith", date: "Jan 15", status: "pending" },
@@ -34,6 +88,47 @@ export default function ShiftsPage() {
 
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+  const openSheet = (mode: "view" | "add" | "edit", shift?: Shift) => {
+    setSheetMode(mode);
+    setSelectedShift(shift || null);
+    if (mode === "add") {
+      setSchedules([{ period: "Morning", role: "", date: "", startTime: "", endTime: "" }]);
+    } else if (shift) {
+      setSchedules(shift.schedules);
+    }
+    setIsSheetOpen(true);
+  };
+
+  const addScheduleRow = () => {
+    setSchedules([...schedules, { period: "Morning", role: "", date: "", startTime: "", endTime: "" }]);
+  };
+
+  const removeScheduleRow = (index: number) => {
+    setSchedules(schedules.filter((_, i) => i !== index));
+  };
+
+  // Create a map of shifts by day for display
+  const getShiftsByDay = (day: string) => {
+    const dayIndex = days.indexOf(day);
+    const baseDate = new Date("2026-01-13");
+    baseDate.setDate(baseDate.getDate() + dayIndex);
+    const dateStr = baseDate.toISOString().split('T')[0];
+    
+    const result: { staff: string; time: string; type: string }[] = [];
+    shiftsData.forEach(shift => {
+      shift.schedules.forEach(schedule => {
+        if (schedule.date === dateStr) {
+          result.push({
+            staff: shift.staff,
+            time: `${schedule.startTime} - ${schedule.endTime}`,
+            type: schedule.period
+          });
+        }
+      });
+    });
+    return result;
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -44,6 +139,14 @@ export default function ShiftsPage() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex bg-muted rounded-lg p-0.5">
+            <Button 
+              variant={view === "month" ? "secondary" : "ghost"} 
+              size="sm" 
+              onClick={() => setView("month")}
+              className="h-7 px-3 text-xs"
+            >
+              Month
+            </Button>
             <Button 
               variant={view === "week" ? "secondary" : "ghost"} 
               size="sm" 
@@ -61,33 +164,9 @@ export default function ShiftsPage() {
               Day
             </Button>
           </div>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button size="sm"><Plus className="h-4 w-4 mr-2" />Add Shift</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Create Shift</DialogTitle></DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Staff Member</Label>
-                  <Select>
-                    <SelectTrigger><SelectValue placeholder="Select staff" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="john">John Doe</SelectItem>
-                      <SelectItem value="sarah">Sarah Smith</SelectItem>
-                      <SelectItem value="mike">Mike Johnson</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2"><Label>Date</Label><Input type="date" /></div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label>Start Time</Label><Input type="time" /></div>
-                  <div className="space-y-2"><Label>End Time</Label><Input type="time" /></div>
-                </div>
-                <Button className="w-full">Create Shift</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button size="sm" onClick={() => openSheet("add")}>
+            <Plus className="h-4 w-4 mr-2" />Add Shift
+          </Button>
         </div>
       </div>
 
@@ -130,22 +209,29 @@ export default function ShiftsPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-7 gap-1 sm:gap-2">
-                {days.map((day) => (
-                  <div key={day} className="text-center">
-                    <p className="font-medium text-xs sm:text-sm mb-2 text-muted-foreground">{day}</p>
-                    <div className="space-y-1 min-h-[120px]">
-                      {shifts.filter(s => s.day === day).map((shift) => (
-                        <div 
-                          key={shift.id} 
-                          className="p-1.5 sm:p-2 bg-primary/10 rounded text-xs cursor-pointer hover:bg-primary/20 transition-colors"
-                        >
-                          <p className="font-medium truncate text-[10px] sm:text-xs">{shift.staff.split(' ')[0]}</p>
-                          <p className="text-muted-foreground text-[9px] sm:text-[10px] hidden sm:block">{shift.time}</p>
-                        </div>
-                      ))}
+                {days.map((day) => {
+                  const shifts = getShiftsByDay(day);
+                  return (
+                    <div key={day} className="text-center">
+                      <p className="font-medium text-xs sm:text-sm mb-2 text-muted-foreground">{day}</p>
+                      <div className="space-y-1 min-h-[120px]">
+                        {shifts.map((shift, idx) => (
+                          <div 
+                            key={idx} 
+                            className="p-1.5 sm:p-2 bg-primary/10 rounded text-xs cursor-pointer hover:bg-primary/20 transition-colors"
+                            onClick={() => {
+                              const fullShift = shiftsData.find(s => s.staff === shift.staff);
+                              if (fullShift) openSheet("view", fullShift);
+                            }}
+                          >
+                            <p className="font-medium truncate text-[10px] sm:text-xs">{shift.staff.split(' ')[0]}</p>
+                            <p className="text-muted-foreground text-[9px] sm:text-[10px] hidden sm:block">{shift.time}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -234,6 +320,159 @@ export default function ShiftsPage() {
           </Card>
         </div>
       </div>
+
+      {/* Action Sheet */}
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader className="space-y-1 pb-4 border-b">
+            <div className="flex items-center justify-between">
+              <SheetTitle>
+                {sheetMode === "add" ? "Create Shift" : sheetMode === "edit" ? "Edit Shift" : `${selectedShift?.staff}'s Shift`}
+              </SheetTitle>
+              {sheetMode === "view" && selectedShift && (
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSheetMode("edit")}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            {sheetMode === "view" && selectedShift && (
+              <SheetDescription>{selectedShift.schedules.length} schedule(s)</SheetDescription>
+            )}
+          </SheetHeader>
+
+          {sheetMode === "view" && selectedShift ? (
+            <div className="space-y-6 mt-4">
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-muted-foreground">Staff Member</h4>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="font-medium">{selectedShift.staff}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t">
+                <h4 className="text-sm font-medium text-muted-foreground">Schedules</h4>
+                <div className="space-y-3">
+                  {selectedShift.schedules.map((schedule) => (
+                    <div key={schedule.id} className="p-3 border rounded-lg space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline">{schedule.period}</Badge>
+                        <span className="text-sm font-medium">{schedule.role}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <span>{schedule.date}</span>
+                        <span>{schedule.startTime} - {schedule.endTime}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t">
+                <Button variant="outline" className="flex-1" onClick={() => setSheetMode("edit")}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+                <Button variant="destructive" className="flex-1">Delete Shift</Button>
+              </div>
+            </div>
+          ) : (
+            /* Add/Edit Form */
+            <div className="space-y-6 mt-4">
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium">Shift Details</h4>
+                <div className="space-y-2">
+                  <Label>Select Staff</Label>
+                  <Select defaultValue={selectedShift?.staffId.toString()}>
+                    <SelectTrigger><SelectValue placeholder="Select staff member" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">John Doe</SelectItem>
+                      <SelectItem value="2">Sarah Smith</SelectItem>
+                      <SelectItem value="3">Mike Johnson</SelectItem>
+                      <SelectItem value="4">Lisa Brown</SelectItem>
+                      <SelectItem value="5">David Wilson</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium">Schedule(s)</h4>
+                  <Button variant="outline" size="sm" onClick={addScheduleRow}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Schedule
+                  </Button>
+                </div>
+                
+                <div className="space-y-4">
+                  {schedules.map((schedule, index) => (
+                    <div key={index} className="p-4 border rounded-lg space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Schedule {index + 1}</span>
+                        {schedules.length > 1 && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => removeScheduleRow(index)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Period</Label>
+                          <Select defaultValue={schedule.period}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Morning">Morning</SelectItem>
+                              <SelectItem value="Afternoon">Afternoon</SelectItem>
+                              <SelectItem value="Night">Night</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Role</Label>
+                          <Select defaultValue={schedule.role}>
+                            <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Manager">Manager</SelectItem>
+                              <SelectItem value="Cashier">Cashier</SelectItem>
+                              <SelectItem value="Chef">Chef</SelectItem>
+                              <SelectItem value="Waiter">Waiter</SelectItem>
+                              <SelectItem value="Rider">Rider</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Date</Label>
+                        <Input type="date" defaultValue={schedule.date} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Start Time</Label>
+                          <Input type="time" defaultValue={schedule.startTime} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>End Time</Label>
+                          <Input type="time" defaultValue={schedule.endTime} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t">
+                <Button variant="outline" className="flex-1" onClick={() => setIsSheetOpen(false)}>Cancel</Button>
+                <Button className="flex-1">{sheetMode === "add" ? "Create Shift" : "Save Changes"}</Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
