@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { 
   Select,
   SelectContent,
@@ -11,27 +12,42 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Download, FileText, MoreHorizontal, DollarSign, Users, Clock, Calendar, Mail } from "lucide-react";
+import { Search, Download, FileText, DollarSign, Users, Clock, Calendar, Mail, Printer, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 
 interface Payslip {
   id: string;
   staff: string;
   email: string;
+  role: string;
   period: string;
-  baseSalary: string;
-  overtime: string;
-  deductions: string;
-  netPay: string;
+  baseSalary: number;
+  overtime: number;
+  bonus: number;
+  deductions: number;
+  tax: number;
+  netPay: number;
   status: "Paid" | "Pending" | "Processing";
+  paidDate?: string;
+  bankAccount?: string;
 }
 
 const payslips: Payslip[] = [
-  { id: "1", staff: "John Doe", email: "john@store.com", period: "Jan 2026", baseSalary: "₦300,000", overtime: "+₦25,000", deductions: "-₦15,000", netPay: "₦310,000", status: "Paid" },
-  { id: "2", staff: "Sarah Smith", email: "sarah@store.com", period: "Jan 2026", baseSalary: "₦250,000", overtime: "+₦10,000", deductions: "-₦12,500", netPay: "₦247,500", status: "Pending" },
-  { id: "3", staff: "Mike Johnson", email: "mike@store.com", period: "Jan 2026", baseSalary: "₦280,000", overtime: "₦0", deductions: "-₦14,000", netPay: "₦266,000", status: "Processing" },
-  { id: "4", staff: "Lisa Brown", email: "lisa@store.com", period: "Jan 2026", baseSalary: "₦220,000", overtime: "+₦18,000", deductions: "-₦11,000", netPay: "₦227,000", status: "Paid" },
-  { id: "5", staff: "David Wilson", email: "david@store.com", period: "Jan 2026", baseSalary: "₦350,000", overtime: "+₦30,000", deductions: "-₦19,000", netPay: "₦361,000", status: "Paid" },
+  { id: "PS-001", staff: "John Doe", email: "john@store.com", role: "Manager", period: "Jan 2026", baseSalary: 300000, overtime: 25000, bonus: 10000, deductions: 15000, tax: 45000, netPay: 275000, status: "Paid", paidDate: "2026-01-25", bankAccount: "****1234" },
+  { id: "PS-002", staff: "Sarah Smith", email: "sarah@store.com", role: "Cashier", period: "Jan 2026", baseSalary: 250000, overtime: 10000, bonus: 0, deductions: 12500, tax: 35000, netPay: 212500, status: "Pending", bankAccount: "****5678" },
+  { id: "PS-003", staff: "Mike Johnson", email: "mike@store.com", role: "Chef", period: "Jan 2026", baseSalary: 280000, overtime: 0, bonus: 5000, deductions: 14000, tax: 40000, netPay: 231000, status: "Processing", bankAccount: "****9012" },
+  { id: "PS-004", staff: "Lisa Brown", email: "lisa@store.com", role: "Server", period: "Jan 2026", baseSalary: 220000, overtime: 18000, bonus: 8000, deductions: 11000, tax: 32000, netPay: 203000, status: "Paid", paidDate: "2026-01-25", bankAccount: "****3456" },
+  { id: "PS-005", staff: "David Wilson", email: "david@store.com", role: "Manager", period: "Jan 2026", baseSalary: 350000, overtime: 30000, bonus: 15000, deductions: 19000, tax: 55000, netPay: 321000, status: "Paid", paidDate: "2026-01-25", bankAccount: "****7890" },
 ];
 
 const getStatusColor = (status: string) => {
@@ -43,8 +59,15 @@ const getStatusColor = (status: string) => {
   }
 };
 
+const formatCurrency = (amount: number) => `₦${amount.toLocaleString()}`;
+
 export default function PayslipsPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [periodFilter, setPeriodFilter] = useState("jan2026");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
+  const [isGenerateSheetOpen, setIsGenerateSheetOpen] = useState(false);
+  const [selectedPayslip, setSelectedPayslip] = useState<Payslip | null>(null);
 
   const stats = [
     { label: "Total Payroll", value: "₦4.5M", icon: DollarSign, description: "This month" },
@@ -52,6 +75,18 @@ export default function PayslipsPage() {
     { label: "Pending", value: "6", icon: Clock, description: "Awaiting approval" },
     { label: "Period", value: "Jan 2026", icon: Calendar, description: "Current cycle" },
   ];
+
+  const handleViewPayslip = (payslip: Payslip) => {
+    setSelectedPayslip(payslip);
+    setIsViewSheetOpen(true);
+  };
+
+  const filteredPayslips = payslips.filter(p => {
+    const matchesSearch = p.staff.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          p.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || p.status.toLowerCase() === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
@@ -66,7 +101,7 @@ export default function PayslipsPage() {
             <Download className="mr-2 h-4 w-4" />
             <span className="hidden xs:inline">Export</span>
           </Button>
-          <Button size="sm" className="flex-1 sm:flex-none">
+          <Button size="sm" className="flex-1 sm:flex-none" onClick={() => setIsGenerateSheetOpen(true)}>
             <FileText className="mr-2 h-4 w-4" />
             <span className="hidden xs:inline">Generate</span>
           </Button>
@@ -105,7 +140,7 @@ export default function PayslipsPage() {
                 className="pl-9 h-9 bg-muted/50 border-0"
               />
             </div>
-            <Select defaultValue="jan2026">
+            <Select value={periodFilter} onValueChange={setPeriodFilter}>
               <SelectTrigger className="w-full sm:w-32 h-9 bg-muted/50 border-0">
                 <SelectValue placeholder="Period" />
               </SelectTrigger>
@@ -115,7 +150,7 @@ export default function PayslipsPage() {
                 <SelectItem value="nov2025">Nov 2025</SelectItem>
               </SelectContent>
             </Select>
-            <Select defaultValue="all">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full sm:w-28 h-9 bg-muted/50 border-0">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -133,8 +168,12 @@ export default function PayslipsPage() {
             <CardContent className="p-0">
               {/* Mobile Card View */}
               <div className="block sm:hidden divide-y divide-border">
-                {payslips.map((slip) => (
-                  <div key={slip.id} className="p-4 space-y-3">
+                {filteredPayslips.map((slip) => (
+                  <div 
+                    key={slip.id} 
+                    className="p-4 space-y-3 cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleViewPayslip(slip)}
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <Avatar className="h-9 w-9 shrink-0">
@@ -144,7 +183,7 @@ export default function PayslipsPage() {
                         </Avatar>
                         <div className="min-w-0">
                           <p className="font-medium text-sm truncate">{slip.staff}</p>
-                          <p className="text-xs text-muted-foreground truncate">{slip.email}</p>
+                          <p className="text-xs text-muted-foreground truncate">{slip.role}</p>
                         </div>
                       </div>
                       <Badge 
@@ -157,20 +196,20 @@ export default function PayslipsPage() {
                     <div className="grid grid-cols-3 gap-2 text-xs">
                       <div>
                         <p className="text-muted-foreground">Base</p>
-                        <p className="font-medium">{slip.baseSalary}</p>
+                        <p className="font-medium">{formatCurrency(slip.baseSalary)}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Overtime</p>
-                        <p className="font-medium text-green-600">{slip.overtime}</p>
+                        <p className="text-muted-foreground">Extras</p>
+                        <p className="font-medium text-green-600">+{formatCurrency(slip.overtime + slip.bonus)}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Deductions</p>
-                        <p className="font-medium text-red-600">{slip.deductions}</p>
+                        <p className="font-medium text-red-600">-{formatCurrency(slip.deductions + slip.tax)}</p>
                       </div>
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-border">
                       <span className="text-xs text-muted-foreground">{slip.period}</span>
-                      <span className="font-semibold">{slip.netPay}</span>
+                      <span className="font-semibold">{formatCurrency(slip.netPay)}</span>
                     </div>
                   </div>
                 ))}
@@ -191,18 +230,29 @@ export default function PayslipsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {payslips.map((slip) => (
-                      <tr key={slip.id} className="border-b border-border last:border-0 group cursor-pointer hover:bg-muted/50">
+                    {filteredPayslips.map((slip) => (
+                      <tr 
+                        key={slip.id} 
+                        className="border-b border-border last:border-0 group cursor-pointer hover:bg-muted/50"
+                        onClick={() => handleViewPayslip(slip)}
+                      >
                         <td className="p-4">
-                          <div>
-                            <p className="font-medium text-sm">{slip.staff}</p>
-                            <p className="text-xs text-muted-foreground">{slip.email}</p>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="bg-muted text-xs">
+                                {slip.staff.split(' ').map(n => n[0]).join('')}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-sm">{slip.staff}</p>
+                              <p className="text-xs text-muted-foreground">{slip.role}</p>
+                            </div>
                           </div>
                         </td>
-                        <td className="p-4 text-sm">{slip.baseSalary}</td>
-                        <td className="p-4 text-sm text-green-600">{slip.overtime}</td>
-                        <td className="p-4 text-sm text-red-600">{slip.deductions}</td>
-                        <td className="p-4 font-semibold text-sm">{slip.netPay}</td>
+                        <td className="p-4 text-sm">{formatCurrency(slip.baseSalary)}</td>
+                        <td className="p-4 text-sm text-green-600">+{formatCurrency(slip.overtime)}</td>
+                        <td className="p-4 text-sm text-red-600">-{formatCurrency(slip.deductions + slip.tax)}</td>
+                        <td className="p-4 font-semibold text-sm">{formatCurrency(slip.netPay)}</td>
                         <td className="p-4">
                           <Badge 
                             variant="secondary" 
@@ -213,7 +263,7 @@ export default function PayslipsPage() {
                         </td>
                         <td className="p-4">
                           <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                            <MoreHorizontal className="h-4 w-4" />
+                            <Eye className="h-4 w-4" />
                           </Button>
                         </td>
                       </tr>
@@ -241,7 +291,7 @@ export default function PayslipsPage() {
               <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start">
+              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setIsGenerateSheetOpen(true)}>
                 <FileText className="mr-2 h-4 w-4" />
                 Generate All Payslips
               </Button>
@@ -302,6 +352,211 @@ export default function PayslipsPage() {
           </Card>
         </div>
       </div>
+
+      {/* View Payslip Sheet */}
+      <Sheet open={isViewSheetOpen} onOpenChange={setIsViewSheetOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <div className="flex items-center gap-3">
+              <Avatar className="h-12 w-12">
+                <AvatarFallback className="bg-primary/10 text-primary">
+                  {selectedPayslip?.staff.split(' ').map(n => n[0]).join('')}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <SheetTitle>{selectedPayslip?.staff}</SheetTitle>
+                <SheetDescription>{selectedPayslip?.role} • {selectedPayslip?.period}</SheetDescription>
+              </div>
+            </div>
+          </SheetHeader>
+          
+          <Tabs defaultValue="summary" className="mt-6">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="summary">Summary</TabsTrigger>
+              <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
+              <TabsTrigger value="history">History</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="summary" className="space-y-4 mt-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Status</span>
+                <Badge className={cn("text-xs", getStatusColor(selectedPayslip?.status || ""))}>
+                  {selectedPayslip?.status}
+                </Badge>
+              </div>
+              
+              <Card className="border-border/50">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Base Salary</span>
+                    <span className="font-medium">{formatCurrency(selectedPayslip?.baseSalary || 0)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Overtime</span>
+                    <span className="font-medium text-green-600">+{formatCurrency(selectedPayslip?.overtime || 0)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Bonus</span>
+                    <span className="font-medium text-green-600">+{formatCurrency(selectedPayslip?.bonus || 0)}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Gross Pay</span>
+                    <span className="font-medium">{formatCurrency((selectedPayslip?.baseSalary || 0) + (selectedPayslip?.overtime || 0) + (selectedPayslip?.bonus || 0))}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Deductions</span>
+                    <span className="font-medium text-red-600">-{formatCurrency(selectedPayslip?.deductions || 0)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Tax</span>
+                    <span className="font-medium text-red-600">-{formatCurrency(selectedPayslip?.tax || 0)}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between">
+                    <span className="font-medium">Net Pay</span>
+                    <span className="text-lg font-semibold text-primary">{formatCurrency(selectedPayslip?.netPay || 0)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="p-3 border rounded-lg">
+                  <p className="text-muted-foreground text-xs">Bank Account</p>
+                  <p className="font-medium">{selectedPayslip?.bankAccount}</p>
+                </div>
+                <div className="p-3 border rounded-lg">
+                  <p className="text-muted-foreground text-xs">Paid On</p>
+                  <p className="font-medium">{selectedPayslip?.paidDate || "Pending"}</p>
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="breakdown" className="space-y-4 mt-4">
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium">Earnings</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between p-3 border rounded-lg">
+                    <span className="text-sm">Basic Salary</span>
+                    <span className="font-medium">{formatCurrency(selectedPayslip?.baseSalary || 0)}</span>
+                  </div>
+                  <div className="flex justify-between p-3 border rounded-lg">
+                    <span className="text-sm">Overtime (15 hours)</span>
+                    <span className="font-medium text-green-600">+{formatCurrency(selectedPayslip?.overtime || 0)}</span>
+                  </div>
+                  <div className="flex justify-between p-3 border rounded-lg">
+                    <span className="text-sm">Performance Bonus</span>
+                    <span className="font-medium text-green-600">+{formatCurrency(selectedPayslip?.bonus || 0)}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium">Deductions</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between p-3 border rounded-lg">
+                    <span className="text-sm">Pension (8%)</span>
+                    <span className="font-medium text-red-600">-{formatCurrency((selectedPayslip?.deductions || 0) * 0.6)}</span>
+                  </div>
+                  <div className="flex justify-between p-3 border rounded-lg">
+                    <span className="text-sm">Health Insurance</span>
+                    <span className="font-medium text-red-600">-{formatCurrency((selectedPayslip?.deductions || 0) * 0.4)}</span>
+                  </div>
+                  <div className="flex justify-between p-3 border rounded-lg">
+                    <span className="text-sm">Income Tax (PAYE)</span>
+                    <span className="font-medium text-red-600">-{formatCurrency(selectedPayslip?.tax || 0)}</span>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="history" className="space-y-3 mt-4">
+              {["Jan 2026", "Dec 2025", "Nov 2025", "Oct 2025"].map((period, i) => (
+                <div key={period} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium">{period}</p>
+                    <p className="text-xs text-muted-foreground">Paid on {25 - i}/01/2026</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{formatCurrency((selectedPayslip?.netPay || 0) - (i * 5000))}</p>
+                    <Badge variant="outline" className="text-xs">Paid</Badge>
+                  </div>
+                </div>
+              ))}
+            </TabsContent>
+          </Tabs>
+          
+          <SheetFooter className="flex-col sm:flex-row gap-2 mt-6">
+            <Button variant="outline" className="w-full sm:w-auto">
+              <Mail className="h-4 w-4 mr-2" />Email
+            </Button>
+            <Button variant="outline" className="w-full sm:w-auto">
+              <Printer className="h-4 w-4 mr-2" />Print
+            </Button>
+            <Button className="w-full sm:w-auto">
+              <Download className="h-4 w-4 mr-2" />Download PDF
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* Generate Payslips Sheet */}
+      <Sheet open={isGenerateSheetOpen} onOpenChange={setIsGenerateSheetOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Generate Payslips</SheetTitle>
+            <SheetDescription>Create payslips for the selected period</SheetDescription>
+          </SheetHeader>
+          <div className="grid gap-6 py-6">
+            <div className="space-y-2">
+              <Label>Pay Period</Label>
+              <Select defaultValue="jan2026">
+                <SelectTrigger>
+                  <SelectValue placeholder="Select period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="jan2026">January 2026</SelectItem>
+                  <SelectItem value="feb2026">February 2026</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Staff Selection</Label>
+              <Select defaultValue="all">
+                <SelectTrigger>
+                  <SelectValue placeholder="Select staff" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Staff (24)</SelectItem>
+                  <SelectItem value="managers">Managers Only (4)</SelectItem>
+                  <SelectItem value="kitchen">Kitchen Staff (8)</SelectItem>
+                  <SelectItem value="servers">Servers (12)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Card className="border-border/50">
+              <CardContent className="p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Staff Selected</span>
+                  <span className="font-medium">24</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Estimated Total</span>
+                  <span className="font-medium">₦6.07M</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Pay Date</span>
+                  <span className="font-medium">25th Jan 2026</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          <SheetFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setIsGenerateSheetOpen(false)} className="w-full sm:w-auto">Cancel</Button>
+            <Button className="w-full sm:w-auto">Generate Payslips</Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
