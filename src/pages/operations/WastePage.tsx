@@ -3,34 +3,54 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { useLoading } from "@/hooks/use-loading";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Trash2, TrendingDown, AlertTriangle, MoreHorizontal, Calendar, User } from "lucide-react";
+import { Search, Plus, Trash2, TrendingDown, AlertTriangle, MoreHorizontal, Calendar, User, X, Edit } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface WasteItem {
   id: number;
   item: string;
   quantity: string;
+  unit: string;
   reason: string;
   cost: number;
   date: string;
   loggedBy: string;
+  notes?: string;
 }
 
 const wasteLog: WasteItem[] = [
-  { id: 1, item: "Lettuce", quantity: "5 kg", reason: "Spoilage", cost: 25, date: "2026-01-15", loggedBy: "John D." },
-  { id: 2, item: "Chicken Breast", quantity: "3 kg", reason: "Overproduction", cost: 45, date: "2026-01-15", loggedBy: "Sarah M." },
-  { id: 3, item: "Milk", quantity: "2 L", reason: "Expired", cost: 8, date: "2026-01-14", loggedBy: "Mike R." },
-  { id: 4, item: "Bread Rolls", quantity: "24 pcs", reason: "Overproduction", cost: 12, date: "2026-01-14", loggedBy: "Emma W." },
+  { id: 1, item: "Lettuce", quantity: "5", unit: "kg", reason: "Spoilage", cost: 2500, date: "2026-01-15", loggedBy: "John D.", notes: "Found moldy in storage" },
+  { id: 2, item: "Chicken Breast", quantity: "3", unit: "kg", reason: "Overproduction", cost: 4500, date: "2026-01-15", loggedBy: "Sarah M.", notes: "Prepared too much for slow day" },
+  { id: 3, item: "Milk", quantity: "2", unit: "L", reason: "Expired", cost: 800, date: "2026-01-14", loggedBy: "Mike R." },
+  { id: 4, item: "Bread Rolls", quantity: "24", unit: "pcs", reason: "Overproduction", cost: 1200, date: "2026-01-14", loggedBy: "Emma W." },
 ];
 
 const stats = [
-  { label: "Total Waste (MTD)", value: "$1,250", icon: Trash2 },
+  { label: "Total Waste (MTD)", value: "₦125,000", icon: Trash2 },
   { label: "Waste %", value: "3.2%", icon: AlertTriangle },
   { label: "vs Last Month", value: "-15%", icon: TrendingDown, positive: true },
   { label: "Items Logged", value: "42", icon: Trash2 },
 ];
+
+const reasons = ["Spoilage", "Expired", "Overproduction", "Damaged", "Customer Return", "Other"];
 
 function StatsSkeleton() {
   return (
@@ -55,7 +75,6 @@ function StatsSkeleton() {
 function WasteSkeleton() {
   return (
     <>
-      {/* Mobile skeleton */}
       <div className="block sm:hidden divide-y divide-border -mx-3">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="px-3 py-4 space-y-3">
@@ -73,7 +92,6 @@ function WasteSkeleton() {
           </div>
         ))}
       </div>
-      {/* Desktop skeleton */}
       <div className="hidden sm:block overflow-x-auto -mx-4">
         <table className="w-full">
           <thead>
@@ -105,6 +123,9 @@ function WasteSkeleton() {
 const WastePage = () => {
   const [search, setSearch] = useState("");
   const [reasonFilter, setReasonFilter] = useState("all");
+  const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
+  const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
+  const [selectedWaste, setSelectedWaste] = useState<WasteItem | null>(null);
   const isLoading = useLoading(1000);
 
   const getReasonColor = (reason: string) => {
@@ -122,6 +143,11 @@ const WastePage = () => {
     return matchesSearch && matchesReason;
   });
 
+  const handleViewWaste = (waste: WasteItem) => {
+    setSelectedWaste(waste);
+    setIsViewSheetOpen(true);
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -129,7 +155,7 @@ const WastePage = () => {
           <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Waste Management</h1>
           <p className="text-sm text-muted-foreground">Track and reduce food waste</p>
         </div>
-        <Button size="sm" className="w-full sm:w-auto">
+        <Button size="sm" className="w-full sm:w-auto" onClick={() => setIsAddSheetOpen(true)}>
           <Plus className="h-4 w-4 sm:mr-2" />
           <span className="sm:inline">Log Waste</span>
         </Button>
@@ -191,11 +217,15 @@ const WastePage = () => {
               {/* Mobile Card View */}
               <div className="block sm:hidden divide-y divide-border -mx-3">
                 {filteredWaste.map((item) => (
-                  <div key={item.id} className="px-3 py-4 space-y-3">
+                  <div 
+                    key={item.id} 
+                    className="px-3 py-4 space-y-3 cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleViewWaste(item)}
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="font-medium text-sm">{item.item}</p>
-                        <p className="text-xs text-muted-foreground">{item.quantity}</p>
+                        <p className="text-xs text-muted-foreground">{item.quantity} {item.unit}</p>
                       </div>
                       <Badge 
                         variant={getReasonColor(item.reason) as "default" | "secondary" | "destructive" | "outline"}
@@ -215,7 +245,7 @@ const WastePage = () => {
                           <span>{item.loggedBy}</span>
                         </div>
                       </div>
-                      <span className="font-medium text-red-500">-${item.cost}</span>
+                      <span className="font-medium text-red-500">-₦{item.cost.toLocaleString()}</span>
                     </div>
                   </div>
                 ))}
@@ -237,9 +267,13 @@ const WastePage = () => {
                   </thead>
                   <tbody>
                     {filteredWaste.map((item) => (
-                      <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/50 group cursor-pointer">
+                      <tr 
+                        key={item.id} 
+                        className="border-b border-border last:border-0 hover:bg-muted/50 group cursor-pointer"
+                        onClick={() => handleViewWaste(item)}
+                      >
                         <td className="p-4 font-medium text-sm">{item.item}</td>
-                        <td className="p-4 text-sm text-muted-foreground">{item.quantity}</td>
+                        <td className="p-4 text-sm text-muted-foreground">{item.quantity} {item.unit}</td>
                         <td className="p-4">
                           <Badge 
                             variant={getReasonColor(item.reason) as "default" | "secondary" | "destructive" | "outline"}
@@ -251,12 +285,21 @@ const WastePage = () => {
                         <td className="p-4 text-sm text-muted-foreground">{item.date}</td>
                         <td className="p-4 text-sm text-muted-foreground">{item.loggedBy}</td>
                         <td className="p-4 text-sm font-medium text-right text-red-500">
-                          -${item.cost}
+                          -₦{item.cost.toLocaleString()}
                         </td>
-                        <td className="p-4">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
+                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewWaste(item)}>View Details</DropdownMenuItem>
+                              <DropdownMenuItem>Edit</DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       </tr>
                     ))}
@@ -267,6 +310,111 @@ const WastePage = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Add Waste Sheet */}
+      <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Log Waste Item</SheetTitle>
+            <SheetDescription>Record wasted items for tracking</SheetDescription>
+          </SheetHeader>
+          <div className="grid gap-4 py-6">
+            <div className="space-y-2">
+              <Label>Item Name</Label>
+              <Input placeholder="e.g., Lettuce" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Quantity</Label>
+                <Input type="number" placeholder="0" />
+              </div>
+              <div className="space-y-2">
+                <Label>Unit</Label>
+                <Select>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="kg">Kg</SelectItem>
+                    <SelectItem value="g">Grams</SelectItem>
+                    <SelectItem value="L">Liters</SelectItem>
+                    <SelectItem value="pcs">Pieces</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Reason</Label>
+              <Select>
+                <SelectTrigger><SelectValue placeholder="Select reason" /></SelectTrigger>
+                <SelectContent>
+                  {reasons.map(r => (
+                    <SelectItem key={r} value={r.toLowerCase()}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Estimated Cost (₦)</Label>
+              <Input type="number" placeholder="0" />
+            </div>
+            <div className="space-y-2">
+              <Label>Notes (Optional)</Label>
+              <Textarea placeholder="Additional details about this waste..." rows={3} />
+            </div>
+          </div>
+          <SheetFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setIsAddSheetOpen(false)} className="w-full sm:w-auto">Cancel</Button>
+            <Button className="w-full sm:w-auto">Log Waste</Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* View Waste Sheet */}
+      <Sheet open={isViewSheetOpen} onOpenChange={setIsViewSheetOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{selectedWaste?.item}</SheetTitle>
+            <SheetDescription>Waste log details</SheetDescription>
+          </SheetHeader>
+          <div className="grid gap-4 py-6">
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <span className="text-sm text-muted-foreground">Quantity</span>
+              <span className="font-medium">{selectedWaste?.quantity} {selectedWaste?.unit}</span>
+            </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <span className="text-sm text-muted-foreground">Reason</span>
+              <Badge variant={getReasonColor(selectedWaste?.reason || "") as "default" | "secondary" | "destructive" | "outline"}>
+                {selectedWaste?.reason}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <span className="text-sm text-muted-foreground">Cost</span>
+              <span className="font-medium text-red-500">-₦{selectedWaste?.cost.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <span className="text-sm text-muted-foreground">Date</span>
+              <span className="font-medium">{selectedWaste?.date}</span>
+            </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <span className="text-sm text-muted-foreground">Logged By</span>
+              <span className="font-medium">{selectedWaste?.loggedBy}</span>
+            </div>
+            {selectedWaste?.notes && (
+              <div className="p-4 border rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">Notes</p>
+                <p className="text-sm">{selectedWaste.notes}</p>
+              </div>
+            )}
+          </div>
+          <SheetFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="destructive" size="sm" className="w-full sm:w-auto">
+              <Trash2 className="h-4 w-4 mr-2" />Delete
+            </Button>
+            <Button className="w-full sm:w-auto">
+              <Edit className="h-4 w-4 mr-2" />Edit
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
