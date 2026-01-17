@@ -5,10 +5,19 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLoading } from "@/hooks/use-loading";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, ArrowRight, Truck, Clock, CheckCircle2, MoreHorizontal } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Search, Plus, ArrowRight, Truck, Clock, CheckCircle2, MoreHorizontal, Package, MapPin, FileText, Calendar } from "lucide-react";
+
+interface TransferItem {
+  name: string;
+  sku: string;
+  quantity: number;
+  unit: string;
+}
 
 interface Transfer {
   id: string;
@@ -17,13 +26,58 @@ interface Transfer {
   items: number;
   date: string;
   status: "completed" | "in-transit" | "pending";
+  itemsList?: TransferItem[];
+  notes?: string;
+  createdBy?: string;
+  timeline?: { time: string; event: string; user?: string }[];
 }
 
 const transfers: Transfer[] = [
-  { id: "TRF-001", from: "Main Kitchen", to: "Cold Storage", items: 5, date: "2026-01-14", status: "completed" },
-  { id: "TRF-002", from: "Warehouse", to: "Main Kitchen", items: 12, date: "2026-01-14", status: "in-transit" },
-  { id: "TRF-003", from: "Cold Storage", to: "VI Branch", items: 8, date: "2026-01-13", status: "pending" },
-  { id: "TRF-004", from: "Warehouse", to: "Lekki Store", items: 15, date: "2026-01-12", status: "completed" },
+  { 
+    id: "TRF-001", from: "Main Kitchen", to: "Cold Storage", items: 5, date: "2026-01-14", status: "completed",
+    itemsList: [
+      { name: "Chicken Breast", sku: "CHK-001", quantity: 20, unit: "kg" },
+      { name: "Beef Steak", sku: "BEF-002", quantity: 15, unit: "kg" },
+      { name: "Salmon Fillet", sku: "SAL-003", quantity: 10, unit: "kg" },
+      { name: "Shrimp", sku: "SHR-004", quantity: 8, unit: "kg" },
+      { name: "Lamb Chops", sku: "LAM-005", quantity: 12, unit: "kg" }
+    ],
+    notes: "Regular weekly transfer to cold storage",
+    createdBy: "John Doe",
+    timeline: [
+      { time: "9:00 AM", event: "Transfer created", user: "John Doe" },
+      { time: "9:30 AM", event: "Items packed", user: "Sarah Smith" },
+      { time: "10:00 AM", event: "In transit" },
+      { time: "10:15 AM", event: "Received at Cold Storage", user: "Mike Johnson" }
+    ]
+  },
+  { 
+    id: "TRF-002", from: "Warehouse", to: "Main Kitchen", items: 12, date: "2026-01-14", status: "in-transit",
+    itemsList: [
+      { name: "Rice", sku: "RIC-001", quantity: 50, unit: "kg" },
+      { name: "Cooking Oil", sku: "OIL-002", quantity: 20, unit: "liters" },
+      { name: "Tomato Paste", sku: "TOM-003", quantity: 30, unit: "cans" }
+    ],
+    notes: "Restock order for main kitchen",
+    createdBy: "Sarah Smith"
+  },
+  { 
+    id: "TRF-003", from: "Cold Storage", to: "VI Branch", items: 8, date: "2026-01-13", status: "pending",
+    itemsList: [
+      { name: "Frozen Chicken", sku: "FCH-001", quantity: 25, unit: "kg" },
+      { name: "Frozen Fish", sku: "FFI-002", quantity: 15, unit: "kg" }
+    ],
+    notes: "Weekly supply for VI Branch",
+    createdBy: "Mike Johnson"
+  },
+  { 
+    id: "TRF-004", from: "Warehouse", to: "Lekki Store", items: 15, date: "2026-01-12", status: "completed",
+    itemsList: [
+      { name: "Beverages", sku: "BEV-001", quantity: 100, unit: "bottles" },
+      { name: "Snacks", sku: "SNK-002", quantity: 50, unit: "packs" }
+    ],
+    createdBy: "Emily Brown"
+  },
 ];
 
 function StatsSkeleton() {
@@ -47,7 +101,6 @@ function StatsSkeleton() {
 function TransfersSkeleton() {
   return (
     <>
-      {/* Mobile skeleton */}
       <div className="block sm:hidden space-y-3">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i}>
@@ -65,8 +118,6 @@ function TransfersSkeleton() {
           </Card>
         ))}
       </div>
-
-      {/* Desktop skeleton */}
       <Card className="border-border/50 hidden sm:block">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -100,8 +151,10 @@ function TransfersSkeleton() {
 
 export default function StockTransferPage() {
   const [search, setSearch] = useState("");
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const isLoading = useLoading(1000);
+  const [selectedTransfer, setSelectedTransfer] = useState<Transfer | null>(null);
+  const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
+  const [sheetMode, setSheetMode] = useState<"view" | "edit" | "add">("view");
 
   const stats = [
     { label: "Pending", value: "3", icon: Clock },
@@ -128,70 +181,42 @@ export default function StockTransferPage() {
     t.to.toLowerCase().includes(search.toLowerCase())
   );
 
+  const openViewSheet = (transfer: Transfer) => {
+    setSelectedTransfer(transfer);
+    setSheetMode("view");
+  };
+
+  const openEditSheet = (transfer: Transfer) => {
+    setSelectedTransfer(transfer);
+    setSheetMode("edit");
+  };
+
+  const openAddSheet = () => {
+    setSelectedTransfer(null);
+    setSheetMode("add");
+    setIsAddSheetOpen(true);
+  };
+
+  const closeSheet = () => {
+    setSelectedTransfer(null);
+    setIsAddSheetOpen(false);
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Stock Transfers</h1>
           <p className="text-sm text-muted-foreground">Move inventory between locations</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="w-full sm:w-auto">
-              <Plus className="h-4 w-4 mr-2" />
-              New Transfer
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Stock Transfer</DialogTitle>
-              <DialogDescription>Move inventory between locations</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>From Location</Label>
-                <Select>
-                  <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="main">Main Kitchen</SelectItem>
-                    <SelectItem value="cold">Cold Storage</SelectItem>
-                    <SelectItem value="warehouse">Warehouse</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>To Location</Label>
-                <Select>
-                  <SelectTrigger><SelectValue placeholder="Select destination" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="main">Main Kitchen</SelectItem>
-                    <SelectItem value="cold">Cold Storage</SelectItem>
-                    <SelectItem value="vi">VI Branch</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Items to Transfer</Label>
-                <Button variant="outline" className="w-full">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Items
-                </Button>
-              </div>
-            </div>
-            <DialogFooter className="flex-col sm:flex-row gap-2">
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="w-full sm:w-auto">Cancel</Button>
-              <Button className="w-full sm:w-auto">Create Transfer</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button size="sm" className="w-full sm:w-auto" onClick={openAddSheet}>
+          <Plus className="h-4 w-4 mr-2" />
+          New Transfer
+        </Button>
       </div>
 
-      {/* Two-column layout for desktop */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main content */}
         <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-          {/* Stats */}
           {isLoading ? (
             <StatsSkeleton />
           ) : (
@@ -212,7 +237,6 @@ export default function StockTransferPage() {
             </div>
           )}
 
-          {/* Search */}
           <div className="relative w-full sm:max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
@@ -223,15 +247,17 @@ export default function StockTransferPage() {
             />
           </div>
 
-          {/* Transfers List */}
           {isLoading ? (
             <TransfersSkeleton />
           ) : (
             <>
-              {/* Mobile Card View */}
               <div className="block sm:hidden space-y-3">
                 {filteredTransfers.map((transfer) => (
-                  <Card key={transfer.id} className="border-border/50">
+                  <Card 
+                    key={transfer.id} 
+                    className="border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => openViewSheet(transfer)}
+                  >
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-sm font-medium">{transfer.id}</span>
@@ -251,7 +277,6 @@ export default function StockTransferPage() {
                 ))}
               </div>
 
-              {/* Desktop Table View */}
               <Card className="border-border/50 hidden sm:block">
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
@@ -268,7 +293,11 @@ export default function StockTransferPage() {
                       </thead>
                       <tbody>
                         {filteredTransfers.map((transfer) => (
-                          <tr key={transfer.id} className="border-b border-border/50 last:border-0 group cursor-pointer hover:bg-muted/50">
+                          <tr 
+                            key={transfer.id} 
+                            className="border-b border-border/50 last:border-0 group cursor-pointer hover:bg-muted/50"
+                            onClick={() => openViewSheet(transfer)}
+                          >
                             <td className="p-4 pl-6 font-medium text-sm font-mono">{transfer.id}</td>
                             <td className="p-4">
                               <div className="flex items-center gap-2 text-sm">
@@ -296,7 +325,6 @@ export default function StockTransferPage() {
           )}
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
           <Card className="border-border/50">
             <CardHeader className="pb-3">
@@ -304,7 +332,11 @@ export default function StockTransferPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {transfers.slice(0, 3).map((transfer) => (
-                <div key={transfer.id} className="p-3 border border-border/50 rounded-lg space-y-2">
+                <div 
+                  key={transfer.id} 
+                  className="p-3 border border-border/50 rounded-lg space-y-2 cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => openViewSheet(transfer)}
+                >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono text-muted-foreground">{transfer.id}</span>
                     {getStatusBadge(transfer.status)}
@@ -325,7 +357,7 @@ export default function StockTransferPage() {
               <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start">
+              <Button variant="outline" size="sm" className="w-full justify-start" onClick={openAddSheet}>
                 <Plus className="mr-2 h-4 w-4" />
                 New Transfer
               </Button>
@@ -350,6 +382,196 @@ export default function StockTransferPage() {
           </Card>
         </div>
       </div>
+
+      {/* Transfer Action Sheet */}
+      <Sheet open={!!selectedTransfer || isAddSheetOpen} onOpenChange={closeSheet}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <div className="flex items-center justify-between">
+              <SheetTitle>
+                {sheetMode === "add" ? "New Transfer" : sheetMode === "edit" ? "Edit Transfer" : `Transfer ${selectedTransfer?.id}`}
+              </SheetTitle>
+              {selectedTransfer && sheetMode === "view" && getStatusBadge(selectedTransfer.status)}
+            </div>
+            <SheetDescription>
+              {sheetMode === "add" ? "Create a new stock transfer" : selectedTransfer ? `${selectedTransfer.from} → ${selectedTransfer.to}` : ""}
+            </SheetDescription>
+          </SheetHeader>
+
+          {sheetMode === "view" && selectedTransfer ? (
+            <Tabs defaultValue="details" className="mt-6">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="items">Items</TabsTrigger>
+                <TabsTrigger value="timeline">Timeline</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="details" className="space-y-4 mt-4">
+                <div className="p-4 border rounded-lg space-y-3">
+                  <div className="flex items-center gap-3">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">{selectedTransfer.from}</p>
+                      <p className="text-xs text-muted-foreground">From</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-center">
+                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">{selectedTransfer.to}</p>
+                      <p className="text-xs text-muted-foreground">To</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Total Items</Label>
+                    <p className="text-sm font-medium">{selectedTransfer.items} items</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Date</Label>
+                    <p className="text-sm font-medium">{selectedTransfer.date}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Created By</Label>
+                    <p className="text-sm font-medium">{selectedTransfer.createdBy || "System"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Status</Label>
+                    {getStatusBadge(selectedTransfer.status)}
+                  </div>
+                </div>
+
+                {selectedTransfer.notes && (
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                    <p className="text-sm">{selectedTransfer.notes}</p>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="items" className="space-y-4 mt-4">
+                {selectedTransfer.itemsList && selectedTransfer.itemsList.length > 0 ? (
+                  <div className="space-y-3">
+                    {selectedTransfer.itemsList.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <p className="text-sm font-medium">{item.name}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{item.sku}</p>
+                        </div>
+                        <Badge variant="outline">{item.quantity} {item.unit}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <Package className="h-10 w-10 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">No items listed</p>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="timeline" className="space-y-4 mt-4">
+                {selectedTransfer.timeline && selectedTransfer.timeline.length > 0 ? (
+                  <div className="relative">
+                    <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-border" />
+                    <div className="space-y-4">
+                      {selectedTransfer.timeline.map((event, idx) => (
+                        <div key={idx} className="flex items-start gap-4 relative">
+                          <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center z-10">
+                            <div className="h-2 w-2 rounded-full bg-primary-foreground" />
+                          </div>
+                          <div className="pt-0.5">
+                            <p className="text-sm font-medium">{event.event}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {event.time}{event.user && ` • ${event.user}`}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <Clock className="h-10 w-10 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">No timeline events</p>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <div className="space-y-4 mt-6">
+              <div className="space-y-2">
+                <Label>From Location</Label>
+                <Select>
+                  <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="main">Main Kitchen</SelectItem>
+                    <SelectItem value="cold">Cold Storage</SelectItem>
+                    <SelectItem value="warehouse">Warehouse</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>To Location</Label>
+                <Select>
+                  <SelectTrigger><SelectValue placeholder="Select destination" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="main">Main Kitchen</SelectItem>
+                    <SelectItem value="cold">Cold Storage</SelectItem>
+                    <SelectItem value="vi">VI Branch</SelectItem>
+                    <SelectItem value="lekki">Lekki Store</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Items to Transfer</Label>
+                <Button variant="outline" className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Items
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Textarea placeholder="Add transfer notes..." />
+              </div>
+            </div>
+          )}
+
+          <SheetFooter className="mt-6 flex-col sm:flex-row gap-2">
+            {sheetMode === "view" && selectedTransfer ? (
+              <>
+                <Button variant="outline" onClick={() => openEditSheet(selectedTransfer)} className="w-full sm:w-auto">
+                  Edit Transfer
+                </Button>
+                {selectedTransfer.status === "pending" && (
+                  <Button className="w-full sm:w-auto">
+                    <Truck className="mr-2 h-4 w-4" />
+                    Start Transfer
+                  </Button>
+                )}
+                {selectedTransfer.status === "in-transit" && (
+                  <Button className="w-full sm:w-auto">
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Mark Completed
+                  </Button>
+                )}
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={closeSheet} className="w-full sm:w-auto">Cancel</Button>
+                <Button className="w-full sm:w-auto">
+                  {sheetMode === "add" ? "Create Transfer" : "Save Changes"}
+                </Button>
+              </>
+            )}
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
