@@ -22,6 +22,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DatePeriodFilter, filterByDatePeriod, type DatePeriod } from "@/components/ui/date-period-filter";
+import { TablePagination } from "@/components/ui/table-pagination";
 
 interface Reservation {
   id: number;
@@ -49,6 +51,11 @@ const tables = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "
 export default function ReservationsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [datePeriod, setDatePeriod] = useState<DatePeriod>("all");
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   const [reservations] = useState(reservationsData);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
@@ -76,8 +83,15 @@ export default function ReservationsPage() {
     const matchesSearch = r.name.toLowerCase().includes(search.toLowerCase()) ||
                           r.phone.includes(search);
     const matchesStatus = statusFilter === "all" || r.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesDate = filterByDatePeriod(r.date, datePeriod, customStartDate, customEndDate);
+    return matchesSearch && matchesStatus && matchesDate;
   });
+
+  const totalItems = filteredReservations.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedReservations = filteredReservations.slice(startIndex, endIndex);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -120,11 +134,18 @@ export default function ReservationsPage() {
               <Input 
                 placeholder="Search reservations..." 
                 value={search} 
-                onChange={(e) => setSearch(e.target.value)} 
+                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }} 
                 className="pl-9 h-9 bg-muted/50 border-0" 
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <DatePeriodFilter
+              value={datePeriod}
+              onChange={(v) => { setDatePeriod(v); setCurrentPage(1); }}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+              onCustomRange={(start, end) => { setCustomStartDate(start); setCustomEndDate(end); }}
+            />
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
               <SelectTrigger className="w-full sm:w-[130px] h-9 bg-muted/50 border-0">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
@@ -140,7 +161,7 @@ export default function ReservationsPage() {
 
           {/* Mobile Card View */}
           <div className="block sm:hidden space-y-3">
-            {filteredReservations.map((res) => (
+            {paginatedReservations.map((res) => (
               <Card 
                 key={res.id} 
                 className="border-border/50 cursor-pointer hover:bg-muted/50"
@@ -183,8 +204,8 @@ export default function ReservationsPage() {
                       <th className="w-10 p-4"></th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {filteredReservations.map((res) => (
+                    <tbody>
+                    {paginatedReservations.map((res) => (
                       <tr 
                         key={res.id} 
                         className="border-b border-border/50 last:border-0 group cursor-pointer hover:bg-muted/50"
@@ -226,6 +247,17 @@ export default function ReservationsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Pagination */}
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            startIndex={startIndex + 1}
+            endIndex={endIndex}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+          />
         </div>
 
         {/* Sidebar */}

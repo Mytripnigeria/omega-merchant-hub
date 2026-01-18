@@ -164,3 +164,47 @@ export function useDatePeriodFilter<T extends { date?: string; createdAt?: strin
     }
   });
 }
+
+// Standalone filter function for use in filter callbacks
+export function filterByDatePeriod(
+  dateValue: string | undefined,
+  period: DatePeriod,
+  customStartDate?: string,
+  customEndDate?: string
+): boolean {
+  if (!dateValue) return true;
+  
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  const weekStart = new Date(today);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  
+  const itemDate = new Date(dateValue);
+  const itemDateOnly = new Date(itemDate.getFullYear(), itemDate.getMonth(), itemDate.getDate());
+
+  switch (period) {
+    case "today":
+      return itemDateOnly.getTime() === today.getTime();
+    case "yesterday":
+      return itemDateOnly.getTime() === yesterday.getTime();
+    case "this_week":
+      return itemDateOnly >= weekStart && itemDateOnly <= today;
+    case "this_month":
+      return itemDateOnly >= monthStart && itemDateOnly <= today;
+    case "custom":
+      if (customStartDate && customEndDate) {
+        const start = new Date(customStartDate);
+        const end = new Date(customEndDate);
+        return itemDateOnly >= start && itemDateOnly <= end;
+      }
+      return true;
+    case "all":
+    default:
+      return true;
+  }
+}

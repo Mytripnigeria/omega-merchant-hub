@@ -9,6 +9,7 @@ import { useLoading } from "@/hooks/use-loading";
 import { useTableControls } from "@/hooks/use-table-controls";
 import { SortableHeader } from "@/components/ui/sortable-header";
 import { TablePagination } from "@/components/ui/table-pagination";
+import { DatePeriodFilter, filterByDatePeriod, type DatePeriod } from "@/components/ui/date-period-filter";
 import {
   Sheet,
   SheetContent,
@@ -112,18 +113,22 @@ function TableSkeleton() {
 export default function TransactionsPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("today");
+  const [datePeriod, setDatePeriod] = useState<DatePeriod>("today");
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const isLoading = useLoading(1000);
 
   // Pre-filter transactions
-  const preFilteredTransactions = transactions.filter(txn => 
-    txn.id.toLowerCase().includes(search.toLowerCase()) ||
-    txn.reference.toLowerCase().includes(search.toLowerCase()) ||
-    txn.user.name.toLowerCase().includes(search.toLowerCase())
-  );
-
+  const preFilteredTransactions = transactions.filter(txn => {
+    const matchesSearch = txn.id.toLowerCase().includes(search.toLowerCase()) ||
+      txn.reference.toLowerCase().includes(search.toLowerCase()) ||
+      txn.user.name.toLowerCase().includes(search.toLowerCase());
+    const matchesType = typeFilter === "all" || txn.type === typeFilter;
+    const matchesDate = filterByDatePeriod(txn.date.split(' ')[0], datePeriod, customStartDate, customEndDate);
+    return matchesSearch && matchesType && matchesDate;
+  });
   // Use table controls hook
   const {
     data: paginatedTransactions,
@@ -162,18 +167,13 @@ export default function TransactionsPage() {
           <p className="text-sm text-muted-foreground">View all financial transactions</p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-[130px]">
-              <Calendar className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="week">This Week</SelectItem>
-              <SelectItem value="month">This Month</SelectItem>
-              <SelectItem value="custom">Custom</SelectItem>
-            </SelectContent>
-          </Select>
+          <DatePeriodFilter
+            value={datePeriod}
+            onChange={setDatePeriod}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            onCustomRange={(start, end) => { setCustomStartDate(start); setCustomEndDate(end); }}
+          />
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Export</span>

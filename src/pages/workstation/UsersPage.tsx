@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { TablePagination } from "@/components/ui/table-pagination";
 import { Plus, Users, Shield, Clock, Search, Mail, Phone, Key, Activity, Settings } from "lucide-react";
 
 interface User {
@@ -68,12 +69,20 @@ function UsersSkeleton() {
 
 export default function UsersPage() {
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   const isLoading = useLoading(1000);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [sheetMode, setSheetMode] = useState<"view" | "edit" | "add">("view");
 
   const filteredUsers = users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()));
+  
+  const totalItems = filteredUsers.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
 
   const openViewSheet = (user: User) => { setSelectedUser(user); setSheetMode("view"); };
   const openEditSheet = (user: User) => { setSelectedUser(user); setSheetMode("edit"); };
@@ -115,7 +124,7 @@ export default function UsersPage() {
         <CardContent className="p-4 pt-0">
           {isLoading ? <UsersSkeleton /> : (
             <div className="space-y-3">
-              {filteredUsers.map((user) => (
+              {paginatedUsers.map((user) => (
                 <div key={user.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg transition-colors hover:bg-muted/50 cursor-pointer" onClick={() => openViewSheet(user)}>
                   <div className="flex items-center gap-3 sm:gap-4">
                     <Avatar className="h-9 w-9 sm:h-10 sm:w-10 shrink-0"><AvatarFallback className="text-xs">{user.name.split(" ").map(n => n[0]).join("")}</AvatarFallback></Avatar>
@@ -132,6 +141,16 @@ export default function UsersPage() {
           )}
         </CardContent>
       </Card>
+
+      <TablePagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        startIndex={startIndex + 1}
+        endIndex={endIndex}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+      />
 
       <Sheet open={!!selectedUser || isAddSheetOpen} onOpenChange={closeSheet}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
