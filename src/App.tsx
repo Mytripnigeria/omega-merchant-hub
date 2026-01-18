@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 import Onboarding from "./pages/auth/Onboarding";
+import ForgotPassword from "./pages/auth/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 
 // Orders
@@ -109,6 +110,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth/login" element={<Login />} />
             <Route path="/auth/onboarding" element={<Onboarding />} />
+            <Route path="/auth/forgot-password" element={<ForgotPassword />} />
             
             <Route element={<DashboardLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
