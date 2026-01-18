@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useLoading } from "@/hooks/use-loading";
+import { useTableControls } from "@/hooks/use-table-controls";
+import { SortableHeader } from "@/components/ui/sortable-header";
+import { TablePagination } from "@/components/ui/table-pagination";
 import {
   Sheet,
   SheetContent,
@@ -14,7 +17,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Download, ArrowUpRight, ArrowDownRight, Filter, Calendar, ChevronLeft, ChevronRight, CreditCard, User, FileText } from "lucide-react";
+import { Search, Download, ArrowUpRight, ArrowDownRight, Filter, Calendar, CreditCard, User, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Transaction {
@@ -112,18 +115,29 @@ export default function TransactionsPage() {
   const [dateFilter, setDateFilter] = useState("today");
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const isLoading = useLoading(1000);
-  const itemsPerPage = 10;
 
-  const filteredTransactions = transactions.filter(txn => 
+  // Pre-filter transactions
+  const preFilteredTransactions = transactions.filter(txn => 
     txn.id.toLowerCase().includes(search.toLowerCase()) ||
     txn.reference.toLowerCase().includes(search.toLowerCase()) ||
     txn.user.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-  const paginatedTransactions = filteredTransactions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  // Use table controls hook
+  const {
+    data: paginatedTransactions,
+    currentPage,
+    totalPages,
+    totalItems,
+    sortConfig,
+    handleSort,
+    goToPage,
+    setPageSize,
+    pageSize,
+    startIndex,
+    endIndex,
+  } = useTableControls<Transaction>({ data: preFilteredTransactions, initialPageSize: 10 });
 
   const handleViewTransaction = (txn: Transaction) => {
     setSelectedTransaction(txn);
@@ -243,14 +257,30 @@ export default function TransactionsPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">ID</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Date</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Type</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Purpose</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Amount</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Method</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Reference</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="ID" field="id" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Date" field="date" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Type" field="type" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Purpose" field="purpose" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Amount" field="amount" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Method" field="method" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Reference" field="reference" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Status" field="status" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -285,22 +315,16 @@ export default function TransactionsPage() {
       </Card>
 
       {/* Pagination */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredTransactions.length)} of {filteredTransactions.length} transactions
-        </p>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Previous
-          </Button>
-          <span className="text-sm text-muted-foreground px-2">Page {currentPage} of {totalPages}</span>
-          <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
-            Next
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
-        </div>
-      </div>
+      <TablePagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        startIndex={startIndex}
+        endIndex={endIndex}
+        pageSize={pageSize}
+        onPageChange={goToPage}
+        onPageSizeChange={setPageSize}
+      />
 
       {/* Transaction Detail Sheet */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>

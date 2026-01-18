@@ -7,6 +7,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useLoading } from "@/hooks/use-loading";
+import { useTableControls } from "@/hooks/use-table-controls";
+import { SortableHeader } from "@/components/ui/sortable-header";
+import { TablePagination } from "@/components/ui/table-pagination";
 import {
   Sheet,
   SheetContent,
@@ -277,17 +280,28 @@ export default function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const isLoading = useLoading(1000);
-  const itemsPerPage = 10;
 
-  const filteredOrders = orders.filter(order =>
+  // Pre-filter orders
+  const preFilteredOrders = orders.filter(order =>
     order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
     order.customer.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
-  const paginatedOrders = filteredOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  // Use table controls hook
+  const {
+    data: paginatedOrders,
+    currentPage,
+    totalPages,
+    totalItems,
+    sortConfig,
+    handleSort,
+    goToPage,
+    setPageSize,
+    pageSize,
+    startIndex,
+    endIndex,
+  } = useTableControls<Order>({ data: preFilteredOrders, initialPageSize: 10 });
 
   const handleViewOrder = (order: Order) => {
     setSelectedOrder(order);
@@ -425,13 +439,27 @@ export default function OrdersPage() {
                     <th className="text-left text-xs font-medium text-muted-foreground p-4 pl-6 w-12">
                       <input type="checkbox" className="rounded border-border" />
                     </th>
-                    <th className="text-left text-xs font-medium text-muted-foreground p-4">Order ID</th>
-                    <th className="text-left text-xs font-medium text-muted-foreground p-4">Customer</th>
-                    <th className="text-left text-xs font-medium text-muted-foreground p-4">Type</th>
-                    <th className="text-left text-xs font-medium text-muted-foreground p-4">Channel</th>
-                    <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
-                    <th className="text-left text-xs font-medium text-muted-foreground p-4">Total</th>
-                    <th className="text-left text-xs font-medium text-muted-foreground p-4">Date</th>
+                    <th className="text-left p-4">
+                      <SortableHeader label="Order ID" field="id" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                    </th>
+                    <th className="text-left p-4">
+                      <span className="text-xs font-medium text-muted-foreground">Customer</span>
+                    </th>
+                    <th className="text-left p-4">
+                      <SortableHeader label="Type" field="type" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                    </th>
+                    <th className="text-left p-4">
+                      <SortableHeader label="Channel" field="channel" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                    </th>
+                    <th className="text-left p-4">
+                      <SortableHeader label="Status" field="status" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                    </th>
+                    <th className="text-left p-4">
+                      <SortableHeader label="Total" field="total" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                    </th>
+                    <th className="text-left p-4">
+                      <SortableHeader label="Date" field="date" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                    </th>
                     <th className="text-left text-xs font-medium text-muted-foreground p-4 pr-6 w-12"></th>
                   </tr>
                 </thead>
@@ -481,22 +509,16 @@ export default function OrdersPage() {
       )}
 
       {/* Pagination */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredOrders.length)} of {filteredOrders.length} orders
-        </p>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Previous
-          </Button>
-          <span className="text-sm text-muted-foreground px-2">Page {currentPage} of {totalPages}</span>
-          <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
-            Next
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
-        </div>
-      </div>
+      <TablePagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        startIndex={startIndex}
+        endIndex={endIndex}
+        pageSize={pageSize}
+        onPageChange={goToPage}
+        onPageSizeChange={setPageSize}
+      />
 
       {/* Order Detail Sheet */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>

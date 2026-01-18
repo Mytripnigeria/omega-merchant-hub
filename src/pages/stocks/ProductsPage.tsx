@@ -9,7 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useLoading } from "@/hooks/use-loading";
+import { useTableControls } from "@/hooks/use-table-controls";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SortableHeader } from "@/components/ui/sortable-header";
+import { TablePagination } from "@/components/ui/table-pagination";
 import { 
   Table, 
   TableBody, 
@@ -214,6 +217,21 @@ export default function ProductsPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const isLoading = useLoading(1000);
 
+  // Use table controls hook
+  const {
+    data: paginatedProducts,
+    currentPage,
+    totalPages,
+    totalItems,
+    sortConfig,
+    handleSort,
+    goToPage,
+    setPageSize,
+    pageSize,
+    startIndex,
+    endIndex,
+  } = useTableControls<Product>({ data: products, initialPageSize: 10 });
+
   const handleViewProduct = (product: Product) => {
     setSelectedProduct(product);
     setIsEditMode(false);
@@ -367,16 +385,24 @@ export default function ProductsPage() {
                     <TableHead className="pl-6 w-12">
                       <input type="checkbox" className="rounded border-border" />
                     </TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Stock</TableHead>
+                    <TableHead>
+                      <SortableHeader label="Product" field="name" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                    </TableHead>
+                    <TableHead>
+                      <SortableHeader label="Category" field="category" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                    </TableHead>
+                    <TableHead>
+                      <SortableHeader label="Price" field="sellingPrice" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                    </TableHead>
+                    <TableHead>
+                      <SortableHeader label="Stock" field="stock" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                    </TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="pr-6 w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((product) => (
+                  {paginatedProducts.map((product) => (
                     <TableRow 
                       key={product.id} 
                       className="group cursor-pointer hover:bg-muted/50"
@@ -443,19 +469,16 @@ export default function ProductsPage() {
       )}
 
       {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          Showing 1-{products.length} of 42 products
-        </p>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled>
-            Previous
-          </Button>
-          <Button variant="outline" size="sm">
-            Next
-          </Button>
-        </div>
-      </div>
+      <TablePagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        startIndex={startIndex}
+        endIndex={endIndex}
+        pageSize={pageSize}
+        onPageChange={goToPage}
+        onPageSizeChange={setPageSize}
+      />
 
       {/* Add Product Sheet */}
       <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
