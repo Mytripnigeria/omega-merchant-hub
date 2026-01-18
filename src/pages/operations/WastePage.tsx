@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useLoading } from "@/hooks/use-loading";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Plus, Trash2, TrendingDown, AlertTriangle, MoreHorizontal, Calendar, User, X, Edit } from "lucide-react";
+import { DatePeriodFilter, DatePeriod, useDatePeriodFilter } from "@/components/ui/date-period-filter";
+import { TablePagination } from "@/components/ui/table-pagination";
 import {
   Sheet,
   SheetContent,
@@ -126,6 +128,11 @@ const WastePage = () => {
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
   const [selectedWaste, setSelectedWaste] = useState<WasteItem | null>(null);
+  const [datePeriod, setDatePeriod] = useState<DatePeriod>("all");
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const isLoading = useLoading(1000);
 
   const getReasonColor = (reason: string) => {
@@ -137,16 +144,31 @@ const WastePage = () => {
     }
   };
 
-  const filteredWaste = wasteLog.filter(w => {
+  const dateFiltered = useDatePeriodFilter(wasteLog, datePeriod, customStartDate, customEndDate, "date");
+
+  const filteredWaste = dateFiltered.filter(w => {
     const matchesSearch = w.item.toLowerCase().includes(search.toLowerCase());
     const matchesReason = reasonFilter === "all" || w.reason.toLowerCase() === reasonFilter;
     return matchesSearch && matchesReason;
   });
 
+  const totalItems = filteredWaste.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedWaste = filteredWaste.slice(startIndex, endIndex);
+
   const handleViewWaste = (waste: WasteItem) => {
     setSelectedWaste(waste);
     setIsViewSheetOpen(true);
   };
+
+  const handleCustomRange = (start: string, end: string) => {
+    setCustomStartDate(start);
+    setCustomEndDate(end);
+    setCurrentPage(1);
+  };
+
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
@@ -197,6 +219,13 @@ const WastePage = () => {
                 className="pl-9" 
               />
             </div>
+            <DatePeriodFilter
+              value={datePeriod}
+              onChange={(v) => { setDatePeriod(v); setCurrentPage(1); }}
+              onCustomRange={handleCustomRange}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+            />
             <Select value={reasonFilter} onValueChange={setReasonFilter}>
               <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue placeholder="All Reasons" />
@@ -216,7 +245,7 @@ const WastePage = () => {
             <>
               {/* Mobile Card View */}
               <div className="block sm:hidden divide-y divide-border -mx-3">
-                {filteredWaste.map((item) => (
+                {paginatedWaste.map((item) => (
                   <div 
                     key={item.id} 
                     className="px-3 py-4 space-y-3 cursor-pointer hover:bg-muted/50"
@@ -266,7 +295,7 @@ const WastePage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredWaste.map((item) => (
+                    {paginatedWaste.map((item) => (
                       <tr 
                         key={item.id} 
                         className="border-b border-border last:border-0 hover:bg-muted/50 group cursor-pointer"
@@ -306,6 +335,17 @@ const WastePage = () => {
                   </tbody>
                 </table>
               </div>
+              <TablePagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                startIndex={startIndex + 1}
+                endIndex={endIndex}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                showPageSize
+              />
             </>
           )}
         </CardContent>

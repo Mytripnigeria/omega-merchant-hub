@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Truck, MapPin, Clock, CheckCircle, Package, Search, Filter, Phone, User, Navigation, FileText } from "lucide-react";
+import { DatePeriodFilter, DatePeriod, useDatePeriodFilter } from "@/components/ui/date-period-filter";
+import { TablePagination } from "@/components/ui/table-pagination";
 
 interface Delivery {
   id: string;
@@ -25,12 +27,13 @@ interface Delivery {
   total: string;
   notes?: string;
   timeline?: { time: string; event: string }[];
+  date: string;
 }
 
 const deliveries: Delivery[] = [
   { 
     id: "DEL001", customer: "John Doe", phone: "+234 801 234 5678", address: "123 Main St, Victoria Island", 
-    status: "in_transit", driver: "Mike", eta: "15 min", orderId: "ORD-1234",
+    status: "in_transit", driver: "Mike", eta: "15 min", orderId: "ORD-1234", date: "2026-01-18",
     items: [{ name: "Jollof Rice", quantity: 2 }, { name: "Grilled Chicken", quantity: 1 }],
     total: "₦8,500", notes: "Please call before arrival",
     timeline: [
@@ -42,13 +45,13 @@ const deliveries: Delivery[] = [
   },
   { 
     id: "DEL002", customer: "Jane Smith", phone: "+234 802 345 6789", address: "456 Oak Ave, Lekki Phase 1", 
-    status: "pending", driver: "Unassigned", eta: "-", orderId: "ORD-1235",
+    status: "pending", driver: "Unassigned", eta: "-", orderId: "ORD-1235", date: "2026-01-18",
     items: [{ name: "Fried Rice", quantity: 1 }, { name: "Plantain", quantity: 2 }],
     total: "₦5,200"
   },
   { 
     id: "DEL003", customer: "Bob Wilson", phone: "+234 803 456 7890", address: "789 Pine Rd, Ikoyi", 
-    status: "delivered", driver: "Sarah", eta: "Completed", orderId: "ORD-1230",
+    status: "delivered", driver: "Sarah", eta: "Completed", orderId: "ORD-1230", date: "2026-01-17",
     items: [{ name: "Suya", quantity: 3 }, { name: "Pepper Soup", quantity: 1 }],
     total: "₦12,000",
     timeline: [
@@ -61,7 +64,7 @@ const deliveries: Delivery[] = [
   },
   { 
     id: "DEL004", customer: "Lisa Chen", phone: "+234 804 567 8901", address: "321 Elm St, Surulere", 
-    status: "in_transit", driver: "Tom", eta: "25 min", orderId: "ORD-1236",
+    status: "in_transit", driver: "Tom", eta: "25 min", orderId: "ORD-1236", date: "2026-01-18",
     items: [{ name: "Egusi Soup", quantity: 1 }, { name: "Pounded Yam", quantity: 2 }],
     total: "₦9,800"
   },
@@ -126,11 +129,30 @@ export default function DeliveryPage() {
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [sheetMode, setSheetMode] = useState<"view" | "edit" | "add">("view");
+  const [datePeriod, setDatePeriod] = useState<DatePeriod>("all");
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
-  const filteredDeliveries = deliveries.filter(d => 
+  const dateFiltered = useDatePeriodFilter(deliveries, datePeriod, customStartDate, customEndDate, "date");
+
+  const filteredDeliveries = dateFiltered.filter(d => 
     (d.customer.toLowerCase().includes(search.toLowerCase()) || d.id.toLowerCase().includes(search.toLowerCase())) &&
     (statusFilter === "all" || d.status === statusFilter)
   );
+
+  const totalItems = filteredDeliveries.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedDeliveries = filteredDeliveries.slice(startIndex, endIndex);
+
+  const handleCustomRange = (start: string, end: string) => {
+    setCustomStartDate(start);
+    setCustomEndDate(end);
+    setCurrentPage(1);
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -204,6 +226,13 @@ export default function DeliveryPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search deliveries..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
             </div>
+            <DatePeriodFilter
+              value={datePeriod}
+              onChange={(v) => { setDatePeriod(v); setCurrentPage(1); }}
+              onCustomRange={handleCustomRange}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+            />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full sm:w-[150px]">
                 <Filter className="h-4 w-4 mr-2" />
@@ -222,34 +251,47 @@ export default function DeliveryPage() {
           {isLoading ? (
             <DeliveriesSkeleton />
           ) : (
-            <div className="space-y-3">
-              {filteredDeliveries.map((delivery) => (
-                <div 
-                  key={delivery.id} 
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg transition-colors hover:bg-muted/50 cursor-pointer"
-                  onClick={() => openViewSheet(delivery)}
-                >
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    <div className="p-2 rounded-lg bg-muted shrink-0">
-                      <Truck className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+            <>
+              <div className="space-y-3">
+                {paginatedDeliveries.map((delivery) => (
+                  <div 
+                    key={delivery.id} 
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg transition-colors hover:bg-muted/50 cursor-pointer"
+                    onClick={() => openViewSheet(delivery)}
+                  >
+                    <div className="flex items-center gap-3 sm:gap-4">
+                      <div className="p-2 rounded-lg bg-muted shrink-0">
+                        <Truck className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{delivery.customer}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1 truncate">
+                          <MapPin className="h-3 w-3 shrink-0" /> {delivery.address}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{delivery.customer}</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1 truncate">
-                        <MapPin className="h-3 w-3 shrink-0" /> {delivery.address}
-                      </p>
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 pl-10 sm:pl-0">
+                      <div className="text-right">
+                        <p className="text-sm font-medium">{delivery.driver}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">ETA: {delivery.eta}</p>
+                      </div>
+                      {getStatusBadge(delivery.status)}
                     </div>
                   </div>
-                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 pl-10 sm:pl-0">
-                    <div className="text-right">
-                      <p className="text-sm font-medium">{delivery.driver}</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">ETA: {delivery.eta}</p>
-                    </div>
-                    {getStatusBadge(delivery.status)}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+              <TablePagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                startIndex={startIndex + 1}
+                endIndex={endIndex}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                showPageSize
+              />
+            </>
           )}
         </CardContent>
       </Card>

@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Search, Plus, ArrowRight, Truck, Clock, CheckCircle2, MoreHorizontal, Package, MapPin, FileText, Calendar } from "lucide-react";
+import { DatePeriodFilter, DatePeriod, useDatePeriodFilter } from "@/components/ui/date-period-filter";
+import { TablePagination } from "@/components/ui/table-pagination";
 
 interface TransferItem {
   name: string;
@@ -155,6 +157,11 @@ export default function StockTransferPage() {
   const [selectedTransfer, setSelectedTransfer] = useState<Transfer | null>(null);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [sheetMode, setSheetMode] = useState<"view" | "edit" | "add">("view");
+  const [datePeriod, setDatePeriod] = useState<DatePeriod>("all");
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const stats = [
     { label: "Pending", value: "3", icon: Clock },
@@ -175,11 +182,25 @@ export default function StockTransferPage() {
     }
   };
 
-  const filteredTransfers = transfers.filter(t => 
+  const dateFiltered = useDatePeriodFilter(transfers, datePeriod, customStartDate, customEndDate, "date");
+
+  const filteredTransfers = dateFiltered.filter(t => 
     t.id.toLowerCase().includes(search.toLowerCase()) ||
     t.from.toLowerCase().includes(search.toLowerCase()) ||
     t.to.toLowerCase().includes(search.toLowerCase())
   );
+
+  const totalItems = filteredTransfers.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedTransfers = filteredTransfers.slice(startIndex, endIndex);
+
+  const handleCustomRange = (start: string, end: string) => {
+    setCustomStartDate(start);
+    setCustomEndDate(end);
+    setCurrentPage(1);
+  };
 
   const openViewSheet = (transfer: Transfer) => {
     setSelectedTransfer(transfer);
@@ -237,13 +258,22 @@ export default function StockTransferPage() {
             </div>
           )}
 
-          <div className="relative w-full sm:max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search transfers..." 
-              value={search} 
-              onChange={(e) => setSearch(e.target.value)} 
-              className="pl-9" 
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1 sm:max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search transfers..." 
+                value={search} 
+                onChange={(e) => setSearch(e.target.value)} 
+                className="pl-9" 
+              />
+            </div>
+            <DatePeriodFilter
+              value={datePeriod}
+              onChange={(v) => { setDatePeriod(v); setCurrentPage(1); }}
+              onCustomRange={handleCustomRange}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
             />
           </div>
 
@@ -252,7 +282,7 @@ export default function StockTransferPage() {
           ) : (
             <>
               <div className="block sm:hidden space-y-3">
-                {filteredTransfers.map((transfer) => (
+                {paginatedTransfers.map((transfer) => (
                   <Card 
                     key={transfer.id} 
                     className="border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
@@ -292,7 +322,7 @@ export default function StockTransferPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredTransfers.map((transfer) => (
+                        {paginatedTransfers.map((transfer) => (
                           <tr 
                             key={transfer.id} 
                             className="border-b border-border/50 last:border-0 group cursor-pointer hover:bg-muted/50"
@@ -319,11 +349,22 @@ export default function StockTransferPage() {
                       </tbody>
                     </table>
                   </div>
-                </CardContent>
-              </Card>
-            </>
-          )}
-        </div>
+                  </CardContent>
+                </Card>
+                <TablePagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={totalItems}
+                  startIndex={startIndex + 1}
+                  endIndex={endIndex}
+                  pageSize={pageSize}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                  showPageSize
+                />
+              </>
+            )}
+          </div>
 
         <div className="space-y-6">
           <Card className="border-border/50">

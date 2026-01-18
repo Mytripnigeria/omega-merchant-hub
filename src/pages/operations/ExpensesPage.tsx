@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useLoading } from "@/hooks/use-loading";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Plus, DollarSign, TrendingUp, Receipt, MoreHorizontal, Calendar, Edit, Trash2, CheckCircle, XCircle, Upload } from "lucide-react";
+import { DatePeriodFilter, DatePeriod, useDatePeriodFilter } from "@/components/ui/date-period-filter";
+import { TablePagination } from "@/components/ui/table-pagination";
 import {
   Sheet,
   SheetContent,
@@ -130,6 +132,11 @@ const ExpensesPage = () => {
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [datePeriod, setDatePeriod] = useState<DatePeriod>("all");
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const isLoading = useLoading(1000);
 
   const getStatusColor = (status: string) => {
@@ -141,17 +148,32 @@ const ExpensesPage = () => {
     }
   };
 
-  const filteredExpenses = expenses.filter(e => {
+  const dateFiltered = useDatePeriodFilter(expenses, datePeriod, customStartDate, customEndDate, "date");
+
+  const filteredExpenses = dateFiltered.filter(e => {
     const matchesSearch = e.description.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = categoryFilter === "all" || e.category.toLowerCase() === categoryFilter.toLowerCase();
     const matchesStatus = statusFilter === "all" || e.status === statusFilter;
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
+  const totalItems = filteredExpenses.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedExpenses = filteredExpenses.slice(startIndex, endIndex);
+
   const handleViewExpense = (expense: Expense) => {
     setSelectedExpense(expense);
     setIsViewSheetOpen(true);
   };
+
+  const handleCustomRange = (start: string, end: string) => {
+    setCustomStartDate(start);
+    setCustomEndDate(end);
+    setCurrentPage(1);
+  };
+
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
@@ -202,6 +224,13 @@ const ExpensesPage = () => {
                 className="pl-9" 
               />
             </div>
+            <DatePeriodFilter
+              value={datePeriod}
+              onChange={(v) => { setDatePeriod(v); setCurrentPage(1); }}
+              onCustomRange={handleCustomRange}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+            />
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue placeholder="Category" />
@@ -232,7 +261,7 @@ const ExpensesPage = () => {
             <>
               {/* Mobile Card View */}
               <div className="block sm:hidden divide-y divide-border -mx-3">
-                {filteredExpenses.map((expense) => (
+                {paginatedExpenses.map((expense) => (
                   <div 
                     key={expense.id} 
                     className="px-3 py-4 space-y-3 cursor-pointer hover:bg-muted/50"
@@ -276,7 +305,7 @@ const ExpensesPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredExpenses.map((expense) => (
+                    {paginatedExpenses.map((expense) => (
                       <tr 
                         key={expense.id} 
                         className="border-b border-border last:border-0 hover:bg-muted/50 group cursor-pointer"
@@ -321,6 +350,17 @@ const ExpensesPage = () => {
                   </tbody>
                 </table>
               </div>
+              <TablePagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                startIndex={startIndex + 1}
+                endIndex={endIndex}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                showPageSize
+              />
             </>
           )}
         </CardContent>
