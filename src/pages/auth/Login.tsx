@@ -148,7 +148,7 @@ export default function Login() {
         {/* Footer */}
         <p className="mt-8 text-center text-sm text-muted-foreground">
           Don't have an account?{" "}
-          <Link to="/auth/register" className="text-foreground hover:underline">
+          <Link to="/auth/onboarding" className="text-foreground hover:underline">
             Sign up
           </Link>
         </p>
