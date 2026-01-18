@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Calendar, Clock, Plus, Users, ArrowLeftRight, ChevronLeft, ChevronRight, Edit, Trash2 } from "lucide-react";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, addWeeks, addMonths, subDays, subWeeks, subMonths, eachDayOfInterval, isSameDay } from "date-fns";
 
 interface ShiftSchedule {
   id: number;
@@ -32,6 +33,7 @@ const shiftsData: Shift[] = [
     schedules: [
       { id: 1, period: "Morning", role: "Manager", date: "2026-01-13", startTime: "06:00", endTime: "14:00" },
       { id: 2, period: "Morning", role: "Manager", date: "2026-01-14", startTime: "06:00", endTime: "14:00" },
+      { id: 7, period: "Afternoon", role: "Manager", date: "2026-01-18", startTime: "14:00", endTime: "22:00" },
     ]
   },
   { 
@@ -40,6 +42,7 @@ const shiftsData: Shift[] = [
     staff: "Sarah Smith", 
     schedules: [
       { id: 3, period: "Afternoon", role: "Cashier", date: "2026-01-13", startTime: "14:00", endTime: "22:00" },
+      { id: 8, period: "Morning", role: "Cashier", date: "2026-01-15", startTime: "06:00", endTime: "14:00" },
     ]
   },
   { 
@@ -48,6 +51,7 @@ const shiftsData: Shift[] = [
     staff: "Mike Johnson", 
     schedules: [
       { id: 4, period: "Morning", role: "Chef", date: "2026-01-13", startTime: "06:00", endTime: "14:00" },
+      { id: 9, period: "Night", role: "Chef", date: "2026-01-16", startTime: "22:00", endTime: "06:00" },
     ]
   },
   { 
@@ -56,6 +60,7 @@ const shiftsData: Shift[] = [
     staff: "Lisa Brown", 
     schedules: [
       { id: 5, period: "Afternoon", role: "Waiter", date: "2026-01-14", startTime: "14:00", endTime: "22:00" },
+      { id: 10, period: "Morning", role: "Waiter", date: "2026-01-17", startTime: "06:00", endTime: "14:00" },
     ]
   },
   { 
@@ -68,12 +73,19 @@ const shiftsData: Shift[] = [
   },
 ];
 
+const periodColors = {
+  Morning: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  Afternoon: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  Night: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+};
+
 export default function ShiftsPage() {
-  const [view, setView] = useState("week");
+  const [view, setView] = useState<"day" | "week" | "month">("week");
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [sheetMode, setSheetMode] = useState<"view" | "add" | "edit">("view");
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [schedules, setSchedules] = useState<Partial<ShiftSchedule>[]>([{ period: "Morning", role: "", date: "", startTime: "", endTime: "" }]);
+  const [currentDate, setCurrentDate] = useState(new Date("2026-01-14"));
 
   const swapRequests = [
     { id: 1, from: "John Doe", to: "Sarah Smith", date: "Jan 15", status: "pending" },
@@ -85,8 +97,6 @@ export default function ShiftsPage() {
     { label: "Staff Scheduled", value: "12", icon: Users },
     { label: "Swap Requests", value: "3", icon: ArrowLeftRight },
   ];
-
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   const openSheet = (mode: "view" | "add" | "edit", shift?: Shift) => {
     setSheetMode(mode);
@@ -107,22 +117,55 @@ export default function ShiftsPage() {
     setSchedules(schedules.filter((_, i) => i !== index));
   };
 
-  // Create a map of shifts by day for display
-  const getShiftsByDay = (day: string) => {
-    const dayIndex = days.indexOf(day);
-    const baseDate = new Date("2026-01-13");
-    baseDate.setDate(baseDate.getDate() + dayIndex);
-    const dateStr = baseDate.toISOString().split('T')[0];
-    
-    const result: { staff: string; time: string; type: string }[] = [];
+  // Navigation handlers
+  const navigatePrevious = () => {
+    if (view === "day") setCurrentDate(prev => subDays(prev, 1));
+    else if (view === "week") setCurrentDate(prev => subWeeks(prev, 1));
+    else setCurrentDate(prev => subMonths(prev, 1));
+  };
+
+  const navigateNext = () => {
+    if (view === "day") setCurrentDate(prev => addDays(prev, 1));
+    else if (view === "week") setCurrentDate(prev => addWeeks(prev, 1));
+    else setCurrentDate(prev => addMonths(prev, 1));
+  };
+
+  // Get display dates based on view
+  const displayDates = useMemo(() => {
+    if (view === "day") {
+      return [currentDate];
+    } else if (view === "week") {
+      const start = startOfWeek(currentDate, { weekStartsOn: 1 });
+      const end = endOfWeek(currentDate, { weekStartsOn: 1 });
+      return eachDayOfInterval({ start, end });
+    } else {
+      const start = startOfMonth(currentDate);
+      const end = endOfMonth(currentDate);
+      return eachDayOfInterval({ start, end });
+    }
+  }, [currentDate, view]);
+
+  // Get navigation label
+  const navigationLabel = useMemo(() => {
+    if (view === "day") {
+      return format(currentDate, "EEEE, MMMM d, yyyy");
+    } else if (view === "week") {
+      const start = startOfWeek(currentDate, { weekStartsOn: 1 });
+      const end = endOfWeek(currentDate, { weekStartsOn: 1 });
+      return `${format(start, "MMM d")} - ${format(end, "d, yyyy")}`;
+    } else {
+      return format(currentDate, "MMMM yyyy");
+    }
+  }, [currentDate, view]);
+
+  // Get shifts for a specific date
+  const getShiftsForDate = (date: Date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    const result: { shift: Shift; schedule: ShiftSchedule }[] = [];
     shiftsData.forEach(shift => {
       shift.schedules.forEach(schedule => {
         if (schedule.date === dateStr) {
-          result.push({
-            staff: shift.staff,
-            time: `${schedule.startTime} - ${schedule.endTime}`,
-            type: schedule.period
-          });
+          result.push({ shift, schedule });
         }
       });
     });
@@ -191,48 +234,140 @@ export default function ShiftsPage() {
             ))}
           </div>
 
-          {/* Week Navigation */}
+          {/* Navigation */}
           <div className="flex items-center justify-between">
-            <Button variant="outline" size="icon" className="h-8 w-8">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={navigatePrevious}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm font-medium">January 13 - 19, 2026</span>
-            <Button variant="outline" size="icon" className="h-8 w-8">
+            <span className="text-sm font-medium">{navigationLabel}</span>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={navigateNext}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
 
-          {/* Weekly Schedule */}
+          {/* Schedule View */}
           <Card className="border-border/50">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">This Week's Schedule</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {view === "day" ? "Today's Schedule" : view === "week" ? "This Week's Schedule" : "Monthly Schedule"}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-7 gap-1 sm:gap-2">
-                {days.map((day) => {
-                  const shifts = getShiftsByDay(day);
-                  return (
-                    <div key={day} className="text-center">
-                      <p className="font-medium text-xs sm:text-sm mb-2 text-muted-foreground">{day}</p>
-                      <div className="space-y-1 min-h-[120px]">
-                        {shifts.map((shift, idx) => (
-                          <div 
-                            key={idx} 
-                            className="p-1.5 sm:p-2 bg-primary/10 rounded text-xs cursor-pointer hover:bg-primary/20 transition-colors"
-                            onClick={() => {
-                              const fullShift = shiftsData.find(s => s.staff === shift.staff);
-                              if (fullShift) openSheet("view", fullShift);
-                            }}
-                          >
-                            <p className="font-medium truncate text-[10px] sm:text-xs">{shift.staff.split(' ')[0]}</p>
-                            <p className="text-muted-foreground text-[9px] sm:text-[10px] hidden sm:block">{shift.time}</p>
+              {/* Day View */}
+              {view === "day" && (
+                <div className="space-y-3">
+                  {getShiftsForDate(currentDate).length > 0 ? (
+                    getShiftsForDate(currentDate).map(({ shift, schedule }) => (
+                      <div
+                        key={`${shift.id}-${schedule.id}`}
+                        className="p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => openSheet("view", shift)}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+                              {shift.staff.split(' ').map(n => n[0]).join('')}
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">{shift.staff}</p>
+                              <p className="text-xs text-muted-foreground">{schedule.role}</p>
+                            </div>
                           </div>
-                        ))}
+                          <Badge variant="secondary" className={periodColors[schedule.period]}>
+                            {schedule.period}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>{schedule.startTime} - {schedule.endTime}</span>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="py-8 text-center text-muted-foreground">
+                      <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No shifts scheduled for this day</p>
                     </div>
-                  );
-                })}
-              </div>
+                  )}
+                </div>
+              )}
+
+              {/* Week View */}
+              {view === "week" && (
+                <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                  {displayDates.map((date) => {
+                    const shifts = getShiftsForDate(date);
+                    const isToday = isSameDay(date, new Date("2026-01-14"));
+                    return (
+                      <div key={date.toISOString()} className="text-center">
+                        <p className={`font-medium text-xs sm:text-sm mb-1 ${isToday ? 'text-primary' : 'text-muted-foreground'}`}>
+                          {format(date, "EEE")}
+                        </p>
+                        <p className={`text-xs mb-2 ${isToday ? 'bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center mx-auto' : 'text-muted-foreground'}`}>
+                          {format(date, "d")}
+                        </p>
+                        <div className="space-y-1 min-h-[100px]">
+                          {shifts.map(({ shift, schedule }) => (
+                            <div 
+                              key={`${shift.id}-${schedule.id}`}
+                              className={`p-1.5 sm:p-2 rounded text-xs cursor-pointer transition-colors ${periodColors[schedule.period]}`}
+                              onClick={() => openSheet("view", shift)}
+                            >
+                              <p className="font-medium truncate text-[10px] sm:text-xs">{shift.staff.split(' ')[0]}</p>
+                              <p className="text-[9px] sm:text-[10px] hidden sm:block opacity-75">{schedule.startTime}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Month View */}
+              {view === "month" && (
+                <div className="grid grid-cols-7 gap-1">
+                  {/* Weekday headers */}
+                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => (
+                    <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">
+                      {day}
+                    </div>
+                  ))}
+                  {/* Empty cells for start of month offset */}
+                  {Array.from({ length: (startOfMonth(currentDate).getDay() + 6) % 7 }).map((_, i) => (
+                    <div key={`empty-${i}`} className="p-1 min-h-[60px] sm:min-h-[80px]" />
+                  ))}
+                  {/* Date cells */}
+                  {displayDates.map((date) => {
+                    const shifts = getShiftsForDate(date);
+                    const isToday = isSameDay(date, new Date("2026-01-14"));
+                    return (
+                      <div 
+                        key={date.toISOString()} 
+                        className={`p-1 min-h-[60px] sm:min-h-[80px] border rounded text-center ${isToday ? 'border-primary bg-primary/5' : 'border-border/50'}`}
+                      >
+                        <p className={`text-xs mb-1 ${isToday ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
+                          {format(date, "d")}
+                        </p>
+                        <div className="space-y-0.5">
+                          {shifts.slice(0, 2).map(({ shift, schedule }) => (
+                            <div 
+                              key={`${shift.id}-${schedule.id}`}
+                              className={`p-0.5 rounded text-[9px] cursor-pointer truncate ${periodColors[schedule.period]}`}
+                              onClick={() => openSheet("view", shift)}
+                            >
+                              {shift.staff.split(' ')[0]}
+                            </div>
+                          ))}
+                          {shifts.length > 2 && (
+                            <p className="text-[9px] text-muted-foreground">+{shifts.length - 2} more</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -355,7 +490,7 @@ export default function ShiftsPage() {
                   {selectedShift.schedules.map((schedule) => (
                     <div key={schedule.id} className="p-3 border rounded-lg space-y-2">
                       <div className="flex items-center justify-between">
-                        <Badge variant="outline">{schedule.period}</Badge>
+                        <Badge variant="outline" className={periodColors[schedule.period]}>{schedule.period}</Badge>
                         <span className="text-sm font-medium">{schedule.role}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm text-muted-foreground">

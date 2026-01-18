@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Download, FileText, DollarSign, Users, Clock, Calendar, Mail, Printer, Eye } from "lucide-react";
+import { Search, Download, FileText, DollarSign, Users, Clock, Calendar, Mail, Printer, Eye, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -24,6 +24,143 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+
+// Custom Charges Component for Breakdown Tab
+interface CustomCharge {
+  id: string;
+  name: string;
+  amount: number;
+  type: "earning" | "deduction";
+}
+
+function BreakdownTab({ payslip, formatCurrency }: { payslip: Payslip | null; formatCurrency: (amount: number) => string }) {
+  const [customCharges, setCustomCharges] = useState<CustomCharge[]>([]);
+  const [newChargeName, setNewChargeName] = useState("");
+  const [newChargeAmount, setNewChargeAmount] = useState("");
+  const [newChargeType, setNewChargeType] = useState<"earning" | "deduction">("earning");
+
+  const addCustomCharge = () => {
+    if (newChargeName && newChargeAmount) {
+      setCustomCharges([
+        ...customCharges,
+        {
+          id: Date.now().toString(),
+          name: newChargeName,
+          amount: parseFloat(newChargeAmount),
+          type: newChargeType,
+        },
+      ]);
+      setNewChargeName("");
+      setNewChargeAmount("");
+    }
+  };
+
+  const removeCustomCharge = (id: string) => {
+    setCustomCharges(customCharges.filter((c) => c.id !== id));
+  };
+
+  const customEarnings = customCharges.filter((c) => c.type === "earning");
+  const customDeductions = customCharges.filter((c) => c.type === "deduction");
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-3">
+        <h4 className="text-sm font-medium">Earnings</h4>
+        <div className="space-y-2">
+          <div className="flex justify-between p-3 border rounded-lg">
+            <span className="text-sm">Basic Salary</span>
+            <span className="font-medium">{formatCurrency(payslip?.baseSalary || 0)}</span>
+          </div>
+          <div className="flex justify-between p-3 border rounded-lg">
+            <span className="text-sm">Overtime (15 hours)</span>
+            <span className="font-medium text-green-600">+{formatCurrency(payslip?.overtime || 0)}</span>
+          </div>
+          <div className="flex justify-between p-3 border rounded-lg">
+            <span className="text-sm">Performance Bonus</span>
+            <span className="font-medium text-green-600">+{formatCurrency(payslip?.bonus || 0)}</span>
+          </div>
+          {customEarnings.map((charge) => (
+            <div key={charge.id} className="flex items-center justify-between p-3 border rounded-lg border-dashed border-green-300 bg-green-50/50 dark:bg-green-900/10">
+              <span className="text-sm">{charge.name}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-green-600">+{formatCurrency(charge.amount)}</span>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeCustomCharge(charge.id)}>
+                  <Trash2 className="h-3 w-3 text-destructive" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <h4 className="text-sm font-medium">Deductions</h4>
+        <div className="space-y-2">
+          <div className="flex justify-between p-3 border rounded-lg">
+            <span className="text-sm">Pension (8%)</span>
+            <span className="font-medium text-red-600">-{formatCurrency((payslip?.deductions || 0) * 0.6)}</span>
+          </div>
+          <div className="flex justify-between p-3 border rounded-lg">
+            <span className="text-sm">Health Insurance</span>
+            <span className="font-medium text-red-600">-{formatCurrency((payslip?.deductions || 0) * 0.4)}</span>
+          </div>
+          <div className="flex justify-between p-3 border rounded-lg">
+            <span className="text-sm">Income Tax (PAYE)</span>
+            <span className="font-medium text-red-600">-{formatCurrency(payslip?.tax || 0)}</span>
+          </div>
+          {customDeductions.map((charge) => (
+            <div key={charge.id} className="flex items-center justify-between p-3 border rounded-lg border-dashed border-red-300 bg-red-50/50 dark:bg-red-900/10">
+              <span className="text-sm">{charge.name}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-red-600">-{formatCurrency(charge.amount)}</span>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeCustomCharge(charge.id)}>
+                  <Trash2 className="h-3 w-3 text-destructive" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Add Custom Charge */}
+      <div className="space-y-3 pt-3 border-t">
+        <h4 className="text-sm font-medium">Add Custom Charge</h4>
+        <div className="grid gap-3">
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              placeholder="Charge name"
+              value={newChargeName}
+              onChange={(e) => setNewChargeName(e.target.value)}
+              className="h-9"
+            />
+            <Input
+              type="number"
+              placeholder="Amount"
+              value={newChargeAmount}
+              onChange={(e) => setNewChargeAmount(e.target.value)}
+              className="h-9"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={newChargeType} onValueChange={(v: "earning" | "deduction") => setNewChargeType(v)}>
+              <SelectTrigger className="flex-1 h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="earning">Earning (+)</SelectItem>
+                <SelectItem value="deduction">Deduction (-)</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button size="sm" className="h-9" onClick={addCustomCharge} disabled={!newChargeName || !newChargeAmount}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface Payslip {
   id: string;
@@ -433,41 +570,7 @@ export default function PayslipsPage() {
             </TabsContent>
             
             <TabsContent value="breakdown" className="space-y-4 mt-4">
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium">Earnings</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between p-3 border rounded-lg">
-                    <span className="text-sm">Basic Salary</span>
-                    <span className="font-medium">{formatCurrency(selectedPayslip?.baseSalary || 0)}</span>
-                  </div>
-                  <div className="flex justify-between p-3 border rounded-lg">
-                    <span className="text-sm">Overtime (15 hours)</span>
-                    <span className="font-medium text-green-600">+{formatCurrency(selectedPayslip?.overtime || 0)}</span>
-                  </div>
-                  <div className="flex justify-between p-3 border rounded-lg">
-                    <span className="text-sm">Performance Bonus</span>
-                    <span className="font-medium text-green-600">+{formatCurrency(selectedPayslip?.bonus || 0)}</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium">Deductions</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between p-3 border rounded-lg">
-                    <span className="text-sm">Pension (8%)</span>
-                    <span className="font-medium text-red-600">-{formatCurrency((selectedPayslip?.deductions || 0) * 0.6)}</span>
-                  </div>
-                  <div className="flex justify-between p-3 border rounded-lg">
-                    <span className="text-sm">Health Insurance</span>
-                    <span className="font-medium text-red-600">-{formatCurrency((selectedPayslip?.deductions || 0) * 0.4)}</span>
-                  </div>
-                  <div className="flex justify-between p-3 border rounded-lg">
-                    <span className="text-sm">Income Tax (PAYE)</span>
-                    <span className="font-medium text-red-600">-{formatCurrency(selectedPayslip?.tax || 0)}</span>
-                  </div>
-                </div>
-              </div>
+              <BreakdownTab payslip={selectedPayslip} formatCurrency={formatCurrency} />
             </TabsContent>
             
             <TabsContent value="history" className="space-y-3 mt-4">
