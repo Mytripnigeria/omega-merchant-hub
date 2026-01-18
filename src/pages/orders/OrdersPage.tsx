@@ -10,6 +10,7 @@ import { useLoading } from "@/hooks/use-loading";
 import { useTableControls } from "@/hooks/use-table-controls";
 import { SortableHeader } from "@/components/ui/sortable-header";
 import { TablePagination } from "@/components/ui/table-pagination";
+import { DatePeriodFilter, useDatePeriodFilter, type DatePeriod } from "@/components/ui/date-period-filter";
 import {
   Sheet,
   SheetContent,
@@ -280,10 +281,22 @@ export default function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [datePeriod, setDatePeriod] = useState<DatePeriod>("all");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
   const isLoading = useLoading(1000);
 
+  // Apply date period filter
+  const dateFilteredOrders = useDatePeriodFilter(
+    orders,
+    datePeriod,
+    customStartDate,
+    customEndDate,
+    "date" as keyof Order
+  );
+
   // Pre-filter orders
-  const preFilteredOrders = orders.filter(order =>
+  const preFilteredOrders = dateFilteredOrders.filter(order =>
     order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
     order.customer.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -362,7 +375,17 @@ export default function OrdersPage() {
             className="pl-9"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <DatePeriodFilter
+            value={datePeriod}
+            onChange={setDatePeriod}
+            onCustomRange={(start, end) => {
+              setCustomStartDate(start);
+              setCustomEndDate(end);
+            }}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+          />
           <Select defaultValue="all">
             <SelectTrigger className="w-full sm:w-36">
               <SelectValue placeholder="Status" />

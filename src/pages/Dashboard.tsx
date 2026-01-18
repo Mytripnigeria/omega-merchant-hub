@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   MoreHorizontal,
   Clock,
+  Building2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import {
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { cn } from "@/lib/utils";
 import { useLoading } from "@/hooks/use-loading";
+import { useStore } from "@/contexts/StoreContext";
 
 const chartData = [
   { name: "Mon", value: 245 },
@@ -200,15 +202,32 @@ function OrdersSkeleton() {
 
 export default function Dashboard() {
   const isLoading = useLoading(1200);
+  const { isAllStoresMode, currentStore } = useStore();
+
+  // Dynamic stats based on mode (master = combined data)
+  const masterMultiplier = isAllStoresMode ? 3 : 1;
+  const revenueValue = `₦${(2.59 * masterMultiplier).toFixed(2)}M`;
+  const ordersValue = `${Math.round(489 * masterMultiplier)}`;
+  const customersValue = `${Math.round(1284 * masterMultiplier).toLocaleString()}`;
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-fade-in">
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Dashboard</h1>
+            {isAllStoresMode && (
+              <Badge variant="secondary" className="gap-1">
+                <Building2 className="h-3 w-3" />
+                Master Insights
+              </Badge>
+            )}
+          </div>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            Overview of your restaurant performance
+            {isAllStoresMode 
+              ? "Combined performance across all stores" 
+              : `Overview of ${currentStore?.name || "your restaurant"} performance`}
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
@@ -233,7 +252,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
           title="Total Revenue"
-          value="₦2.59M"
+          value={revenueValue}
           change="+12.5%"
           trend="up"
           icon={<DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
@@ -241,7 +260,7 @@ export default function Dashboard() {
         />
         <StatCard
           title="Orders"
-          value="489"
+          value={ordersValue}
           change="+8.2%"
           trend="up"
           icon={<ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
@@ -249,7 +268,7 @@ export default function Dashboard() {
         />
         <StatCard
           title="Customers"
-          value="1,284"
+          value={customersValue}
           change="+23.1%"
           trend="up"
           icon={<Users className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}

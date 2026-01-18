@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Plus, MoreHorizontal, Users, UserCheck, UserX, Building2, Mail, Edit, Phone } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Users, UserCheck, UserX, Building2, Mail, Edit, Phone, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Staff {
@@ -411,6 +411,41 @@ export default function StaffPage() {
                       {selectedStaff.status}
                     </Badge>
                   </div>
+                </div>
+              </div>
+
+              {/* Documents Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <h4 className="text-sm font-medium text-muted-foreground">Documents</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Employment Agreement</p>
+                        <p className="text-xs text-muted-foreground">PDF • Uploaded Jan 15, 2024</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm">View</Button>
+                  </div>
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">CV / Resume</p>
+                        <p className="text-xs text-muted-foreground">PDF • Uploaded Jan 10, 2024</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm">View</Button>
+                  </div>
+                  <Button variant="outline" size="sm" className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Upload Document
+                  </Button>
                 </div>
               </div>
 

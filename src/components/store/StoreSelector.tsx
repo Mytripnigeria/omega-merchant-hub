@@ -1,4 +1,4 @@
-import { Check, ChevronDown, MapPin, Plus, Store } from "lucide-react";
+import { Check, ChevronDown, MapPin, Plus, Store, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,30 +16,60 @@ interface StoreSelectorProps {
 }
 
 export function StoreSelector({ collapsed = false }: StoreSelectorProps) {
-  const { stores, currentStore, setCurrentStore } = useStore();
+  const { stores, currentStore, setCurrentStore, isAllStoresMode, setAllStoresMode } = useStore();
+
+  const handleSelectStore = (store: typeof stores[0]) => {
+    setAllStoresMode?.(false);
+    setCurrentStore(store);
+  };
+
+  const handleSelectAllStores = () => {
+    setAllStoresMode?.(true);
+  };
 
   if (collapsed) {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="h-10 w-10">
-            <Store className="h-5 w-5 text-primary" />
+            {isAllStoresMode ? (
+              <Building2 className="h-5 w-5 text-primary" />
+            ) : (
+              <Store className="h-5 w-5 text-primary" />
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-64">
           <DropdownMenuLabel>Switch Store</DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={handleSelectAllStores}
+            className={cn(
+              "flex items-center gap-2",
+              isAllStoresMode && "bg-sidebar-accent"
+            )}
+          >
+            <Building2 className="h-4 w-4 text-primary" />
+            <div className="flex-1">
+              <p className="font-medium">All Stores</p>
+              <p className="text-xs text-muted-foreground">Master Insights</p>
+            </div>
+            {isAllStoresMode && (
+              <Check className="h-4 w-4 text-primary" />
+            )}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           {stores.map((store) => (
             <DropdownMenuItem
               key={store.id}
-              onClick={() => setCurrentStore(store)}
+              onClick={() => handleSelectStore(store)}
               className="flex items-center gap-2"
             >
               <MapPin className="h-4 w-4 text-muted-foreground" />
               <div className="flex-1">
                 <p className="font-medium">{store.name}</p>
               </div>
-              {currentStore?.id === store.id && (
+              {!isAllStoresMode && currentStore?.id === store.id && (
                 <Check className="h-4 w-4 text-primary" />
               )}
             </DropdownMenuItem>
@@ -63,12 +93,18 @@ export function StoreSelector({ collapsed = false }: StoreSelectorProps) {
         >
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-              <Store className="h-4 w-4 text-primary" />
+              {isAllStoresMode ? (
+                <Building2 className="h-4 w-4 text-primary" />
+              ) : (
+                <Store className="h-4 w-4 text-primary" />
+              )}
             </div>
             <div className="text-left">
-              <p className="text-sm font-medium text-foreground">{currentStore?.name}</p>
+              <p className="text-sm font-medium text-foreground">
+                {isAllStoresMode ? "All Stores" : currentStore?.name}
+              </p>
               <p className="text-xs text-muted-foreground truncate max-w-[140px]">
-                {currentStore?.address.split(',')[0]}
+                {isAllStoresMode ? "Master Insights" : currentStore?.address.split(',')[0]}
               </p>
             </div>
           </div>
@@ -81,13 +117,30 @@ export function StoreSelector({ collapsed = false }: StoreSelectorProps) {
           <span className="text-xs text-muted-foreground">{stores.length} locations</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={handleSelectAllStores}
+          className={cn(
+            "flex items-start gap-3 p-3",
+            isAllStoresMode && "bg-sidebar-accent"
+          )}
+        >
+          <Building2 className="mt-0.5 h-4 w-4 text-primary" />
+          <div className="flex-1">
+            <p className="font-medium">All Stores</p>
+            <p className="text-xs text-muted-foreground">View combined data</p>
+          </div>
+          {isAllStoresMode && (
+            <Check className="h-4 w-4 text-primary" />
+          )}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         {stores.map((store) => (
           <DropdownMenuItem
             key={store.id}
-            onClick={() => setCurrentStore(store)}
+            onClick={() => handleSelectStore(store)}
             className={cn(
               "flex items-start gap-3 p-3",
-              currentStore?.id === store.id && "bg-sidebar-accent"
+              !isAllStoresMode && currentStore?.id === store.id && "bg-sidebar-accent"
             )}
           >
             <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
@@ -95,7 +148,7 @@ export function StoreSelector({ collapsed = false }: StoreSelectorProps) {
               <p className="font-medium">{store.name}</p>
               <p className="text-xs text-muted-foreground">{store.address}</p>
             </div>
-            {currentStore?.id === store.id && (
+            {!isAllStoresMode && currentStore?.id === store.id && (
               <Check className="h-4 w-4 text-primary" />
             )}
           </DropdownMenuItem>
