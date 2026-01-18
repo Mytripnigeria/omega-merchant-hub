@@ -6,8 +6,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { useLoading } from "@/hooks/use-loading";
 import { useTableControls } from "@/hooks/use-table-controls";
+import { useOrders, useOrderStats } from "@/hooks/api";
+import { ErrorState } from "@/components/ui/data-states";
+import { useStore } from "@/contexts/StoreContext";
+import type { Order } from "@/types/orders";
 import { SortableHeader } from "@/components/ui/sortable-header";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { DatePeriodFilter, useDatePeriodFilter, type DatePeriod } from "@/components/ui/date-period-filter";
@@ -47,171 +50,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-interface OrderItem {
-  id: string;
-  name: string;
-  quantity: number;
-  price: number;
-  variation?: { name: string; price: number };
-  addons?: { name: string; quantity: number; price: number }[];
-}
-
-interface Order {
-  id: string;
-  customer: { name: string; email: string; phone: string };
-  items: OrderItem[];
-  total: number;
-  status: "pending" | "accepted" | "awaiting_preparation" | "preparing" | "ready" | "awaiting_delivery" | "delivering" | "completed" | "cancelled" | "refunded";
-  type: "dine-in" | "takeaway" | "delivery";
-  channel: "POS" | "storefront" | "uber";
-  tableNumber?: string;
-  note?: string;
-  payment: {
-    transactionId: string;
-    status: "unpaid" | "partial" | "paid" | "refunded";
-    method: "cash" | "paystack" | "flutterwave";
-    reference: string;
-    subtotal: number;
-    discountTotal: number;
-    taxTotal: number;
-    deliveryCost: number;
-    serviceCharge: number;
-    paymentFee: number;
-    totalAmount: number;
-  };
-  processor?: { name: string; position: string; phone: string; email: string; assignedAt: string; updatedAt: string };
-  kitchen?: { name: string; position: string; phone: string; email: string; assignedAt: string; updatedAt: string };
-  server?: { name: string; position: string; phone: string; email: string; assignedAt: string; updatedAt: string };
-  delivery?: {
-    rider?: { name: string; position: string; phone: string; email: string; assignedAt: string; updatedAt: string };
-    customer?: { phone: string; region: string; miles: number; address: string; charge: number };
-  };
-  pickup?: { address: string; longitude: number; latitude: number; phone: string; email: string };
-  date: string;
-  time: string;
-  addedAt: string;
-  updatedAt: string;
-}
-
-const orders: Order[] = [
-  {
-    id: "OMG-2847",
-    customer: { name: "Adaeze Okonkwo", email: "adaeze@gmail.com", phone: "+234 801 234 5678" },
-    items: [
-      { id: "1", name: "Jollof Rice", quantity: 2, price: 2500, variation: { name: "Large", price: 500 }, addons: [{ name: "Extra Chicken", quantity: 1, price: 800 }] },
-      { id: "2", name: "Peppered Chicken", quantity: 3, price: 1500 },
-    ],
-    total: 8800,
-    status: "ready",
-    type: "takeaway",
-    channel: "POS",
-    note: "Please make it extra spicy",
-    payment: { transactionId: "TXN-001", status: "paid", method: "paystack", reference: "PAY-2847", subtotal: 8300, discountTotal: 0, taxTotal: 415, deliveryCost: 0, serviceCharge: 85, paymentFee: 0, totalAmount: 8800 },
-    processor: { name: "Emmanuel Obi", position: "Cashier", phone: "+234 801 111 2222", email: "emmanuel@omega.com", assignedAt: "2026-01-14 14:30", updatedAt: "2026-01-14 14:32" },
-    kitchen: { name: "Chef Amaka", position: "Head Chef", phone: "+234 802 333 4444", email: "amaka@omega.com", assignedAt: "2026-01-14 14:32", updatedAt: "2026-01-14 14:45" },
-    date: "Jan 14, 2026",
-    time: "2:34 PM",
-    addedAt: "2026-01-14 14:30:00",
-    updatedAt: "2026-01-14 14:50:00",
-  },
-  {
-    id: "OMG-2846",
-    customer: { name: "Chinedu Eze", email: "chinedu.eze@mail.com", phone: "+234 802 345 6789" },
-    items: [
-      { id: "1", name: "Suya Platter", quantity: 1, price: 5500 },
-      { id: "2", name: "Fried Rice", quantity: 2, price: 3000 },
-      { id: "3", name: "Chapman", quantity: 2, price: 2000 },
-    ],
-    total: 15500,
-    status: "preparing",
-    type: "delivery",
-    channel: "storefront",
-    payment: { transactionId: "TXN-002", status: "paid", method: "flutterwave", reference: "FLW-2846", subtotal: 14000, discountTotal: 500, taxTotal: 700, deliveryCost: 1000, serviceCharge: 300, paymentFee: 0, totalAmount: 15500 },
-    processor: { name: "Grace Nwosu", position: "Cashier", phone: "+234 803 555 6666", email: "grace@omega.com", assignedAt: "2026-01-14 14:25", updatedAt: "2026-01-14 14:28" },
-    kitchen: { name: "Chef Bola", position: "Sous Chef", phone: "+234 804 777 8888", email: "bola@omega.com", assignedAt: "2026-01-14 14:28", updatedAt: "2026-01-14 14:35" },
-    delivery: {
-      rider: { name: "Tunde Rider", position: "Delivery Rider", phone: "+234 805 999 0000", email: "tunde@omega.com", assignedAt: "2026-01-14 14:40", updatedAt: "2026-01-14 14:40" },
-      customer: { phone: "+234 802 345 6789", region: "Lekki Phase 1", miles: 5.2, address: "12 Admiralty Way, Lekki", charge: 1000 },
-    },
-    date: "Jan 14, 2026",
-    time: "2:28 PM",
-    addedAt: "2026-01-14 14:25:00",
-    updatedAt: "2026-01-14 14:40:00",
-  },
-  {
-    id: "OMG-2845",
-    customer: { name: "Oluwaseun Adeyemi", email: "seun.a@outlook.com", phone: "+234 803 456 7890" },
-    items: [{ id: "1", name: "Amala & Ewedu", quantity: 2, price: 3100 }],
-    total: 6200,
-    status: "completed",
-    type: "dine-in",
-    channel: "POS",
-    tableNumber: "T-05",
-    payment: { transactionId: "TXN-003", status: "paid", method: "cash", reference: "OMG-2845", subtotal: 6000, discountTotal: 0, taxTotal: 200, deliveryCost: 0, serviceCharge: 0, paymentFee: 0, totalAmount: 6200 },
-    server: { name: "Funke Waiter", position: "Server", phone: "+234 806 111 2222", email: "funke@omega.com", assignedAt: "2026-01-14 13:40", updatedAt: "2026-01-14 14:00" },
-    date: "Jan 14, 2026",
-    time: "1:45 PM",
-    addedAt: "2026-01-14 13:40:00",
-    updatedAt: "2026-01-14 14:05:00",
-  },
-  {
-    id: "OMG-2844",
-    customer: { name: "Fatima Abubakar", email: "fatima.abu@gmail.com", phone: "+234 804 567 8901" },
-    items: [
-      { id: "1", name: "Pepper Soup", quantity: 2, price: 4000 },
-      { id: "2", name: "Plantain", quantity: 2, price: 1000 },
-    ],
-    total: 12300,
-    status: "completed",
-    type: "delivery",
-    channel: "uber",
-    payment: { transactionId: "TXN-004", status: "paid", method: "paystack", reference: "UBER-2844", subtotal: 10000, discountTotal: 0, taxTotal: 500, deliveryCost: 1500, serviceCharge: 300, paymentFee: 0, totalAmount: 12300 },
-    delivery: {
-      rider: { name: "Uber Driver", position: "External", phone: "N/A", email: "N/A", assignedAt: "2026-01-14 13:00", updatedAt: "2026-01-14 13:30" },
-      customer: { phone: "+234 804 567 8901", region: "Victoria Island", miles: 8.5, address: "25 Adeola Odeku Street, VI", charge: 1500 },
-    },
-    date: "Jan 14, 2026",
-    time: "1:12 PM",
-    addedAt: "2026-01-14 12:50:00",
-    updatedAt: "2026-01-14 13:30:00",
-  },
-  {
-    id: "OMG-2843",
-    customer: { name: "Emmanuel Obi", email: "emmanuelobi@mail.com", phone: "+234 805 678 9012" },
-    items: [{ id: "1", name: "Chicken Shawarma", quantity: 1, price: 3500 }],
-    total: 3500,
-    status: "cancelled",
-    type: "takeaway",
-    channel: "POS",
-    note: "Customer cancelled - out of stock",
-    payment: { transactionId: "TXN-005", status: "refunded", method: "cash", reference: "OMG-2843", subtotal: 3500, discountTotal: 0, taxTotal: 0, deliveryCost: 0, serviceCharge: 0, paymentFee: 0, totalAmount: 3500 },
-    date: "Jan 14, 2026",
-    time: "12:48 PM",
-    addedAt: "2026-01-14 12:45:00",
-    updatedAt: "2026-01-14 12:50:00",
-  },
-  {
-    id: "OMG-2842",
-    customer: { name: "Grace Nwosu", email: "grace.n@company.com", phone: "+234 806 789 0123" },
-    items: [
-      { id: "1", name: "Jollof Rice", quantity: 4, price: 10000 },
-      { id: "2", name: "Fried Rice", quantity: 2, price: 5000 },
-      { id: "3", name: "Assorted Meat", quantity: 6, price: 7400 },
-    ],
-    total: 22400,
-    status: "pending",
-    type: "delivery",
-    channel: "storefront",
-    payment: { transactionId: "TXN-006", status: "unpaid", method: "paystack", reference: "PENDING", subtotal: 20000, discountTotal: 0, taxTotal: 1000, deliveryCost: 1200, serviceCharge: 200, paymentFee: 0, totalAmount: 22400 },
-    delivery: {
-      customer: { phone: "+234 806 789 0123", region: "Ikeja GRA", miles: 12.3, address: "45 Joel Ogunnaike Street, Ikeja", charge: 1200 },
-    },
-    date: "Jan 14, 2026",
-    time: "12:15 PM",
-    addedAt: "2026-01-14 12:15:00",
-    updatedAt: "2026-01-14 12:15:00",
-  },
-];
+// Local interfaces removed - using imported Order type from @/types/orders
 
 const statusColors: Record<string, string> = {
   pending: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
@@ -284,7 +123,11 @@ export default function OrdersPage() {
   const [datePeriod, setDatePeriod] = useState<DatePeriod>("all");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
-  const isLoading = useLoading(1000);
+  const { currentStore } = useStore();
+
+  // Fetch orders and stats from API
+  const { data: orders = [], isLoading, error, refetch } = useOrders({ storeId: currentStore?.id });
+  const { data: stats } = useOrderStats(currentStore?.id);
 
   // Apply date period filter
   const dateFilteredOrders = useDatePeriodFilter(
@@ -321,7 +164,26 @@ export default function OrdersPage() {
     setIsSheetOpen(true);
   };
 
-  const stats = [
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-4 sm:space-y-6 animate-fade-in">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Orders</h1>
+          <p className="text-sm text-muted-foreground">Manage and track all customer orders</p>
+        </div>
+        <ErrorState onRetry={refetch} description={error.message} />
+      </div>
+    );
+  }
+
+  // Use stats from API or calculate from orders
+  const displayStats = stats ? [
+    { label: "Total Orders", value: stats.total },
+    { label: "Pending", value: stats.pending },
+    { label: "In Progress", value: stats.inProgress },
+    { label: "Completed", value: stats.completed },
+  ] : [
     { label: "Total Orders", value: orders.length },
     { label: "Pending", value: orders.filter(o => o.status === "pending").length },
     { label: "In Progress", value: orders.filter(o => ["preparing", "ready", "delivering"].includes(o.status)).length },
@@ -353,7 +215,7 @@ export default function OrdersPage() {
         <StatsSkeleton />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-          {stats.map((stat) => (
+          {displayStats.map((stat) => (
             <Card key={stat.label}>
               <CardContent className="p-3 sm:p-4">
                 <p className="text-xs sm:text-sm text-muted-foreground">{stat.label}</p>

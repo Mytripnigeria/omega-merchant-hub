@@ -8,8 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useLoading } from "@/hooks/use-loading";
 import { useTableControls } from "@/hooks/use-table-controls";
+import { useProducts, useProductStats, useCategories, useToggleProductStatus } from "@/hooks/api";
+import { ErrorState } from "@/components/ui/data-states";
+import { useStore } from "@/contexts/StoreContext";
+import type { Product } from "@/types/products";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SortableHeader } from "@/components/ui/sortable-header";
 import { TablePagination } from "@/components/ui/table-pagination";
@@ -45,99 +48,7 @@ import {
 import { Search, MoreHorizontal, Plus, Filter, Image as ImageIcon, Edit, Trash2, Eye, X, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  productCode: string;
-  category: string;
-  price: number;
-  sellingPrice: number;
-  sku: string;
-  stock: number;
-  status: boolean;
-  supplier: string;
-  prepTime: number;
-  taxOption: string;
-  discountOption: string;
-  visibility: string[];
-  ingredients: { name: string; unit: string; quantity: number }[];
-  variations: { name: string; sku: string; price: number; sellingPrice: number }[];
-  addons: string[];
-}
-
-const products: Product[] = [
-  {
-    id: "1",
-    name: "Signature Jollof Rice",
-    description: "Our famous smoky party jollof rice",
-    productCode: "PRD-001",
-    category: "Mains",
-    price: 2500,
-    sellingPrice: 3500,
-    sku: "JOL-001",
-    stock: 45,
-    status: true,
-    supplier: "Fresh Farms Ltd",
-    prepTime: 25,
-    taxOption: "Standard VAT",
-    discountOption: "None",
-    visibility: ["pos", "storefront"],
-    ingredients: [
-      { name: "Basmati Rice", unit: "kg", quantity: 0.3 },
-      { name: "Tomato Paste", unit: "tin", quantity: 0.5 },
-    ],
-    variations: [
-      { name: "Small", sku: "JOL-001-S", price: 2000, sellingPrice: 2500 },
-      { name: "Large", sku: "JOL-001-L", price: 3000, sellingPrice: 4000 },
-    ],
-    addons: ["Extra Protein", "Sides"],
-  },
-  {
-    id: "2",
-    name: "Peppered Chicken",
-    description: "Crispy fried chicken with spicy pepper sauce",
-    productCode: "PRD-002",
-    category: "Mains",
-    price: 2000,
-    sellingPrice: 2800,
-    sku: "PPC-001",
-    stock: 28,
-    status: true,
-    supplier: "Quality Meats",
-    prepTime: 20,
-    taxOption: "Standard VAT",
-    discountOption: "WELCOME20",
-    visibility: ["pos", "storefront", "ubereats"],
-    ingredients: [
-      { name: "Chicken (Whole)", unit: "kg", quantity: 0.5 },
-    ],
-    variations: [],
-    addons: ["Sides", "Drinks"],
-  },
-  {
-    id: "3",
-    name: "Suya Platter",
-    description: "Thinly sliced beef skewers with suya spice",
-    productCode: "PRD-003",
-    category: "Specialties",
-    price: 3500,
-    sellingPrice: 4500,
-    sku: "SUY-001",
-    stock: 0,
-    status: false,
-    supplier: "Quality Meats",
-    prepTime: 30,
-    taxOption: "Standard VAT",
-    discountOption: "None",
-    visibility: ["pos"],
-    ingredients: [
-      { name: "Suya Spice Mix", unit: "kg", quantity: 0.1 },
-    ],
-    variations: [],
-    addons: [],
-  },
-];
+// Using Product type from @/types/products
 
 function StatsSkeleton() {
   return (
@@ -215,7 +126,25 @@ export default function ProductsPage() {
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  const isLoading = useLoading(1000);
+  const { currentStore } = useStore();
+
+  // Fetch products from API
+  const { data: products = [], isLoading, error, refetch } = useProducts({ storeId: currentStore?.id });
+  const { data: stats } = useProductStats(currentStore?.id);
+  const toggleStatus = useToggleProductStatus();
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-4 sm:space-y-6 animate-fade-in">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Products</h1>
+          <p className="text-sm text-muted-foreground">Manage your menu items and inventory</p>
+        </div>
+        <ErrorState onRetry={refetch} description={error.message} />
+      </div>
+    );
+  }
 
   // Use table controls hook
   const {
