@@ -185,26 +185,38 @@ const navItems: NavItem[] = [
   },
 ];
 
-function NavMenuItem({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
+interface NavMenuItemProps {
+  item: NavItem;
+  onNavigate?: () => void;
+  expandedItem: string | null;
+  onExpand: (title: string | null) => void;
+}
+
+function NavMenuItem({ item, onNavigate, expandedItem, onExpand }: NavMenuItemProps) {
   const location = useLocation();
-  const [isOpen, setIsOpen] = useState(false);
   
   const isActive = item.href 
     ? location.pathname === item.href 
     : item.children?.some(child => location.pathname === child.href);
 
   const isChildActive = (href: string) => location.pathname === href;
+  
+  const isOpen = expandedItem === item.title;
 
-  // Auto-expand if a child is active
+  // Auto-expand if a child is active on mount
   useEffect(() => {
     if (item.children?.some(child => location.pathname === child.href)) {
-      setIsOpen(true);
+      onExpand(item.title);
     }
-  }, [location.pathname, item.children]);
+  }, []);
+
+  const handleToggle = () => {
+    onExpand(isOpen ? null : item.title);
+  };
 
   if (item.children) {
     return (
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Collapsible open={isOpen} onOpenChange={handleToggle}>
         <CollapsibleTrigger asChild>
           <button
             className={cn(
@@ -263,6 +275,8 @@ function NavMenuItem({ item, onNavigate }: { item: NavItem; onNavigate?: () => v
 }
 
 export function Sidebar({ collapsed, mobileOpen, onMobileOpenChange }: SidebarProps) {
+  const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  
   const handleNavigate = () => {
     onMobileOpenChange?.(false);
   };
@@ -284,7 +298,13 @@ export function Sidebar({ collapsed, mobileOpen, onMobileOpenChange }: SidebarPr
       <ScrollArea className="flex-1 px-3 pb-4">
         <nav className="space-y-1">
           {navItems.map((item) => (
-            <NavMenuItem key={item.title} item={item} onNavigate={handleNavigate} />
+            <NavMenuItem 
+              key={item.title} 
+              item={item} 
+              onNavigate={handleNavigate}
+              expandedItem={expandedItem}
+              onExpand={setExpandedItem}
+            />
           ))}
         </nav>
       </ScrollArea>
