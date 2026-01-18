@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { TablePagination } from "@/components/ui/table-pagination";
 import { Clock, Play, Square, Users, Calendar, X, FileText, Coffee, AlertCircle } from "lucide-react";
 
 interface Shift {
@@ -78,6 +79,14 @@ export default function WorkstationShiftsPage() {
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [sheetMode, setSheetMode] = useState<"view" | "edit" | "add">("view");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  const totalItems = activeShifts.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedShifts = activeShifts.slice(startIndex, endIndex);
 
   const openViewSheet = (shift: Shift) => {
     setSelectedShift(shift);
@@ -142,7 +151,7 @@ export default function WorkstationShiftsPage() {
             <ShiftsSkeleton />
           ) : (
             <div className="space-y-3">
-              {activeShifts.map((shift) => (
+              {paginatedShifts.map((shift) => (
                 <div 
                   key={shift.id} 
                   className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg transition-colors hover:bg-muted/50 cursor-pointer"
@@ -173,6 +182,16 @@ export default function WorkstationShiftsPage() {
           )}
         </CardContent>
       </Card>
+
+      <TablePagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        startIndex={startIndex + 1}
+        endIndex={endIndex}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+      />
 
       {/* Action Sheet */}
       <Sheet open={!!selectedShift || isAddSheetOpen} onOpenChange={closeSheet}>
