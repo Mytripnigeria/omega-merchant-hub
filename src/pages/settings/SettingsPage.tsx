@@ -22,8 +22,9 @@ import {
   Settings, CreditCard, Users, Building2, Shield, Webhook, Globe, Receipt, Percent, 
   Printer, Clock, MapPin, Bell, Upload, Plus, MoreHorizontal, Trash2, Key, Smartphone,
   History, Monitor, Mail, BellOff, ShoppingBag, AlertTriangle, TrendingUp, Banknote,
-  Wifi, WifiOff, CheckCircle, AlertCircle, ExternalLink, Search
+  Wifi, WifiOff, CheckCircle, AlertCircle, ExternalLink, Search, Store
 } from "lucide-react";
+import { StoresSettingsTab } from "./StoresSettingsTab";
 
 function SettingsSkeleton() {
   return (
@@ -1026,6 +1027,7 @@ function DomainSettings() {
 
 const tabItems = [
   { value: "general", label: "General", icon: Settings },
+  { value: "stores", label: "Stores", icon: Store },
   { value: "payments", label: "Payments", icon: CreditCard },
   { value: "tax", label: "Tax", icon: Percent },
   { value: "receipt", label: "Receipt", icon: Receipt },
@@ -1076,6 +1078,9 @@ export default function SettingsPage() {
           <>
             <TabsContent value="general" className="mt-0">
               <GeneralSettings />
+            </TabsContent>
+            <TabsContent value="stores" className="mt-0">
+              <StoresSettingsTab />
             </TabsContent>
             <TabsContent value="payments" className="mt-0">
               <PaymentSettings />

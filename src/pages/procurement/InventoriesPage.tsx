@@ -24,6 +24,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { SortableHeader } from "@/components/ui/sortable-header";
+import { useTableControls } from "@/hooks/use-table-controls";
 
 interface InventoryItem {
   id: number;
@@ -90,6 +93,32 @@ export default function InventoriesPage() {
   const [locationFilter, setLocationFilter] = useState("all");
   const isLoading = useLoading(1000);
 
+  // Pre-filter by location before passing to useTableControls
+  const preFilteredInventories = inventories.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) || 
+                          item.sku.toLowerCase().includes(search.toLowerCase());
+    const matchesLocation = locationFilter === "all" || item.location === locationFilter;
+    return matchesSearch && matchesLocation;
+  });
+
+  // Table controls
+  const {
+    data: paginatedInventories,
+    currentPage,
+    pageSize,
+    totalPages,
+    totalItems,
+    sortConfig,
+    handleSort,
+    goToPage,
+    setPageSize,
+    startIndex,
+    endIndex,
+  } = useTableControls<InventoryItem>({ 
+    data: preFilteredInventories,
+    initialPageSize: 10 
+  });
+
   // Sheet states
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
@@ -108,13 +137,6 @@ export default function InventoriesPage() {
     { label: "Low Stock", value: "12", icon: AlertTriangle, color: "text-yellow-600" },
     { label: "Total Value", value: formatPrice(548000), icon: DollarSign },
   ];
-
-  const filteredInventories = inventories.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) || 
-                          item.sku.toLowerCase().includes(search.toLowerCase());
-    const matchesLocation = locationFilter === "all" || item.location === locationFilter;
-    return matchesSearch && matchesLocation;
-  });
 
   const handleViewItem = (item: InventoryItem) => {
     setSelectedItem(item);
@@ -197,7 +219,7 @@ export default function InventoriesPage() {
             <CardContent className="p-0">
               {/* Mobile Card View */}
               <div className="block sm:hidden divide-y divide-border">
-                {filteredInventories.map((item) => (
+                {paginatedInventories.map((item) => (
                   <div key={item.id} className="p-4 space-y-3 cursor-pointer" onClick={() => handleViewItem(item)}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -228,17 +250,29 @@ export default function InventoriesPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Item</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">SKU</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Qty</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Location</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Value</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Item" field="name" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="SKU" field="sku" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Qty" field="quantity" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Location" field="location" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Value" field="value" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Status" field="status" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
                       <th className="text-left text-xs font-medium text-muted-foreground p-4 w-10"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredInventories.map((item) => (
+                    {paginatedInventories.map((item) => (
                       <tr key={item.id} className="border-b border-border last:border-0 group cursor-pointer hover:bg-muted/50" onClick={() => handleViewItem(item)}>
                         <td className="p-4 font-medium text-sm">{item.name}</td>
                         <td className="p-4 text-sm text-muted-foreground">{item.sku}</td>
@@ -280,6 +314,18 @@ export default function InventoriesPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Pagination */}
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            pageSize={pageSize}
+            onPageChange={goToPage}
+            onPageSizeChange={setPageSize}
+          />
         </div>
 
         {/* Sidebar - Hidden on mobile */}
