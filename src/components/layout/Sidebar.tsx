@@ -31,6 +31,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { StoreSelector } from "@/components/store/StoreSelector";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -283,6 +284,11 @@ export function Sidebar({ collapsed, mobileOpen, onMobileOpenChange }: SidebarPr
 
   const sidebarContent = (
     <>
+      {/* Store Selector */}
+      <div className="p-3 border-b border-border">
+        <StoreSelector />
+      </div>
+
       {/* Search */}
       <div className="p-4">
         <div className="relative">
