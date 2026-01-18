@@ -86,6 +86,7 @@ import DeliveryPage from "./pages/workstation/DeliveryPage";
 import UsersPage from "./pages/workstation/UsersPage";
 import WorkstationShiftsPage from "./pages/workstation/WorkstationShiftsPage";
 import ActivityPage from "./pages/workstation/ActivityPage";
+import WorkstationSettingsPage from "./pages/workstation/WorkstationSettingsPage";
 
 // Plugins
 import PluginsPage from "./pages/plugins/PluginsPage";
@@ -187,6 +188,7 @@ const App = () => (
               <Route path="/workstation/users" element={<UsersPage />} />
               <Route path="/workstation/shifts" element={<WorkstationShiftsPage />} />
               <Route path="/workstation/activity" element={<ActivityPage />} />
+              <Route path="/workstation/settings" element={<WorkstationSettingsPage />} />
               
               {/* Plugins */}
               <Route path="/plugins" element={<PluginsPage />} />
