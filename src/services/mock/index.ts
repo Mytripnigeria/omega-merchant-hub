@@ -1,7 +1,12 @@
 // Mock Services - Central Export
-// These services simulate API behavior with mock data
-// Replace with real API calls when backend is ready
-
 export { orderService } from "./orders";
 export { productService } from "./products";
 export { customerService } from "./customers";
+export { bookingService } from "./bookings";
+export { hrService } from "./hr";
+export { marketingService } from "./marketing";
+export { operationsService } from "./operations";
+export { procurementService } from "./procurement";
+export { payoutService } from "./payouts";
+export { supplierService } from "./suppliers";
+export { transactionService } from "./transactions";
