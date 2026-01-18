@@ -175,6 +175,7 @@ const navItems: NavItem[] = [
       { title: "Shifts", href: "/workstation/shifts" },
       { title: "Activity Log", href: "/workstation/activity" },
       { title: "Delivery", href: "/workstation/delivery" },
+      { title: "Settings", href: "/workstation/settings" },
     ],
   },
   {
