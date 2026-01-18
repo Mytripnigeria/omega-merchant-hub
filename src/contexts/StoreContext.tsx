@@ -6,6 +6,8 @@ interface StoreContextType {
   currentStore: Store | null;
   setCurrentStore: (store: Store) => void;
   isLoading: boolean;
+  isAllStoresMode: boolean;
+  setAllStoresMode: (value: boolean) => void;
 }
 
 const mockStores: Store[] = [
@@ -44,9 +46,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [stores] = useState<Store[]>(mockStores);
   const [currentStore, setCurrentStore] = useState<Store>(mockStores[0]);
   const [isLoading] = useState(false);
+  const [isAllStoresMode, setAllStoresMode] = useState(false);
 
   return (
-    <StoreContext.Provider value={{ stores, currentStore, setCurrentStore, isLoading }}>
+    <StoreContext.Provider value={{ 
+      stores, 
+      currentStore, 
+      setCurrentStore, 
+      isLoading,
+      isAllStoresMode,
+      setAllStoresMode,
+    }}>
       {children}
     </StoreContext.Provider>
   );

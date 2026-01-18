@@ -8,7 +8,9 @@ import { useLoading } from "@/hooks/use-loading";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, DollarSign, Clock, CheckCircle2, Download, Filter, Wallet, Calendar } from "lucide-react";
+import { DatePeriodFilter, useDatePeriodFilter, type DatePeriod } from "@/components/ui/date-period-filter";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { Search, DollarSign, Clock, CheckCircle2, Download, Filter, Wallet } from "lucide-react";
 
 interface PayoutOrder {
   orderId: string;
@@ -175,9 +177,13 @@ function PayoutsSkeleton() {
 export default function PayoutsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
+  const [datePeriod, setDatePeriod] = useState<DatePeriod>("all");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
   const [selectedPayout, setSelectedPayout] = useState<Payout | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   const isLoading = useLoading(1000);
 
   const stats = [
@@ -186,11 +192,27 @@ export default function PayoutsPage() {
     { label: "Total Paid Out", value: "₦4,560,000", icon: CheckCircle2 },
   ];
 
-  const filteredPayouts = payoutsData.filter(p => {
+  // Apply date filter
+  const dateFilteredPayouts = useDatePeriodFilter(
+    payoutsData,
+    datePeriod,
+    customStartDate,
+    customEndDate,
+    "date" as keyof Payout
+  );
+
+  const filteredPayouts = dateFilteredPayouts.filter(p => {
     const matchesSearch = p.id.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "all" || p.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  // Pagination
+  const totalItems = filteredPayouts.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedPayouts = filteredPayouts.slice(startIndex, endIndex);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -255,19 +277,16 @@ export default function PayoutsPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search payouts..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
             </div>
-            <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="w-full sm:w-[130px]">
-                <Calendar className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Period" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Time</SelectItem>
-                <SelectItem value="day">Today</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-                <SelectItem value="custom">Custom</SelectItem>
-              </SelectContent>
-            </Select>
+            <DatePeriodFilter
+              value={datePeriod}
+              onChange={setDatePeriod}
+              onCustomRange={(start, end) => {
+                setCustomStartDate(start);
+                setCustomEndDate(end);
+              }}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+            />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full sm:w-[130px]">
                 <Filter className="h-4 w-4 mr-2" />
@@ -289,7 +308,7 @@ export default function PayoutsPage() {
             <>
               {/* Mobile Card View */}
               <div className="block sm:hidden divide-y divide-border">
-                {filteredPayouts.map((payout) => (
+                {paginatedPayouts.map((payout) => (
                   <div 
                     key={payout.id} 
                     className="p-4 space-y-3 cursor-pointer hover:bg-muted/50"
@@ -328,7 +347,7 @@ export default function PayoutsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredPayouts.map((payout) => (
+                    {paginatedPayouts.map((payout) => (
                       <tr 
                         key={payout.id} 
                         className="border-b border-border last:border-0 hover:bg-muted/50 group cursor-pointer"
@@ -358,13 +377,15 @@ export default function PayoutsPage() {
       </Card>
 
       {/* Pagination */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">Showing 1-4 of 24 payouts</p>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled className="h-8">Previous</Button>
-          <Button variant="outline" size="sm" className="h-8">Next</Button>
-        </div>
-      </div>
+      <TablePagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        startIndex={startIndex + 1}
+        endIndex={endIndex}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+      />
 
       {/* Action Sheet */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>

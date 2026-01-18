@@ -9,7 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { Activity, Clock, User, FileText, Search, Filter, ShoppingCart, Package, DollarSign, Eye, ArrowRight } from "lucide-react";
+import { DatePeriodFilter, type DatePeriod } from "@/components/ui/date-period-filter";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { Activity, Clock, User, FileText, Search, Filter, ShoppingCart, Package, DollarSign, ArrowRight } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 
 interface ActivityItem {
@@ -150,6 +152,11 @@ function ActivitiesSkeleton() {
 export default function ActivityPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [datePeriod, setDatePeriod] = useState<DatePeriod>("all");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   const isLoading = useLoading(1000);
   const [selectedActivity, setSelectedActivity] = useState<ActivityItem | null>(null);
 
@@ -157,6 +164,13 @@ export default function ActivityPage() {
     (a.action.toLowerCase().includes(search.toLowerCase()) || a.user.toLowerCase().includes(search.toLowerCase())) &&
     (typeFilter === "all" || a.type === typeFilter)
   );
+
+  // Pagination
+  const totalItems = filteredActivities.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedActivities = filteredActivities.slice(startIndex, endIndex);
 
   const openViewSheet = (activity: ActivityItem) => {
     setSelectedActivity(activity);
@@ -205,6 +219,14 @@ export default function ActivityPage() {
                 className="pl-10" 
               />
             </div>
+            <DatePeriodFilter
+              value={datePeriod}
+              onChange={setDatePeriod}
+              onCustomRange={(start, end) => {
+                setCustomStartDate(start);
+                setCustomEndDate(end);
+              }}
+            />
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="w-full sm:w-[150px]">
                 <Filter className="h-4 w-4 mr-2" />
@@ -225,7 +247,7 @@ export default function ActivityPage() {
             <ActivitiesSkeleton />
           ) : (
             <div className="space-y-3">
-              {filteredActivities.map((activity) => (
+              {paginatedActivities.map((activity) => (
                 <div 
                   key={activity.id} 
                   className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg transition-colors hover:bg-muted/50 cursor-pointer"
@@ -253,6 +275,17 @@ export default function ActivityPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      <TablePagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        startIndex={startIndex + 1}
+        endIndex={endIndex}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+      />
 
       {/* Activity Detail Sheet */}
       <Sheet open={!!selectedActivity} onOpenChange={closeSheet}>
