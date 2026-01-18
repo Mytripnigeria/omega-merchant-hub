@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { useLoading } from "@/hooks/use-loading";
-import { useTableControls } from "@/hooks/use-table-controls";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTableControls } from "@/hooks/use-table-controls";
+import { useCustomers, useCustomerStats } from "@/hooks/api";
+import { ErrorState } from "@/components/ui/data-states";
+import { useStore } from "@/contexts/StoreContext";
+import type { Customer } from "@/types/customers";
 import { SortableHeader } from "@/components/ui/sortable-header";
 import { TablePagination } from "@/components/ui/table-pagination";
 import {
@@ -34,159 +37,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-
-interface Order {
-  id: string;
-  date: string;
-  total: number;
-  status: string;
-  items: number;
-}
-
-interface Customer {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  birthday: string;
-  gender: string;
-  country: string;
-  state: string;
-  city: string;
-  street: string;
-  zipCode: string;
-  orders: number;
-  spent: number;
-  lastOrder: string;
-  status: "Active" | "VIP" | "Inactive";
-  source: string;
-  walletBalance: number;
-  points: number;
-  groups: string[];
-  recentOrders: Order[];
-}
-
-const customers: Customer[] = [
-  {
-    id: "1",
-    firstName: "Adaeze",
-    lastName: "Okonkwo",
-    email: "adaeze@gmail.com",
-    phone: "+234 803 456 7890",
-    birthday: "1990-05-15",
-    gender: "Female",
-    country: "Nigeria",
-    state: "Lagos",
-    city: "Ikeja",
-    street: "123 Allen Avenue",
-    zipCode: "100001",
-    orders: 24,
-    spent: 156800,
-    lastOrder: "2 hours ago",
-    status: "Active",
-    source: "POS",
-    walletBalance: 5000,
-    points: 1250,
-    groups: ["Regular", "Loyal"],
-    recentOrders: [
-      { id: "ORD-001", date: "2026-01-15", total: 8500, status: "Completed", items: 3 },
-      { id: "ORD-002", date: "2026-01-10", total: 12000, status: "Completed", items: 5 },
-    ]
-  },
-  {
-    id: "2",
-    firstName: "Chinedu",
-    lastName: "Eze",
-    email: "chinedu.eze@mail.com",
-    phone: "+234 805 123 4567",
-    birthday: "1985-08-20",
-    gender: "Male",
-    country: "Nigeria",
-    state: "Lagos",
-    city: "Victoria Island",
-    street: "45 Adeola Odeku",
-    zipCode: "100212",
-    orders: 18,
-    spent: 98500,
-    lastOrder: "1 day ago",
-    status: "Active",
-    source: "Storefront",
-    walletBalance: 0,
-    points: 850,
-    groups: ["Regular"],
-    recentOrders: []
-  },
-  {
-    id: "3",
-    firstName: "Oluwaseun",
-    lastName: "Adeyemi",
-    email: "seun.a@outlook.com",
-    phone: "+234 809 876 5432",
-    birthday: "1992-12-01",
-    gender: "Male",
-    country: "Nigeria",
-    state: "Lagos",
-    city: "Lekki",
-    street: "10 Admiralty Way",
-    zipCode: "105102",
-    orders: 45,
-    spent: 312000,
-    lastOrder: "3 hours ago",
-    status: "VIP",
-    source: "POS",
-    walletBalance: 15000,
-    points: 3200,
-    groups: ["VIP", "Loyal", "Corporate"],
-    recentOrders: []
-  },
-  {
-    id: "4",
-    firstName: "Fatima",
-    lastName: "Abubakar",
-    email: "fatima.abu@gmail.com",
-    phone: "+234 802 345 6789",
-    birthday: "1988-03-25",
-    gender: "Female",
-    country: "Nigeria",
-    state: "Abuja",
-    city: "Wuse",
-    street: "Plot 123 Wuse 2",
-    zipCode: "900001",
-    orders: 12,
-    spent: 67200,
-    lastOrder: "5 days ago",
-    status: "Active",
-    source: "UberEats",
-    walletBalance: 2500,
-    points: 450,
-    groups: ["Regular"],
-    recentOrders: []
-  },
-  {
-    id: "5",
-    firstName: "Emmanuel",
-    lastName: "Obi",
-    email: "emmanuelobi@mail.com",
-    phone: "+234 806 234 5678",
-    birthday: "1995-07-10",
-    gender: "Male",
-    country: "Nigeria",
-    state: "Lagos",
-    city: "Surulere",
-    street: "20 Adeniran Ogunsanya",
-    zipCode: "101283",
-    orders: 8,
-    spent: 42500,
-    lastOrder: "2 weeks ago",
-    status: "Inactive",
-    source: "Storefront",
-    walletBalance: 0,
-    points: 200,
-    groups: [],
-    recentOrders: []
-  },
-];
+// Using Customer type from @/types/customers
 
 const statusColors: Record<string, string> = {
   Active: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
@@ -254,7 +105,11 @@ function CustomersSkeleton() {
 
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const isLoading = useLoading(1000);
+  const { currentStore } = useStore();
+
+  // Fetch customers from API
+  const { data: customers = [], isLoading, error, refetch } = useCustomers();
+  const { data: stats } = useCustomerStats();
 
   // Sheet states
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
@@ -268,6 +123,19 @@ export default function CustomersPage() {
       minimumFractionDigits: 0,
     }).format(amount);
   };
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-4 sm:space-y-6 animate-fade-in">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Customers</h1>
+          <p className="text-sm text-muted-foreground">View and manage your customer database</p>
+        </div>
+        <ErrorState onRetry={refetch} description={error.message} />
+      </div>
+    );
+  }
 
   // Pre-filter customers
   const preFilteredCustomers = customers.filter(c => 
