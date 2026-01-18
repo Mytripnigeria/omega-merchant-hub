@@ -6,7 +6,6 @@ import {
   DollarSign,
   ArrowUpRight,
   MoreHorizontal,
-  Clock,
   Building2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +23,7 @@ import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "rec
 import { cn } from "@/lib/utils";
 import { useLoading } from "@/hooks/use-loading";
 import { useStore } from "@/contexts/StoreContext";
+import { RecentOrders } from "@/components/dashboard/RecentOrders";
 
 const chartData = [
   { name: "Mon", value: 245 },
@@ -34,44 +34,6 @@ const chartData = [
   { name: "Sat", value: 512 },
   { name: "Sun", value: 398 },
 ];
-
-const orders = [
-  {
-    id: "OMG-2847",
-    customer: "Adaeze Okonkwo",
-    status: "Ready",
-    total: "₦8,800",
-    time: "2m ago",
-  },
-  {
-    id: "OMG-2846",
-    customer: "Chinedu Eze",
-    status: "Preparing",
-    total: "₦15,500",
-    time: "5m ago",
-  },
-  {
-    id: "OMG-2845",
-    customer: "Oluwaseun Adeyemi",
-    status: "Delivered",
-    total: "₦6,200",
-    time: "12m ago",
-  },
-  {
-    id: "OMG-2844",
-    customer: "Fatima Abubakar",
-    status: "Delivered",
-    total: "₦12,300",
-    time: "25m ago",
-  },
-];
-
-const statusColors: Record<string, string> = {
-  Ready: "bg-success/10 text-success border-success/20",
-  Preparing: "bg-warning/10 text-warning border-warning/20",
-  Delivered: "bg-info/10 text-info border-info/20",
-  Cancelled: "bg-destructive/10 text-destructive border-destructive/20",
-};
 
 interface StatCardProps {
   title: string;
@@ -408,85 +370,8 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Recent Orders - Mobile cards, Desktop table */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between px-4 sm:px-6">
-          <div>
-            <CardTitle className="text-sm sm:text-base font-medium">Recent Orders</CardTitle>
-            <p className="text-xs sm:text-sm text-muted-foreground">Latest orders from all channels</p>
-          </div>
-          <Button variant="outline" size="sm" className="text-xs sm:text-sm">
-            View All
-          </Button>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <OrdersSkeleton />
-          ) : (
-            <>
-              {/* Mobile view - Card list */}
-              <div className="block sm:hidden divide-y divide-border">
-                {orders.map((order) => (
-                  <div key={order.id} className="p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-sm font-medium">#{order.id}</span>
-                      <Badge 
-                        variant="secondary" 
-                        className={cn("font-normal text-xs", statusColors[order.status])}
-                      >
-                        {order.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground truncate max-w-[150px]">{order.customer}</span>
-                      <span className="font-medium">{order.total}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {order.time}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Desktop view - Table */}
-              <div className="hidden sm:block overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4 pl-6">Order ID</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Customer</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Total</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4 pr-6">Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orders.map((order) => (
-                      <tr key={order.id} className="group cursor-pointer hover:bg-muted/50 border-b border-border last:border-0">
-                        <td className="p-4 pl-6 font-mono text-sm">
-                          #{order.id}
-                        </td>
-                        <td className="p-4">{order.customer}</td>
-                        <td className="p-4">
-                          <Badge 
-                            variant="secondary" 
-                            className={cn("font-normal", statusColors[order.status])}
-                          >
-                            {order.status}
-                          </Badge>
-                        </td>
-                        <td className="p-4 font-medium">{order.total}</td>
-                        <td className="p-4 pr-6 text-muted-foreground">{order.time}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+      {/* Recent Orders */}
+      <RecentOrders />
     </div>
   );
 }

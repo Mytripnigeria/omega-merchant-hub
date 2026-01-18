@@ -123,11 +123,11 @@
 
   /* Safari focus ring fix - remove default black outline */
   *:focus {
-    outline: none;
+    outline: none !important;
   }
   
   *:focus-visible {
-    outline: 2px solid hsl(var(--ring));
+    outline: 2px solid hsl(var(--ring)) !important;
     outline-offset: 2px;
   }
 
@@ -135,13 +135,21 @@
   button, 
   [role="button"],
   [role="tab"],
+  [role="tablist"],
   [type="button"],
   [type="submit"],
   input,
   select,
-  textarea {
+  textarea,
+  [data-radix-collection-item] {
     -webkit-appearance: none;
     -webkit-tap-highlight-color: transparent;
+    outline: none !important;
+  }
+  
+  /* Radix UI specific Safari fixes */
+  [data-state] {
+    outline: none !important;
   }
 
   /* Clean scrollbar */
