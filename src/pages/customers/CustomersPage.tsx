@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLoading } from "@/hooks/use-loading";
+import { useTableControls } from "@/hooks/use-table-controls";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SortableHeader } from "@/components/ui/sortable-header";
+import { TablePagination } from "@/components/ui/table-pagination";
 import {
   Select,
   SelectContent,
@@ -266,6 +269,27 @@ export default function CustomersPage() {
     }).format(amount);
   };
 
+  // Pre-filter customers
+  const preFilteredCustomers = customers.filter(c => 
+    `${c.firstName} ${c.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Use table controls hook
+  const {
+    data: filteredCustomers,
+    currentPage,
+    totalPages,
+    totalItems,
+    sortConfig,
+    handleSort,
+    goToPage,
+    setPageSize,
+    pageSize,
+    startIndex,
+    endIndex,
+  } = useTableControls<Customer>({ data: preFilteredCustomers, initialPageSize: 10 });
+
   const handleViewCustomer = (customer: Customer) => {
     setSelectedCustomer(customer);
     setIsViewSheetOpen(true);
@@ -280,11 +304,6 @@ export default function CustomersPage() {
     setSelectedCustomer(null);
     setIsAddSheetOpen(true);
   };
-
-  const filteredCustomers = customers.filter(c => 
-    `${c.firstName} ${c.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
@@ -412,12 +431,24 @@ export default function CustomersPage() {
                       <th className="text-left text-xs font-medium text-muted-foreground p-4 pl-6 w-12">
                         <input type="checkbox" className="rounded border-border" />
                       </th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Customer</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Phone</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Orders</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Total Spent</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Last Order</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                      <th className="text-left p-4">
+                        <span className="text-xs font-medium text-muted-foreground">Customer</span>
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Phone" field="phone" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Orders" field="orders" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Total Spent" field="spent" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Last Order" field="lastOrder" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Status" field="status" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
                       <th className="text-left text-xs font-medium text-muted-foreground p-4 pr-6 w-12"></th>
                     </tr>
                   </thead>
@@ -483,19 +514,16 @@ export default function CustomersPage() {
       </Card>
 
       {/* Pagination */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          Showing 1-{filteredCustomers.length} of 1,284 customers
-        </p>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled>
-            Previous
-          </Button>
-          <Button variant="outline" size="sm">
-            Next
-          </Button>
-        </div>
-      </div>
+      <TablePagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        startIndex={startIndex}
+        endIndex={endIndex}
+        pageSize={pageSize}
+        onPageChange={goToPage}
+        onPageSizeChange={setPageSize}
+      />
 
       {/* Add/Edit Sheet */}
       <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>

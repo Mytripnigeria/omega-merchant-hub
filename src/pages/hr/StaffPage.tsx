@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { useTableControls } from "@/hooks/use-table-controls";
+import { SortableHeader } from "@/components/ui/sortable-header";
+import { TablePagination } from "@/components/ui/table-pagination";
 import { 
   Select,
   SelectContent,
@@ -42,6 +45,21 @@ export default function StaffPage() {
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [sheetMode, setSheetMode] = useState<"view" | "add" | "edit">("view");
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  // Use table controls hook
+  const {
+    data: paginatedStaff,
+    currentPage,
+    totalPages,
+    totalItems,
+    sortConfig,
+    handleSort,
+    goToPage,
+    setPageSize,
+    pageSize,
+    startIndex,
+    endIndex,
+  } = useTableControls<Staff>({ data: staffData, initialPageSize: 10 });
 
   const stats = [
     { label: "Total Staff", value: "24", icon: Users },
@@ -149,7 +167,7 @@ export default function StaffPage() {
             <CardContent className="p-0">
               {/* Mobile Card View */}
               <div className="block sm:hidden divide-y divide-border">
-                {staffData.map((member) => (
+                {paginatedStaff.map((member) => (
                   <div 
                     key={member.id} 
                     className="p-4 space-y-3 cursor-pointer hover:bg-muted/50"
@@ -191,16 +209,26 @@ export default function StaffPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Name</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Role</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Dept</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Joined</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Name" field="name" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Role" field="role" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Dept" field="department" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Joined" field="joinDate" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
+                      <th className="text-left p-4">
+                        <SortableHeader label="Status" field="status" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
+                      </th>
                       <th className="text-left text-xs font-medium text-muted-foreground p-4 w-10"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {staffData.map((member) => (
+                    {paginatedStaff.map((member) => (
                       <tr 
                         key={member.id} 
                         className="border-b border-border last:border-0 group cursor-pointer hover:bg-muted/50"
@@ -246,13 +274,16 @@ export default function StaffPage() {
           </Card>
 
           {/* Pagination */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">Showing 1-6 of 24 staff</p>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled className="h-8">Previous</Button>
-              <Button variant="outline" size="sm" className="h-8">Next</Button>
-            </div>
-          </div>
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            pageSize={pageSize}
+            onPageChange={goToPage}
+            onPageSizeChange={setPageSize}
+          />
         </div>
 
         {/* Sidebar - Hidden on mobile, shown on lg */}
