@@ -121,6 +121,29 @@
     height: auto;
   }
 
+  /* Safari focus ring fix - remove default black outline */
+  *:focus {
+    outline: none;
+  }
+  
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Fix Safari black border on buttons, inputs, and interactive elements */
+  button, 
+  [role="button"],
+  [role="tab"],
+  [type="button"],
+  [type="submit"],
+  input,
+  select,
+  textarea {
+    -webkit-appearance: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   /* Clean scrollbar */
   ::-webkit-scrollbar {
     width: 6px;

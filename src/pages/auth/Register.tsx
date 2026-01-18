@@ -16,7 +16,7 @@ export default function Register() {
     
     setTimeout(() => {
       setIsLoading(false);
-      navigate("/dashboard");
+      navigate("/auth/onboarding");
     }, 1000);
   };
 
