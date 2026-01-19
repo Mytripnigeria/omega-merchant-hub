@@ -19,29 +19,61 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TrendingUp, TrendingDown, Target, BarChart3, Users, DollarSign, Clock, Star, Plus, Edit, Trash2, Eye, MoreHorizontal, Settings } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { KPITarget as APIKPITarget } from "@/types/operations";
 
-interface KPI {
-  id: string;
-  name: string;
-  current: number;
-  target: number;
+// UI-specific interface with computed fields for display
+interface KPIUI extends APIKPITarget {
+  current: number; // Alias for currentValue
+  target: number; // Alias for targetValue
   trend: "up" | "down";
   change: string;
   icon: React.ComponentType<{ className?: string }>;
   format: "currency" | "rating" | "percentage" | "number";
-  category: "financial" | "customer" | "operations" | "staff";
-  description?: string;
-  period: string;
 }
 
-const kpis: KPI[] = [
-  { id: "1", name: "Revenue Target", current: 85000, target: 100000, trend: "up", change: "+12%", icon: DollarSign, format: "currency", category: "financial", description: "Monthly revenue goal", period: "monthly" },
-  { id: "2", name: "Customer Satisfaction", current: 4.5, target: 5, trend: "up", change: "+0.3", icon: Star, format: "rating", category: "customer", description: "Average customer rating", period: "monthly" },
-  { id: "3", name: "Average Order Value", current: 28.50, target: 35, trend: "down", change: "-2%", icon: BarChart3, format: "currency", category: "financial", description: "Average value per order", period: "weekly" },
-  { id: "4", name: "Table Turnover Rate", current: 3.2, target: 4, trend: "up", change: "+0.5", icon: Clock, format: "number", category: "operations", description: "Tables served per hour", period: "daily" },
-  { id: "5", name: "Customer Retention", current: 78, target: 85, trend: "up", change: "+5%", icon: Users, format: "percentage", category: "customer", description: "Returning customer rate", period: "monthly" },
-  { id: "6", name: "Staff Efficiency", current: 92, target: 95, trend: "up", change: "+3%", icon: TrendingUp, format: "percentage", category: "staff", description: "Task completion rate", period: "weekly" },
+const getIconForCategory = (category: APIKPITarget["category"]): React.ComponentType<{ className?: string }> => {
+  switch (category) {
+    case "sales": return DollarSign;
+    case "customers": return Users;
+    case "efficiency": return TrendingUp;
+    case "orders": return BarChart3;
+    case "waste": return Clock;
+    case "labor": return Star;
+    default: return Target;
+  }
+};
+
+const getFormatForUnit = (unit: string): "currency" | "rating" | "percentage" | "number" => {
+  if (unit === "₦" || unit.includes("currency")) return "currency";
+  if (unit === "%" || unit.includes("percent")) return "percentage";
+  if (unit.includes("rating")) return "rating";
+  return "number";
+};
+
+const transformKPI = (kpi: APIKPITarget): KPIUI => {
+  const progressDiff = kpi.progress - 50;
+  return {
+    ...kpi,
+    current: kpi.currentValue,
+    target: kpi.targetValue,
+    trend: progressDiff >= 0 ? "up" : "down",
+    change: progressDiff >= 0 ? `+${progressDiff.toFixed(0)}%` : `${progressDiff.toFixed(0)}%`,
+    icon: getIconForCategory(kpi.category),
+    format: getFormatForUnit(kpi.unit),
+  };
+};
+
+// Mock data aligned with API types
+const mockKPIs: APIKPITarget[] = [
+  { id: "1", storeId: "store-1", name: "Revenue Target", description: "Monthly revenue goal", category: "sales", targetValue: 100000, currentValue: 85000, unit: "₦", period: "month", periodStart: "2026-01-01", periodEnd: "2026-01-31", status: "on-track", progress: 85, createdAt: "2026-01-01", updatedAt: "2026-01-15" },
+  { id: "2", storeId: "store-1", name: "Customer Satisfaction", description: "Average customer rating", category: "customers", targetValue: 5, currentValue: 4.5, unit: "rating", period: "month", periodStart: "2026-01-01", periodEnd: "2026-01-31", status: "on-track", progress: 90, createdAt: "2026-01-01", updatedAt: "2026-01-15" },
+  { id: "3", storeId: "store-1", name: "Average Order Value", description: "Average value per order", category: "orders", targetValue: 35, currentValue: 28.50, unit: "₦", period: "week", periodStart: "2026-01-13", periodEnd: "2026-01-19", status: "behind", progress: 40, createdAt: "2026-01-13", updatedAt: "2026-01-15" },
+  { id: "4", storeId: "store-1", name: "Table Turnover Rate", description: "Tables served per hour", category: "efficiency", targetValue: 4, currentValue: 3.2, unit: "tables/hr", period: "day", periodStart: "2026-01-15", periodEnd: "2026-01-15", status: "on-track", progress: 80, createdAt: "2026-01-15", updatedAt: "2026-01-15" },
+  { id: "5", storeId: "store-1", name: "Customer Retention", description: "Returning customer rate", category: "customers", targetValue: 85, currentValue: 78, unit: "%", period: "month", periodStart: "2026-01-01", periodEnd: "2026-01-31", status: "at-risk", progress: 65, createdAt: "2026-01-01", updatedAt: "2026-01-15" },
+  { id: "6", storeId: "store-1", name: "Staff Efficiency", description: "Task completion rate", category: "labor", targetValue: 95, currentValue: 92, unit: "%", period: "week", periodStart: "2026-01-13", periodEnd: "2026-01-19", status: "on-track", progress: 85, createdAt: "2026-01-13", updatedAt: "2026-01-15" },
 ];
+
+const kpis: KPIUI[] = mockKPIs.map(transformKPI);
 
 const formatValue = (value: number, format: string) => {
   switch (format) {
@@ -108,7 +140,7 @@ export default function KpiPage() {
   const [periodFilter, setPeriodFilter] = useState("this-month");
 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [selectedKpi, setSelectedKpi] = useState<KPI | null>(null);
+  const [selectedKpi, setSelectedKpi] = useState<KPIUI | null>(null);
   const [sheetMode, setSheetMode] = useState<"add" | "edit" | "view">("add");
 
   const filteredKpis = kpis.filter((kpi) => {
@@ -134,13 +166,13 @@ export default function KpiPage() {
     setIsSheetOpen(true);
   };
 
-  const handleView = (kpi: KPI) => {
+  const handleView = (kpi: KPIUI) => {
     setSelectedKpi(kpi);
     setSheetMode("view");
     setIsSheetOpen(true);
   };
 
-  const handleEdit = (kpi: KPI) => {
+  const handleEdit = (kpi: KPIUI) => {
     setSelectedKpi(kpi);
     setSheetMode("edit");
     setIsSheetOpen(true);

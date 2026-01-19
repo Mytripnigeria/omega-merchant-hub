@@ -23,25 +23,44 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { TablePagination } from "@/components/ui/table-pagination";
 import { cn } from "@/lib/utils";
 import { useTableControls } from "@/hooks/use-table-controls";
+import { InventoryLocation as APIInventoryLocation } from "@/types/procurement";
 
-interface Location {
-  id: string;
-  name: string;
-  type: "warehouse" | "store" | "kitchen";
-  address: string;
+// UI-specific interface with computed fields for display
+interface LocationUI extends APIInventoryLocation {
   manager: string;
   phone: string;
-  itemCount: number;
   totalValue: number;
-  isActive: boolean;
+  isActive: boolean; // Alias for isDefault (repurposed as active status)
 }
 
-const mockLocations: Location[] = [
-  { id: "loc-1", name: "Main Warehouse", type: "warehouse", address: "45 Industrial Road, Ikeja, Lagos", manager: "John Adeyemi", phone: "+234 812 345 6789", itemCount: 245, totalValue: 2450000, isActive: true },
-  { id: "loc-2", name: "Lekki Store", type: "store", address: "15 Admiralty Way, Lekki Phase 1, Lagos", manager: "Sarah Okonkwo", phone: "+234 812 345 6790", itemCount: 120, totalValue: 850000, isActive: true },
-  { id: "loc-3", name: "VI Kitchen", type: "kitchen", address: "25 Adeola Odeku Street, VI, Lagos", manager: "Michael Eze", phone: "+234 812 345 6791", itemCount: 85, totalValue: 420000, isActive: true },
-  { id: "loc-4", name: "Ikeja Mall Store", type: "store", address: "Shop 45, Ikeja City Mall, Lagos", manager: "Grace Nwosu", phone: "+234 812 345 6792", itemCount: 95, totalValue: 680000, isActive: false },
+const transformLocation = (location: APIInventoryLocation): LocationUI => ({
+  ...location,
+  manager: "John Adeyemi", // Would come from a related table in real implementation
+  phone: "+234 812 345 6789",
+  totalValue: location.itemCount * 10000, // Placeholder calculation
+  isActive: true,
+});
+
+// Mock data aligned with API types
+const mockLocationData: APIInventoryLocation[] = [
+  { id: "loc-1", storeId: "store-1", name: "Main Warehouse", type: "warehouse", address: "45 Industrial Road, Ikeja, Lagos", isDefault: true, itemCount: 245, createdAt: "2026-01-01", updatedAt: "2026-01-15" },
+  { id: "loc-2", storeId: "store-1", name: "Lekki Store", type: "instore", address: "15 Admiralty Way, Lekki Phase 1, Lagos", isDefault: false, itemCount: 120, createdAt: "2026-01-01", updatedAt: "2026-01-15" },
+  { id: "loc-3", storeId: "store-1", name: "VI Kitchen", type: "kitchen", address: "25 Adeola Odeku Street, VI, Lagos", isDefault: false, itemCount: 85, createdAt: "2026-01-01", updatedAt: "2026-01-15" },
+  { id: "loc-4", storeId: "store-1", name: "Ikeja Mall Store", type: "instore", address: "Shop 45, Ikeja City Mall, Lagos", isDefault: false, itemCount: 95, createdAt: "2026-01-01", updatedAt: "2026-01-15" },
 ];
+
+const managers = ["John Adeyemi", "Sarah Okonkwo", "Michael Eze", "Grace Nwosu"];
+const phones = ["+234 812 345 6780", "+234 812 345 6781", "+234 812 345 6782", "+234 812 345 6783"];
+const values = [2450000, 850000, 420000, 680000];
+const actives = [true, true, true, false];
+
+const mockLocations: LocationUI[] = mockLocationData.map((loc, idx) => ({
+  ...transformLocation(loc),
+  manager: managers[idx],
+  phone: phones[idx],
+  totalValue: values[idx],
+  isActive: actives[idx],
+}));
 
 const formatPrice = (amount: number) => {
   return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount);
@@ -87,7 +106,7 @@ export default function LocationsPage() {
   const isLoading = useLoading(1000);
 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<LocationUI | null>(null);
   const [sheetMode, setSheetMode] = useState<"add" | "edit" | "view">("add");
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -127,23 +146,25 @@ export default function LocationsPage() {
     setIsSheetOpen(true);
   };
 
-  const handleView = (location: Location) => {
+  const handleView = (location: LocationUI) => {
     setSelectedLocation(location);
     setSheetMode("view");
     setIsSheetOpen(true);
   };
 
-  const handleEdit = (location: Location) => {
+  const handleEdit = (location: LocationUI) => {
     setSelectedLocation(location);
     setSheetMode("edit");
     setIsSheetOpen(true);
   };
 
-  const getTypeBadge = (type: Location["type"]) => {
-    const colors: Record<Location["type"], string> = {
+  const getTypeBadge = (type: LocationUI["type"]) => {
+    const colors: Record<LocationUI["type"], string> = {
       warehouse: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-      store: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+      instore: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+      outstore: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400",
       kitchen: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+      bar: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
     };
     return <Badge className={colors[type]}>{type}</Badge>;
   };

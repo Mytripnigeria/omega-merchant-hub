@@ -25,25 +25,31 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { WasteLog as APIWasteLog } from "@/types/operations";
 
-interface WasteItem {
-  id: number;
-  item: string;
-  quantity: string;
-  unit: string;
-  reason: string;
-  cost: number;
-  date: string;
-  loggedBy: string;
-  notes?: string;
+// UI-specific interface with computed fields for display
+interface WasteLogUI extends APIWasteLog {
+  item: string; // Alias for productName
+  cost: number; // Alias for estimatedValue
+  loggedBy: string; // Alias for reportedByName
 }
 
-const wasteLog: WasteItem[] = [
-  { id: 1, item: "Lettuce", quantity: "5", unit: "kg", reason: "Spoilage", cost: 2500, date: "2026-01-15", loggedBy: "John D.", notes: "Found moldy in storage" },
-  { id: 2, item: "Chicken Breast", quantity: "3", unit: "kg", reason: "Overproduction", cost: 4500, date: "2026-01-15", loggedBy: "Sarah M.", notes: "Prepared too much for slow day" },
-  { id: 3, item: "Milk", quantity: "2", unit: "L", reason: "Expired", cost: 800, date: "2026-01-14", loggedBy: "Mike R." },
-  { id: 4, item: "Bread Rolls", quantity: "24", unit: "pcs", reason: "Overproduction", cost: 1200, date: "2026-01-14", loggedBy: "Emma W." },
+const transformWasteLog = (log: APIWasteLog): WasteLogUI => ({
+  ...log,
+  item: log.productName,
+  cost: log.estimatedValue,
+  loggedBy: log.reportedByName,
+});
+
+// Mock data aligned with API types
+const mockWasteLogs: APIWasteLog[] = [
+  { id: "1", storeId: "store-1", productName: "Lettuce", quantity: 5, unit: "kg", reason: "expired", estimatedValue: 2500, date: "2026-01-15", reportedBy: "staff-1", reportedByName: "John D.", notes: "Found moldy in storage", createdAt: "2026-01-15", updatedAt: "2026-01-15" },
+  { id: "2", storeId: "store-1", productName: "Chicken Breast", quantity: 3, unit: "kg", reason: "overproduction", estimatedValue: 4500, date: "2026-01-15", reportedBy: "staff-2", reportedByName: "Sarah M.", notes: "Prepared too much for slow day", createdAt: "2026-01-15", updatedAt: "2026-01-15" },
+  { id: "3", storeId: "store-1", productName: "Milk", quantity: 2, unit: "L", reason: "expired", estimatedValue: 800, date: "2026-01-14", reportedBy: "staff-3", reportedByName: "Mike R.", createdAt: "2026-01-14", updatedAt: "2026-01-14" },
+  { id: "4", storeId: "store-1", productName: "Bread Rolls", quantity: 24, unit: "pcs", reason: "overproduction", estimatedValue: 1200, date: "2026-01-14", reportedBy: "staff-4", reportedByName: "Emma W.", createdAt: "2026-01-14", updatedAt: "2026-01-14" },
 ];
+
+const wasteLog: WasteLogUI[] = mockWasteLogs.map(transformWasteLog);
 
 const stats = [
   { label: "Total Waste (MTD)", value: "₦125,000", icon: Trash2 },
@@ -127,7 +133,7 @@ const WastePage = () => {
   const [reasonFilter, setReasonFilter] = useState("all");
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
-  const [selectedWaste, setSelectedWaste] = useState<WasteItem | null>(null);
+  const [selectedWaste, setSelectedWaste] = useState<WasteLogUI | null>(null);
   const [datePeriod, setDatePeriod] = useState<DatePeriod>("all");
   const [customStartDate, setCustomStartDate] = useState<string>("");
   const [customEndDate, setCustomEndDate] = useState<string>("");
@@ -158,7 +164,7 @@ const WastePage = () => {
   const endIndex = Math.min(startIndex + pageSize, totalItems);
   const paginatedWaste = filteredWaste.slice(startIndex, endIndex);
 
-  const handleViewWaste = (waste: WasteItem) => {
+  const handleViewWaste = (waste: WasteLogUI) => {
     setSelectedWaste(waste);
     setIsViewSheetOpen(true);
   };

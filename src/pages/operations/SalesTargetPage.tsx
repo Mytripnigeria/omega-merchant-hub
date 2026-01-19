@@ -12,19 +12,19 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Target, Calendar, Award, TrendingUp, Plus, DollarSign, User, BarChart3 } from "lucide-react";
+import { SalesTarget as APISalesTarget } from "@/types/operations";
 
-interface SalesTarget {
-  id: number;
-  period: string;
-  target: number;
-  achieved: number;
-  percentage: number;
-  startDate: string;
-  endDate: string;
+// UI-specific interface with computed fields for display
+interface SalesTargetUI extends APISalesTarget {
+  target: number; // Alias for targetAmount
+  achieved: number; // Alias for currentAmount
+  percentage: number; // Alias for progress
+  startDate: string; // Alias for periodStart
+  endDate: string; // Alias for periodEnd
 }
 
 interface Performer {
-  id: number;
+  id: string;
   name: string;
   role: string;
   sales: number;
@@ -32,17 +32,29 @@ interface Performer {
   orders: number;
 }
 
-const targets: SalesTarget[] = [
-  { id: 1, period: "Daily", target: 500000, achieved: 420000, percentage: 84, startDate: "2026-01-15", endDate: "2026-01-15" },
-  { id: 2, period: "Weekly", target: 3500000, achieved: 2850000, percentage: 81, startDate: "2026-01-13", endDate: "2026-01-19" },
-  { id: 3, period: "Monthly", target: 15000000, achieved: 11200000, percentage: 75, startDate: "2026-01-01", endDate: "2026-01-31" },
+const transformSalesTarget = (target: APISalesTarget): SalesTargetUI => ({
+  ...target,
+  target: target.targetAmount,
+  achieved: target.currentAmount,
+  percentage: target.progress,
+  startDate: target.periodStart,
+  endDate: target.periodEnd,
+});
+
+// Mock data aligned with API types
+const mockSalesTargets: APISalesTarget[] = [
+  { id: "1", storeId: "store-1", name: "Daily Target", targetAmount: 500000, currentAmount: 420000, period: "day", periodStart: "2026-01-15", periodEnd: "2026-01-15", status: "active", progress: 84, createdAt: "2026-01-15", updatedAt: "2026-01-15" },
+  { id: "2", storeId: "store-1", name: "Weekly Target", targetAmount: 3500000, currentAmount: 2850000, period: "week", periodStart: "2026-01-13", periodEnd: "2026-01-19", status: "active", progress: 81, createdAt: "2026-01-13", updatedAt: "2026-01-15" },
+  { id: "3", storeId: "store-1", name: "Monthly Target", targetAmount: 15000000, currentAmount: 11200000, period: "month", periodStart: "2026-01-01", periodEnd: "2026-01-31", status: "active", progress: 75, createdAt: "2026-01-01", updatedAt: "2026-01-15" },
 ];
 
+const targets: SalesTargetUI[] = mockSalesTargets.map(transformSalesTarget);
+
 const topPerformers: Performer[] = [
-  { id: 1, name: "Sarah Johnson", role: "Server", sales: 1250000, target: 1000000, orders: 85 },
-  { id: 2, name: "Mike Chen", role: "Server", sales: 1180000, target: 1000000, orders: 78 },
-  { id: 3, name: "Emma Wilson", role: "Bartender", sales: 950000, target: 800000, orders: 120 },
-  { id: 4, name: "James Brown", role: "Server", sales: 890000, target: 1000000, orders: 62 },
+  { id: "1", name: "Sarah Johnson", role: "Server", sales: 1250000, target: 1000000, orders: 85 },
+  { id: "2", name: "Mike Chen", role: "Server", sales: 1180000, target: 1000000, orders: 78 },
+  { id: "3", name: "Emma Wilson", role: "Bartender", sales: 950000, target: 800000, orders: 120 },
+  { id: "4", name: "James Brown", role: "Server", sales: 890000, target: 1000000, orders: 62 },
 ];
 
 function TargetsSkeleton() {
@@ -88,12 +100,12 @@ const getProgressColor = (percentage: number) => {
 
 export default function SalesTargetPage() {
   const isLoading = useLoading(1000);
-  const [selectedTarget, setSelectedTarget] = useState<SalesTarget | null>(null);
+  const [selectedTarget, setSelectedTarget] = useState<SalesTargetUI | null>(null);
   const [selectedPerformer, setSelectedPerformer] = useState<Performer | null>(null);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [sheetType, setSheetType] = useState<"target" | "performer">("target");
 
-  const openTargetSheet = (target: SalesTarget) => { setSelectedTarget(target); setSelectedPerformer(null); setSheetType("target"); };
+  const openTargetSheet = (target: SalesTargetUI) => { setSelectedTarget(target); setSelectedPerformer(null); setSheetType("target"); };
   const openPerformerSheet = (performer: Performer) => { setSelectedPerformer(performer); setSelectedTarget(null); setSheetType("performer"); };
   const openAddSheet = () => { setSelectedTarget(null); setSelectedPerformer(null); setIsAddSheetOpen(true); setSheetType("target"); };
   const closeSheet = () => { setSelectedTarget(null); setSelectedPerformer(null); setIsAddSheetOpen(false); };

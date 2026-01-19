@@ -26,28 +26,28 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Expense as APIExpense } from "@/types/operations";
 
-interface Expense {
-  id: number;
-  description: string;
-  category: string;
-  amount: number;
-  date: string;
-  vendor: string;
-  status: "approved" | "pending" | "rejected";
-  submittedBy?: string;
-  approvedBy?: string;
-  receipt?: string;
-  notes?: string;
+// UI-specific interface with computed fields for display
+interface ExpenseUI extends APIExpense {
+  description: string; // Alias for name
 }
 
-const expenses: Expense[] = [
-  { id: 1, description: "Monthly Supplies Order", category: "Supplies", amount: 250000, date: "2026-01-15", vendor: "FoodCo", status: "approved", submittedBy: "John Doe", approvedBy: "Manager", notes: "Regular monthly order" },
-  { id: 2, description: "Utility Bill - Electric", category: "Utilities", amount: 120000, date: "2026-01-14", vendor: "PowerGrid", status: "pending", submittedBy: "Sarah Smith" },
-  { id: 3, description: "New Mixer Purchase", category: "Equipment", amount: 500000, date: "2026-01-12", vendor: "KitchenPro", status: "approved", submittedBy: "Mike Johnson", approvedBy: "Owner" },
-  { id: 4, description: "Staff Training", category: "Training", amount: 80000, date: "2026-01-10", vendor: "TrainCorp", status: "approved", submittedBy: "Lisa Brown", approvedBy: "Manager" },
-  { id: 5, description: "Cleaning Supplies", category: "Supplies", amount: 45000, date: "2026-01-08", vendor: "CleanMart", status: "rejected", submittedBy: "David Wilson", notes: "Wrong vendor - resubmit" },
+const transformExpense = (expense: APIExpense): ExpenseUI => ({
+  ...expense,
+  description: expense.name,
+});
+
+// Mock data aligned with API types
+const mockExpenses: APIExpense[] = [
+  { id: "1", storeId: "store-1", category: "supplies", name: "Monthly Supplies Order", amount: 250000, date: "2026-01-15", vendor: "FoodCo", status: "approved", submittedBy: "staff-1", submittedByName: "John Doe", approvedBy: "Manager", notes: "Regular monthly order", createdAt: "2026-01-15", updatedAt: "2026-01-15" },
+  { id: "2", storeId: "store-1", category: "utilities", name: "Utility Bill - Electric", amount: 120000, date: "2026-01-14", vendor: "PowerGrid", status: "pending", submittedBy: "staff-2", submittedByName: "Sarah Smith", createdAt: "2026-01-14", updatedAt: "2026-01-14" },
+  { id: "3", storeId: "store-1", category: "equipment", name: "New Mixer Purchase", amount: 500000, date: "2026-01-12", vendor: "KitchenPro", status: "approved", submittedBy: "staff-3", submittedByName: "Mike Johnson", approvedBy: "Owner", createdAt: "2026-01-12", updatedAt: "2026-01-12" },
+  { id: "4", storeId: "store-1", category: "other", name: "Staff Training", amount: 80000, date: "2026-01-10", vendor: "TrainCorp", status: "approved", submittedBy: "staff-4", submittedByName: "Lisa Brown", approvedBy: "Manager", createdAt: "2026-01-10", updatedAt: "2026-01-10" },
+  { id: "5", storeId: "store-1", category: "supplies", name: "Cleaning Supplies", amount: 45000, date: "2026-01-08", vendor: "CleanMart", status: "rejected", submittedBy: "staff-5", submittedByName: "David Wilson", notes: "Wrong vendor - resubmit", createdAt: "2026-01-08", updatedAt: "2026-01-08" },
 ];
+
+const expenses: ExpenseUI[] = mockExpenses.map(transformExpense);
 
 const categories = ["Supplies", "Utilities", "Equipment", "Training", "Marketing", "Maintenance", "Other"];
 
@@ -131,7 +131,7 @@ const ExpensesPage = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
-  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [selectedExpense, setSelectedExpense] = useState<ExpenseUI | null>(null);
   const [datePeriod, setDatePeriod] = useState<DatePeriod>("all");
   const [customStartDate, setCustomStartDate] = useState<string>("");
   const [customEndDate, setCustomEndDate] = useState<string>("");
@@ -163,7 +163,7 @@ const ExpensesPage = () => {
   const endIndex = Math.min(startIndex + pageSize, totalItems);
   const paginatedExpenses = filteredExpenses.slice(startIndex, endIndex);
 
-  const handleViewExpense = (expense: Expense) => {
+  const handleViewExpense = (expense: ExpenseUI) => {
     setSelectedExpense(expense);
     setIsViewSheetOpen(true);
   };
