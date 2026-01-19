@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Plus, Image as ImageIcon, Search, MoreHorizontal, Trash2, Edit, 
-  GripVertical, Eye, ExternalLink, Sun, Moon, ArrowUp, ArrowDown 
+  GripVertical, Eye, ExternalLink, Sun, Moon
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { 
@@ -33,6 +33,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { cn } from "@/lib/utils";
 
 const themeColors = {
   light: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
@@ -43,6 +61,119 @@ const statusColors = {
   active: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
   inactive: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
 };
+
+// Sortable Banner Item Component
+interface SortableBannerItemProps {
+  banner: FeatureBanner;
+  onView: (banner: FeatureBanner) => void;
+  onEdit: (banner: FeatureBanner) => void;
+  onDelete: (banner: FeatureBanner) => void;
+}
+
+function SortableBannerItem({ banner, onView, onEdit, onDelete }: SortableBannerItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: banner.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group bg-background",
+        isDragging && "opacity-50 shadow-lg z-50"
+      )}
+      onClick={() => onView(banner)}
+    >
+      {/* Drag Handle & Position */}
+      <div 
+        className="hidden sm:flex flex-col items-center gap-1 text-muted-foreground cursor-grab active:cursor-grabbing"
+        {...attributes}
+        {...listeners}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <GripVertical className="h-4 w-4" />
+        <span className="text-xs font-medium">{banner.position}</span>
+      </div>
+
+      {/* Image Preview */}
+      <div className="relative h-14 w-20 sm:h-16 sm:w-24 rounded-md overflow-hidden bg-muted flex-shrink-0">
+        {banner.imageUrl ? (
+          <img 
+            src={banner.imageUrl} 
+            alt={banner.title} 
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <ImageIcon className="h-6 w-6 text-muted-foreground" />
+          </div>
+        )}
+        <div className={`absolute inset-0 ${banner.theme === 'dark' ? 'bg-black/30' : 'bg-white/30'}`} />
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <h3 className="font-medium text-sm sm:text-base truncate">{banner.title}</h3>
+          <Badge className={themeColors[banner.theme]} variant="secondary">
+            {banner.theme === 'dark' ? <Moon className="h-3 w-3 mr-1" /> : <Sun className="h-3 w-3 mr-1" />}
+            {banner.theme}
+          </Badge>
+        </div>
+        <p className="text-xs sm:text-sm text-muted-foreground truncate">{banner.description}</p>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-xs text-muted-foreground">{banner.actionText}</span>
+          <span className="text-xs text-muted-foreground">→</span>
+          <span className="text-xs text-primary truncate">{banner.actionUrl}</span>
+        </div>
+      </div>
+
+      {/* Status & Actions */}
+      <div className="flex items-center gap-2 sm:gap-3">
+        <Badge 
+          className={banner.isActive ? statusColors.active : statusColors.inactive} 
+          variant="secondary"
+        >
+          {banner.isActive ? 'Active' : 'Inactive'}
+        </Badge>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onView(banner); }}>
+              <Eye className="mr-2 h-4 w-4" />View
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(banner); }}>
+              <Edit className="mr-2 h-4 w-4" />Edit
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              className="text-destructive" 
+              onClick={(e) => { e.stopPropagation(); onDelete(banner); }}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+}
 
 function StatsSkeleton() {
   return (
@@ -202,33 +333,31 @@ export default function FeatureBannersPage() {
     }
   };
 
-  const handleMoveUp = async (banner: FeatureBanner) => {
-    const currentIndex = banners.findIndex(b => b.id === banner.id);
-    if (currentIndex <= 0) return;
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
-    const newOrder = [...banners];
-    [newOrder[currentIndex - 1], newOrder[currentIndex]] = [newOrder[currentIndex], newOrder[currentIndex - 1]];
-    
-    try {
-      await reorderMutation.mutateAsync(newOrder.map(b => b.id));
-      toast.success("Banner moved up");
-    } catch {
-      toast.error("Failed to reorder banners");
-    }
-  };
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
 
-  const handleMoveDown = async (banner: FeatureBanner) => {
-    const currentIndex = banners.findIndex(b => b.id === banner.id);
-    if (currentIndex >= banners.length - 1) return;
-
-    const newOrder = [...banners];
-    [newOrder[currentIndex], newOrder[currentIndex + 1]] = [newOrder[currentIndex + 1], newOrder[currentIndex]];
-    
-    try {
-      await reorderMutation.mutateAsync(newOrder.map(b => b.id));
-      toast.success("Banner moved down");
-    } catch {
-      toast.error("Failed to reorder banners");
+    if (over && active.id !== over.id) {
+      const oldIndex = banners.findIndex((b) => b.id === active.id);
+      const newIndex = banners.findIndex((b) => b.id === over.id);
+      const newOrder = arrayMove(banners, oldIndex, newIndex);
+      
+      try {
+        await reorderMutation.mutateAsync(newOrder.map(b => b.id));
+        toast.success("Banners reordered");
+      } catch {
+        toast.error("Failed to reorder banners");
+      }
     }
   };
 
@@ -285,100 +414,25 @@ export default function FeatureBannersPage() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-3">
-              {banners.map((banner, index) => (
-                <div 
-                  key={banner.id} 
-                  className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group"
-                  onClick={() => openViewSheet(banner)}
-                >
-                  {/* Drag Handle & Position */}
-                  <div className="hidden sm:flex flex-col items-center gap-1 text-muted-foreground">
-                    <GripVertical className="h-4 w-4" />
-                    <span className="text-xs font-medium">{banner.position}</span>
-                  </div>
-
-                  {/* Image Preview */}
-                  <div className="relative h-14 w-20 sm:h-16 sm:w-24 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                    {banner.imageUrl ? (
-                      <img 
-                        src={banner.imageUrl} 
-                        alt={banner.title} 
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full">
-                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className={`absolute inset-0 ${banner.theme === 'dark' ? 'bg-black/30' : 'bg-white/30'}`} />
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-medium text-sm sm:text-base truncate">{banner.title}</h3>
-                      <Badge className={themeColors[banner.theme]} variant="secondary">
-                        {banner.theme === 'dark' ? <Moon className="h-3 w-3 mr-1" /> : <Sun className="h-3 w-3 mr-1" />}
-                        {banner.theme}
-                      </Badge>
-                    </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground truncate">{banner.description}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-muted-foreground">{banner.actionText}</span>
-                      <span className="text-xs text-muted-foreground">→</span>
-                      <span className="text-xs text-primary truncate">{banner.actionUrl}</span>
-                    </div>
-                  </div>
-
-                  {/* Status & Actions */}
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <Badge 
-                      className={banner.isActive ? statusColors.active : statusColors.inactive} 
-                      variant="secondary"
-                    >
-                      {banner.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openViewSheet(banner); }}>
-                          <Eye className="mr-2 h-4 w-4" />View
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditSheet(banner); }}>
-                          <Edit className="mr-2 h-4 w-4" />Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          onClick={(e) => { e.stopPropagation(); handleMoveUp(banner); }}
-                          disabled={index === 0}
-                        >
-                          <ArrowUp className="mr-2 h-4 w-4" />Move Up
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={(e) => { e.stopPropagation(); handleMoveDown(banner); }}
-                          disabled={index === banners.length - 1}
-                        >
-                          <ArrowDown className="mr-2 h-4 w-4" />Move Down
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          className="text-destructive" 
-                          onClick={(e) => { e.stopPropagation(); confirmDelete(banner); }}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={banners} strategy={verticalListSortingStrategy}>
+                <div className="space-y-3">
+                  {banners.map((banner) => (
+                    <SortableBannerItem
+                      key={banner.id}
+                      banner={banner}
+                      onView={openViewSheet}
+                      onEdit={openEditSheet}
+                      onDelete={confirmDelete}
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
+              </SortableContext>
+            </DndContext>
           )}
         </CardContent>
       </Card>
