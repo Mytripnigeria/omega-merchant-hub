@@ -9,90 +9,54 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Star, Users, Gift, TrendingUp, Plus, Settings, Edit, Eye } from "lucide-react";
+import { LoyaltyTier as APILoyaltyTier } from "@/types/marketing";
 
-interface LoyaltyTier {
-  id: number;
-  name: string;
-  description: string;
-  minPoints: number;
+// UI-specific interface with computed fields for display
+interface LoyaltyTierUI extends APILoyaltyTier {
   discount: { name: string; type: string; value: number } | null;
   delivery: { name: string; value: number } | null;
   pointsPerN: number;
   valuePer100Points: number;
   minToRedeem: number;
-  members: number;
-  color: string;
+  members: number; // Alias for memberCount
   status: "active" | "inactive";
 }
 
-const tiersData: LoyaltyTier[] = [
-  { 
-    id: 1, 
-    name: "Bronze", 
-    description: "Entry level tier for new members",
-    minPoints: 0, 
-    discount: { name: "Bronze Discount", type: "percentage", value: 5 },
-    delivery: null,
-    pointsPerN: 10,
-    valuePer100Points: 100,
-    minToRedeem: 100,
-    members: 456, 
-    color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-    status: "active"
-  },
-  { 
-    id: 2, 
-    name: "Silver", 
-    description: "For regular customers",
-    minPoints: 500, 
-    discount: { name: "Silver Discount", type: "percentage", value: 10 },
-    delivery: { name: "Free Delivery", value: 0 },
-    pointsPerN: 10,
-    valuePer100Points: 150,
-    minToRedeem: 100,
-    members: 234, 
-    color: "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300",
-    status: "active"
-  },
-  { 
-    id: 3, 
-    name: "Gold", 
-    description: "Premium member benefits",
-    minPoints: 1500, 
-    discount: { name: "Gold Discount", type: "percentage", value: 15 },
-    delivery: { name: "Free Delivery", value: 0 },
-    pointsPerN: 15,
-    valuePer100Points: 200,
-    minToRedeem: 50,
-    members: 89, 
-    color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-    status: "active"
-  },
-  { 
-    id: 4, 
-    name: "Platinum", 
-    description: "Exclusive VIP benefits",
-    minPoints: 5000, 
-    discount: { name: "Platinum Discount", type: "percentage", value: 20 },
-    delivery: { name: "Priority Delivery", value: 0 },
-    pointsPerN: 20,
-    valuePer100Points: 250,
-    minToRedeem: 50,
-    members: 23, 
-    color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-    status: "active"
-  },
+const transformTier = (tier: APILoyaltyTier): LoyaltyTierUI => {
+  const discountBenefit = tier.benefits.find(b => b.type === "discount");
+  const freeShippingBenefit = tier.benefits.find(b => b.type === "free-shipping");
+  
+  return {
+    ...tier,
+    discount: discountBenefit ? { name: `${tier.name} Discount`, type: "percentage", value: discountBenefit.value } : null,
+    delivery: freeShippingBenefit ? { name: "Free Delivery", value: 0 } : null,
+    pointsPerN: 10 + (tier.minPoints / 500) * 5,
+    valuePer100Points: 100 + (tier.minPoints / 500) * 50,
+    minToRedeem: tier.minPoints >= 1500 ? 50 : 100,
+    members: tier.memberCount,
+    status: "active",
+  };
+};
+
+// Mock data aligned with API types
+const mockTiers: APILoyaltyTier[] = [
+  { id: "1", storeId: "store-1", name: "Bronze", description: "Entry level tier for new members", minPoints: 0, color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400", benefits: [{ id: "1", type: "discount", value: 5, description: "5% off orders" }], memberCount: 456, createdAt: "2026-01-01", updatedAt: "2026-01-15" },
+  { id: "2", storeId: "store-1", name: "Silver", description: "For regular customers", minPoints: 500, color: "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300", benefits: [{ id: "2", type: "discount", value: 10, description: "10% off orders" }, { id: "3", type: "free-shipping", value: 0, description: "Free delivery" }], memberCount: 234, createdAt: "2026-01-01", updatedAt: "2026-01-15" },
+  { id: "3", storeId: "store-1", name: "Gold", description: "Premium member benefits", minPoints: 1500, color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400", benefits: [{ id: "4", type: "discount", value: 15, description: "15% off orders" }, { id: "5", type: "free-shipping", value: 0, description: "Free delivery" }], memberCount: 89, createdAt: "2026-01-01", updatedAt: "2026-01-15" },
+  { id: "4", storeId: "store-1", name: "Platinum", description: "Exclusive VIP benefits", minPoints: 5000, color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400", benefits: [{ id: "6", type: "discount", value: 20, description: "20% off orders" }, { id: "7", type: "free-shipping", value: 0, description: "Priority delivery" }], memberCount: 23, createdAt: "2026-01-01", updatedAt: "2026-01-15" },
 ];
 
+const tiersData: LoyaltyTierUI[] = mockTiers.map(transformTier);
+
 const tierMembers = [
-  { id: 1, name: "John Doe", email: "john@example.com", points: 5200, joinDate: "2025-06-15" },
-  { id: 2, name: "Sarah Smith", email: "sarah@example.com", points: 4800, joinDate: "2025-07-20" },
-  { id: 3, name: "Mike Johnson", email: "mike@example.com", points: 3200, joinDate: "2025-08-10" },
-  { id: 4, name: "Lisa Brown", email: "lisa@example.com", points: 2900, joinDate: "2025-09-05" },
+  { id: "1", name: "John Doe", email: "john@example.com", points: 5200, joinDate: "2025-06-15" },
+  { id: "2", name: "Sarah Smith", email: "sarah@example.com", points: 4800, joinDate: "2025-07-20" },
+  { id: "3", name: "Mike Johnson", email: "mike@example.com", points: 3200, joinDate: "2025-08-10" },
+  { id: "4", name: "Lisa Brown", email: "lisa@example.com", points: 2900, joinDate: "2025-09-05" },
 ];
 
 export default function LoyaltyPage() {
-  const [selectedTier, setSelectedTier] = useState<LoyaltyTier | null>(null);
+  const [selectedTier, setSelectedTier] = useState<LoyaltyTierUI | null>(null);
   const [sheetMode, setSheetMode] = useState<"view" | "add" | "edit">("view");
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
@@ -103,7 +67,7 @@ export default function LoyaltyPage() {
     { label: "Retention", value: "78%", icon: TrendingUp },
   ];
 
-  const openSheet = (mode: "view" | "add" | "edit", tier?: LoyaltyTier) => {
+  const openSheet = (mode: "view" | "add" | "edit", tier?: LoyaltyTierUI) => {
     setSheetMode(mode);
     setSelectedTier(tier || null);
     setIsSheetOpen(true);

@@ -13,74 +13,51 @@ import { Textarea } from "@/components/ui/textarea";
 import { Search, Plus, ArrowRight, Truck, Clock, CheckCircle2, MoreHorizontal, Package, MapPin, FileText, Calendar } from "lucide-react";
 import { DatePeriodFilter, DatePeriod, useDatePeriodFilter } from "@/components/ui/date-period-filter";
 import { TablePagination } from "@/components/ui/table-pagination";
+import { StockTransfer as APIStockTransfer, StockTransferItem as APIStockTransferItem } from "@/types/procurement";
 
-interface TransferItem {
+// UI-specific interface with computed fields for display
+interface TransferItemUI {
   name: string;
   sku: string;
   quantity: number;
   unit: string;
 }
 
-interface Transfer {
-  id: string;
-  from: string;
-  to: string;
-  items: number;
-  date: string;
-  status: "completed" | "in-transit" | "pending";
-  itemsList?: TransferItem[];
-  notes?: string;
-  createdBy?: string;
+interface TransferUI extends Omit<APIStockTransfer, 'items'> {
+  from: string; // Alias for fromLocationName
+  to: string; // Alias for toLocationName
+  items: number; // Alias for totalItems
+  date: string; // Alias for requestedAt (date portion)
+  itemsList: TransferItemUI[];
+  createdBy: string; // Alias for requestedByName
   timeline?: { time: string; event: string; user?: string }[];
 }
 
-const transfers: Transfer[] = [
-  { 
-    id: "TRF-001", from: "Main Kitchen", to: "Cold Storage", items: 5, date: "2026-01-14", status: "completed",
-    itemsList: [
-      { name: "Chicken Breast", sku: "CHK-001", quantity: 20, unit: "kg" },
-      { name: "Beef Steak", sku: "BEF-002", quantity: 15, unit: "kg" },
-      { name: "Salmon Fillet", sku: "SAL-003", quantity: 10, unit: "kg" },
-      { name: "Shrimp", sku: "SHR-004", quantity: 8, unit: "kg" },
-      { name: "Lamb Chops", sku: "LAM-005", quantity: 12, unit: "kg" }
-    ],
-    notes: "Regular weekly transfer to cold storage",
-    createdBy: "John Doe",
-    timeline: [
-      { time: "9:00 AM", event: "Transfer created", user: "John Doe" },
-      { time: "9:30 AM", event: "Items packed", user: "Sarah Smith" },
-      { time: "10:00 AM", event: "In transit" },
-      { time: "10:15 AM", event: "Received at Cold Storage", user: "Mike Johnson" }
-    ]
-  },
-  { 
-    id: "TRF-002", from: "Warehouse", to: "Main Kitchen", items: 12, date: "2026-01-14", status: "in-transit",
-    itemsList: [
-      { name: "Rice", sku: "RIC-001", quantity: 50, unit: "kg" },
-      { name: "Cooking Oil", sku: "OIL-002", quantity: 20, unit: "liters" },
-      { name: "Tomato Paste", sku: "TOM-003", quantity: 30, unit: "cans" }
-    ],
-    notes: "Restock order for main kitchen",
-    createdBy: "Sarah Smith"
-  },
-  { 
-    id: "TRF-003", from: "Cold Storage", to: "VI Branch", items: 8, date: "2026-01-13", status: "pending",
-    itemsList: [
-      { name: "Frozen Chicken", sku: "FCH-001", quantity: 25, unit: "kg" },
-      { name: "Frozen Fish", sku: "FFI-002", quantity: 15, unit: "kg" }
-    ],
-    notes: "Weekly supply for VI Branch",
-    createdBy: "Mike Johnson"
-  },
-  { 
-    id: "TRF-004", from: "Warehouse", to: "Lekki Store", items: 15, date: "2026-01-12", status: "completed",
-    itemsList: [
-      { name: "Beverages", sku: "BEV-001", quantity: 100, unit: "bottles" },
-      { name: "Snacks", sku: "SNK-002", quantity: 50, unit: "packs" }
-    ],
-    createdBy: "Emily Brown"
-  },
+const transformStockTransfer = (transfer: APIStockTransfer): TransferUI => ({
+  ...transfer,
+  from: transfer.fromLocationName,
+  to: transfer.toLocationName,
+  items: transfer.totalItems,
+  date: transfer.requestedAt.split('T')[0],
+  itemsList: transfer.items.map(item => ({
+    name: item.inventoryName,
+    sku: item.sku,
+    quantity: item.quantity,
+    unit: item.unit,
+  })),
+  createdBy: transfer.requestedByName,
+  timeline: [],
+});
+
+// Mock data aligned with API types
+const mockTransfers: APIStockTransfer[] = [
+  { id: "TRF-001", storeId: "store-1", fromLocationId: "loc-1", fromLocationName: "Main Kitchen", toLocationId: "loc-2", toLocationName: "Cold Storage", items: [{ id: "1", inventoryId: "inv-1", inventoryName: "Chicken Breast", sku: "CHK-001", quantity: 20, unit: "kg", unitCost: 5000, totalCost: 100000 }, { id: "2", inventoryId: "inv-2", inventoryName: "Beef Steak", sku: "BEF-002", quantity: 15, unit: "kg", unitCost: 8000, totalCost: 120000 }], totalItems: 5, totalValue: 220000, status: "received", requestedBy: "staff-1", requestedByName: "John Doe", requestedAt: "2026-01-14T09:00:00", receivedBy: "staff-2", receivedAt: "2026-01-14T10:15:00", notes: "Regular weekly transfer to cold storage", createdAt: "2026-01-14", updatedAt: "2026-01-14" },
+  { id: "TRF-002", storeId: "store-1", fromLocationId: "loc-3", fromLocationName: "Warehouse", toLocationId: "loc-1", toLocationName: "Main Kitchen", items: [{ id: "3", inventoryId: "inv-3", inventoryName: "Rice", sku: "RIC-001", quantity: 50, unit: "kg", unitCost: 2000, totalCost: 100000 }], totalItems: 12, totalValue: 100000, status: "in-transit", requestedBy: "staff-2", requestedByName: "Sarah Smith", requestedAt: "2026-01-14T11:00:00", notes: "Restock order for main kitchen", createdAt: "2026-01-14", updatedAt: "2026-01-14" },
+  { id: "TRF-003", storeId: "store-1", fromLocationId: "loc-2", fromLocationName: "Cold Storage", toLocationId: "loc-4", toLocationName: "VI Branch", items: [{ id: "4", inventoryId: "inv-4", inventoryName: "Frozen Chicken", sku: "FCH-001", quantity: 25, unit: "kg", unitCost: 4000, totalCost: 100000 }], totalItems: 8, totalValue: 100000, status: "pending", requestedBy: "staff-3", requestedByName: "Mike Johnson", requestedAt: "2026-01-13T14:00:00", notes: "Weekly supply for VI Branch", createdAt: "2026-01-13", updatedAt: "2026-01-13" },
+  { id: "TRF-004", storeId: "store-1", fromLocationId: "loc-3", fromLocationName: "Warehouse", toLocationId: "loc-5", toLocationName: "Lekki Store", items: [{ id: "5", inventoryId: "inv-5", inventoryName: "Beverages", sku: "BEV-001", quantity: 100, unit: "bottles", unitCost: 500, totalCost: 50000 }], totalItems: 15, totalValue: 50000, status: "received", requestedBy: "staff-4", requestedByName: "Emily Brown", requestedAt: "2026-01-12T10:00:00", createdAt: "2026-01-12", updatedAt: "2026-01-12" },
 ];
+
+const transfers: TransferUI[] = mockTransfers.map(transformStockTransfer);
 
 function StatsSkeleton() {
   return (
@@ -154,7 +131,7 @@ function TransfersSkeleton() {
 export default function StockTransferPage() {
   const [search, setSearch] = useState("");
   const isLoading = useLoading(1000);
-  const [selectedTransfer, setSelectedTransfer] = useState<Transfer | null>(null);
+  const [selectedTransfer, setSelectedTransfer] = useState<TransferUI | null>(null);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [sheetMode, setSheetMode] = useState<"view" | "edit" | "add">("view");
   const [datePeriod, setDatePeriod] = useState<DatePeriod>("all");
@@ -169,9 +146,9 @@ export default function StockTransferPage() {
     { label: "Completed", value: "45", icon: CheckCircle2 },
   ];
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: TransferUI["status"]) => {
     switch (status) {
-      case "completed":
+      case "received":
         return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs">Completed</Badge>;
       case "in-transit":
         return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-xs">In Transit</Badge>;
@@ -202,12 +179,12 @@ export default function StockTransferPage() {
     setCurrentPage(1);
   };
 
-  const openViewSheet = (transfer: Transfer) => {
+  const openViewSheet = (transfer: TransferUI) => {
     setSelectedTransfer(transfer);
     setSheetMode("view");
   };
 
-  const openEditSheet = (transfer: Transfer) => {
+  const openEditSheet = (transfer: TransferUI) => {
     setSelectedTransfer(transfer);
     setSheetMode("edit");
   };

@@ -9,33 +9,45 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Search, Plus, Tag, Percent, Users, MoreHorizontal, Calendar, X, Eye, Edit, ShoppingCart } from "lucide-react";
+import { DiscountCode as APIDiscountCode } from "@/types/marketing";
 
-interface Discount {
-  id: number;
-  name: string;
-  description: string;
-  code: string;
-  type: "percentage" | "fixed";
-  value: number;
+// UI-specific interface with computed fields for display
+interface DiscountUI extends APIDiscountCode {
   method: "automatic" | "code";
-  minOrder: number;
-  maxUsePerUser: number;
-  maxUseTotal: number;
-  uses: number;
+  minOrder: number; // Alias for minOrderAmount
+  maxUsePerUser: number; // Alias for usageLimitPerCustomer
+  maxUseTotal: number; // Alias for usageLimit
+  uses: number; // Alias for usageCount
   applyToAll: boolean;
-  expires: string;
+  expires: string; // Alias for validTo
   expiresTime: string;
-  status: "active" | "inactive" | "expired";
   customersUsed: number;
   ordersUsed: number;
 }
 
-const discountsData: Discount[] = [
-  { id: 1, name: "Welcome Discount", description: "First time customer discount", code: "WELCOME20", type: "percentage", value: 20, method: "code", minOrder: 5000, maxUsePerUser: 1, maxUseTotal: 500, uses: 145, applyToAll: true, expires: "2026-02-28", expiresTime: "23:59", status: "active", customersUsed: 145, ordersUsed: 145 },
-  { id: 2, name: "Flat Ten Off", description: "Flat ₦1000 off on orders", code: "FLAT10", type: "fixed", value: 1000, method: "code", minOrder: 3000, maxUsePerUser: 2, maxUseTotal: 200, uses: 89, applyToAll: true, expires: "2026-01-31", expiresTime: "23:59", status: "active", customersUsed: 67, ordersUsed: 89 },
-  { id: 3, name: "Summer Sale", description: "Summer season discount", code: "SUMMER15", type: "percentage", value: 15, method: "automatic", minOrder: 4000, maxUsePerUser: 3, maxUseTotal: 200, uses: 200, applyToAll: false, expires: "2026-01-20", expiresTime: "23:59", status: "expired", customersUsed: 180, ordersUsed: 200 },
-  { id: 4, name: "VIP Discount", description: "Exclusive VIP member discount", code: "VIP25", type: "percentage", value: 25, method: "code", minOrder: 10000, maxUsePerUser: 5, maxUseTotal: 50, uses: 23, applyToAll: true, expires: "2026-03-31", expiresTime: "23:59", status: "active", customersUsed: 23, ordersUsed: 23 },
+const transformDiscount = (discount: APIDiscountCode): DiscountUI => ({
+  ...discount,
+  method: "code",
+  minOrder: discount.minOrderAmount || 0,
+  maxUsePerUser: discount.usageLimitPerCustomer || 1,
+  maxUseTotal: discount.usageLimit || 500,
+  uses: discount.usageCount,
+  applyToAll: discount.applicableTo === "all",
+  expires: discount.validTo,
+  expiresTime: "23:59",
+  customersUsed: discount.usageCount,
+  ordersUsed: discount.usageCount,
+});
+
+// Mock data aligned with API types
+const mockDiscounts: APIDiscountCode[] = [
+  { id: "1", storeId: "store-1", code: "WELCOME20", name: "Welcome Discount", description: "First time customer discount", type: "percentage", value: 20, minOrderAmount: 5000, applicableTo: "all", usageLimit: 500, usageCount: 145, usageLimitPerCustomer: 1, validFrom: "2026-01-01", validTo: "2026-02-28", status: "active", createdAt: "2026-01-01", updatedAt: "2026-01-15" },
+  { id: "2", storeId: "store-1", code: "FLAT10", name: "Flat Ten Off", description: "Flat ₦1000 off on orders", type: "fixed", value: 1000, minOrderAmount: 3000, applicableTo: "all", usageLimit: 200, usageCount: 89, usageLimitPerCustomer: 2, validFrom: "2026-01-01", validTo: "2026-01-31", status: "active", createdAt: "2026-01-01", updatedAt: "2026-01-15" },
+  { id: "3", storeId: "store-1", code: "SUMMER15", name: "Summer Sale", description: "Summer season discount", type: "percentage", value: 15, minOrderAmount: 4000, applicableTo: "specific-products", usageLimit: 200, usageCount: 200, usageLimitPerCustomer: 3, validFrom: "2025-06-01", validTo: "2026-01-20", status: "expired", createdAt: "2025-06-01", updatedAt: "2026-01-20" },
+  { id: "4", storeId: "store-1", code: "VIP25", name: "VIP Discount", description: "Exclusive VIP member discount", type: "percentage", value: 25, minOrderAmount: 10000, applicableTo: "all", usageLimit: 50, usageCount: 23, usageLimitPerCustomer: 5, validFrom: "2026-01-01", validTo: "2026-03-31", status: "active", createdAt: "2026-01-01", updatedAt: "2026-01-15" },
 ];
+
+const discountsData: DiscountUI[] = mockDiscounts.map(transformDiscount);
 
 const discountOrders = [
   { id: "ORD-001", customer: "John Doe", date: "2026-01-15", total: 8500, discount: 1700, status: "completed" },
@@ -47,7 +59,7 @@ const discountOrders = [
 export default function DiscountCodesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedDiscount, setSelectedDiscount] = useState<Discount | null>(null);
+  const [selectedDiscount, setSelectedDiscount] = useState<DiscountUI | null>(null);
   const [sheetMode, setSheetMode] = useState<"view" | "add" | "edit">("view");
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
@@ -57,7 +69,7 @@ export default function DiscountCodesPage() {
     { label: "Avg. Discount", value: "18%", icon: Percent },
   ];
 
-  const openSheet = (mode: "view" | "add" | "edit", discount?: Discount) => {
+  const openSheet = (mode: "view" | "add" | "edit", discount?: DiscountUI) => {
     setSheetMode(mode);
     setSelectedDiscount(discount || null);
     setIsSheetOpen(true);

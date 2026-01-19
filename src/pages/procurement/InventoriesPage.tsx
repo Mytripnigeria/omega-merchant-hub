@@ -27,48 +27,36 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { SortableHeader } from "@/components/ui/sortable-header";
 import { useTableControls } from "@/hooks/use-table-controls";
+import { Inventory as APIInventory } from "@/types/procurement";
 
-interface InventoryItem {
-  id: number;
-  name: string;
-  sku: string;
-  quantity: number;
-  unit: string;
-  location: string;
-  reorderLevel: number;
-  value: number;
-  status: "ok" | "low" | "critical";
+// UI-specific interface with computed fields for display
+interface InventoryItemUI extends APIInventory {
+  reorderLevel: number; // Alias for reorderPoint
+  value: number; // Alias for totalValue
+  location: string; // Alias for locationName
   isIngredient: boolean;
   history: { date: string; action: string; quantity: number; by: string; location: string }[];
 }
 
-const inventories: InventoryItem[] = [
-  { 
-    id: 1, name: "Flour", sku: "ING-001", quantity: 50, unit: "kg", location: "Main Kitchen", reorderLevel: 20, value: 75000, status: "ok", isIngredient: true,
-    history: [
-      { date: "2026-01-15", action: "Stock In", quantity: 25, by: "John D.", location: "Main Kitchen" },
-      { date: "2026-01-10", action: "Stock Out", quantity: 10, by: "Sarah M.", location: "Cold Storage" },
-    ]
-  },
-  { 
-    id: 2, name: "Olive Oil", sku: "ING-002", quantity: 8, unit: "L", location: "Main Kitchen", reorderLevel: 10, value: 48000, status: "low", isIngredient: true,
-    history: [
-      { date: "2026-01-14", action: "Stock Out", quantity: 5, by: "Mike R.", location: "Main Kitchen" },
-    ]
-  },
-  { 
-    id: 3, name: "Cheese", sku: "ING-003", quantity: 25, unit: "kg", location: "Cold Storage", reorderLevel: 15, value: 187500, status: "ok", isIngredient: true,
-    history: []
-  },
-  { 
-    id: 4, name: "Tomatoes", sku: "ING-004", quantity: 5, unit: "kg", location: "Cold Storage", reorderLevel: 10, value: 12500, status: "critical", isIngredient: true,
-    history: []
-  },
-  { 
-    id: 5, name: "Chicken", sku: "ING-005", quantity: 30, unit: "kg", location: "Cold Storage", reorderLevel: 20, value: 225000, status: "ok", isIngredient: true,
-    history: []
-  },
+const transformInventory = (item: APIInventory): InventoryItemUI => ({
+  ...item,
+  reorderLevel: item.reorderPoint,
+  value: item.totalValue,
+  location: item.locationName,
+  isIngredient: item.ingredientMappings ? item.ingredientMappings.length > 0 : false,
+  history: [],
+});
+
+// Mock data aligned with API types
+const mockInventories: APIInventory[] = [
+  { id: "1", storeId: "store-1", locationId: "loc-1", locationName: "Main Kitchen", sku: "ING-001", name: "Flour", unit: "kg", quantity: 50, minQuantity: 20, reorderPoint: 20, unitCost: 1500, totalValue: 75000, status: "in-stock", createdAt: "2026-01-01", updatedAt: "2026-01-15" },
+  { id: "2", storeId: "store-1", locationId: "loc-1", locationName: "Main Kitchen", sku: "ING-002", name: "Olive Oil", unit: "L", quantity: 8, minQuantity: 10, reorderPoint: 10, unitCost: 6000, totalValue: 48000, status: "low-stock", createdAt: "2026-01-01", updatedAt: "2026-01-15" },
+  { id: "3", storeId: "store-1", locationId: "loc-2", locationName: "Cold Storage", sku: "ING-003", name: "Cheese", unit: "kg", quantity: 25, minQuantity: 15, reorderPoint: 15, unitCost: 7500, totalValue: 187500, status: "in-stock", createdAt: "2026-01-01", updatedAt: "2026-01-15" },
+  { id: "4", storeId: "store-1", locationId: "loc-2", locationName: "Cold Storage", sku: "ING-004", name: "Tomatoes", unit: "kg", quantity: 5, minQuantity: 10, reorderPoint: 10, unitCost: 2500, totalValue: 12500, status: "out-of-stock", createdAt: "2026-01-01", updatedAt: "2026-01-15" },
+  { id: "5", storeId: "store-1", locationId: "loc-2", locationName: "Cold Storage", sku: "ING-005", name: "Chicken", unit: "kg", quantity: 30, minQuantity: 20, reorderPoint: 20, unitCost: 7500, totalValue: 225000, status: "in-stock", createdAt: "2026-01-01", updatedAt: "2026-01-15" },
 ];
+
+const inventories: InventoryItemUI[] = mockInventories.map(transformInventory);
 
 const locations = ["Main Kitchen", "Cold Storage", "Warehouse", "VI Branch"];
 
@@ -114,7 +102,7 @@ export default function InventoriesPage() {
     setPageSize,
     startIndex,
     endIndex,
-  } = useTableControls<InventoryItem>({ 
+  } = useTableControls<InventoryItemUI>({ 
     data: preFilteredInventories,
     initialPageSize: 10 
   });
@@ -122,7 +110,7 @@ export default function InventoriesPage() {
   // Sheet states
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<InventoryItemUI | null>(null);
 
   const formatPrice = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -138,12 +126,12 @@ export default function InventoriesPage() {
     { label: "Total Value", value: formatPrice(548000), icon: DollarSign },
   ];
 
-  const handleViewItem = (item: InventoryItem) => {
+  const handleViewItem = (item: InventoryItemUI) => {
     setSelectedItem(item);
     setIsViewSheetOpen(true);
   };
 
-  const handleEditItem = (item: InventoryItem) => {
+  const handleEditItem = (item: InventoryItemUI) => {
     setSelectedItem(item);
     setIsAddSheetOpen(true);
   };
@@ -227,7 +215,7 @@ export default function InventoriesPage() {
                         <p className="text-xs text-muted-foreground">{item.sku}</p>
                       </div>
                       <Badge 
-                        variant={item.status === "ok" ? "default" : item.status === "low" ? "secondary" : "destructive"}
+                        variant={item.status === "in-stock" ? "default" : item.status === "low-stock" ? "secondary" : "destructive"}
                         className="text-xs shrink-0"
                       >
                         {item.status}
@@ -281,7 +269,7 @@ export default function InventoriesPage() {
                         <td className="p-4 text-sm">{formatPrice(item.value)}</td>
                         <td className="p-4">
                           <Badge 
-                            variant={item.status === "ok" ? "default" : item.status === "low" ? "secondary" : "destructive"}
+                            variant={item.status === "in-stock" ? "default" : item.status === "low-stock" ? "secondary" : "destructive"}
                             className="text-xs"
                           >
                             {item.status}
@@ -335,13 +323,13 @@ export default function InventoriesPage() {
               <CardTitle className="text-sm font-medium">Low Stock Alerts</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {inventories.filter(i => i.status !== "ok").map((item) => (
+              {inventories.filter(i => i.status !== "in-stock").map((item) => (
                 <div key={item.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50 cursor-pointer" onClick={() => handleViewItem(item)}>
                   <div>
                     <p className="text-sm font-medium">{item.name}</p>
                     <p className="text-xs text-muted-foreground">{item.quantity} {item.unit} remaining</p>
                   </div>
-                  <Badge variant={item.status === "low" ? "secondary" : "destructive"} className="text-xs">
+                  <Badge variant={item.status === "low-stock" ? "secondary" : "destructive"} className="text-xs">
                     {item.status}
                   </Badge>
                 </div>
