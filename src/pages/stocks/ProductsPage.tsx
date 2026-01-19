@@ -133,20 +133,7 @@ export default function ProductsPage() {
   const { data: stats } = useProductStats(currentStore?.id);
   const toggleStatus = useToggleProductStatus();
 
-  // Error state
-  if (error) {
-    return (
-      <div className="space-y-4 sm:space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Products</h1>
-          <p className="text-sm text-muted-foreground">Manage your menu items and inventory</p>
-        </div>
-        <ErrorState onRetry={refetch} description={error.message} />
-      </div>
-    );
-  }
-
-  // Use table controls hook
+  // Use table controls hook - must be called before any early returns
   const {
     data: paginatedProducts,
     currentPage,
@@ -160,6 +147,19 @@ export default function ProductsPage() {
     startIndex,
     endIndex,
   } = useTableControls<Product>({ data: products, initialPageSize: 10 });
+
+  // Error state - after all hooks
+  if (error) {
+    return (
+      <div className="space-y-4 sm:space-y-6 animate-fade-in">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Products</h1>
+          <p className="text-sm text-muted-foreground">Manage your menu items and inventory</p>
+        </div>
+        <ErrorState onRetry={refetch} description={error.message} />
+      </div>
+    );
+  }
 
   const handleViewProduct = (product: Product) => {
     setSelectedProduct(product);
