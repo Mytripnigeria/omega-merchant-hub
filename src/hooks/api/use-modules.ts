@@ -1,33 +1,13 @@
-// Marketing, Operations, Procurement, Payouts, Suppliers, Transactions API Hooks
+// Operations, Payouts, Suppliers, Transactions API Hooks
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { marketingService } from "@/services/mock/marketing";
 import { operationsService } from "@/services/mock/operations";
-import { procurementService } from "@/services/mock/procurement";
 import { payoutService } from "@/services/mock/payouts";
 import { supplierService } from "@/services/mock/suppliers";
 import { transactionService } from "@/services/mock/transactions";
-import type { DiscountCodeFilters, CreateDiscountCodeRequest, UpdateDiscountCodeRequest, LoyaltyTierFilters, CreateLoyaltyTierRequest, UpdateLoyaltyTierRequest, ReferralFilters, CreateReferralRequest, UpdateReferralRequest, UpdateLoyaltySettingsRequest } from "@/types/marketing";
 import type { ChecklistFilters, CreateChecklistRequest, UpdateChecklistRequest, ExpenseFilters, CreateExpenseRequest, UpdateExpenseRequest, WasteLogFilters, CreateWasteLogRequest, UpdateWasteLogRequest, KPITargetFilters, CreateKPITargetRequest, UpdateKPITargetRequest, SalesTargetFilters, CreateSalesTargetRequest, UpdateSalesTargetRequest } from "@/types/operations";
-import type { InventoryLocationFilters, CreateInventoryLocationRequest, UpdateInventoryLocationRequest, InventoryFilters, CreateInventoryRequest, UpdateInventoryRequest, EquipmentFilters, CreateEquipmentRequest, UpdateEquipmentRequest, StockTransferFilters, CreateStockTransferRequest, UpdateStockTransferRequest } from "@/types/procurement";
 import type { PayoutFilters, CreatePayoutRequest, UpdatePayoutRequest } from "@/types/payouts";
 import type { SupplierFilters, CreateSupplierRequest, UpdateSupplierRequest, PurchaseOrderFilters, CreatePurchaseOrderRequest, UpdatePurchaseOrderRequest } from "@/types/suppliers";
 import type { TransactionFilters, CreateTransactionRequest, UpdateTransactionRequest, AccountBalanceFilters, CreateAccountBalanceRequest, UpdateAccountBalanceRequest, CloseAccountBalanceRequest } from "@/types/transactions";
-
-// Marketing
-export const marketingKeys = { all: ["marketing"] as const, discounts: () => [...marketingKeys.all, "discounts"] as const, tiers: () => [...marketingKeys.all, "tiers"] as const, referrals: () => [...marketingKeys.all, "referrals"] as const, settings: (storeId: string) => [...marketingKeys.all, "settings", storeId] as const, stats: (storeId?: string) => [...marketingKeys.all, "stats", storeId] as const };
-export function useDiscountCodes(filters?: DiscountCodeFilters) { return useQuery({ queryKey: [...marketingKeys.discounts(), filters], queryFn: () => marketingService.getDiscountCodes(filters) }); }
-export function useCreateDiscountCode() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreateDiscountCodeRequest) => marketingService.createDiscountCode(data), onSuccess: () => qc.invalidateQueries({ queryKey: marketingKeys.discounts() }) }); }
-export function useUpdateDiscountCode() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateDiscountCodeRequest }) => marketingService.updateDiscountCode(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: marketingKeys.discounts() }) }); }
-export function useDeleteDiscountCode() { const qc = useQueryClient(); return useMutation({ mutationFn: (id: string) => marketingService.deleteDiscountCode(id), onSuccess: () => qc.invalidateQueries({ queryKey: marketingKeys.discounts() }) }); }
-export function useLoyaltyTiers(filters?: LoyaltyTierFilters) { return useQuery({ queryKey: [...marketingKeys.tiers(), filters], queryFn: () => marketingService.getLoyaltyTiers(filters) }); }
-export function useCreateLoyaltyTier() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreateLoyaltyTierRequest) => marketingService.createLoyaltyTier(data), onSuccess: () => qc.invalidateQueries({ queryKey: marketingKeys.tiers() }) }); }
-export function useUpdateLoyaltyTier() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateLoyaltyTierRequest }) => marketingService.updateLoyaltyTier(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: marketingKeys.tiers() }) }); }
-export function useLoyaltySettings(storeId: string) { return useQuery({ queryKey: marketingKeys.settings(storeId), queryFn: () => marketingService.getLoyaltySettings(storeId) }); }
-export function useUpdateLoyaltySettings() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ storeId, data }: { storeId: string; data: UpdateLoyaltySettingsRequest }) => marketingService.updateLoyaltySettings(storeId, data), onSuccess: (_, { storeId }) => qc.invalidateQueries({ queryKey: marketingKeys.settings(storeId) }) }); }
-export function useReferrals(filters?: ReferralFilters) { return useQuery({ queryKey: [...marketingKeys.referrals(), filters], queryFn: () => marketingService.getReferrals(filters) }); }
-export function useCreateReferral() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreateReferralRequest) => marketingService.createReferral(data), onSuccess: () => qc.invalidateQueries({ queryKey: marketingKeys.referrals() }) }); }
-export function useUpdateReferral() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateReferralRequest }) => marketingService.updateReferral(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: marketingKeys.referrals() }) }); }
-export function useMarketingStats(storeId?: string) { return useQuery({ queryKey: marketingKeys.stats(storeId), queryFn: () => marketingService.getStats(storeId) }); }
 
 // Operations
 export const operationsKeys = { all: ["operations"] as const, checklists: () => [...operationsKeys.all, "checklists"] as const, expenses: () => [...operationsKeys.all, "expenses"] as const, waste: () => [...operationsKeys.all, "waste"] as const, kpis: () => [...operationsKeys.all, "kpis"] as const, salesTargets: () => [...operationsKeys.all, "salesTargets"] as const, stats: (storeId?: string) => [...operationsKeys.all, "stats", storeId] as const };
@@ -52,26 +32,6 @@ export function useCreateSalesTarget() { const qc = useQueryClient(); return use
 export function useUpdateSalesTarget() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateSalesTargetRequest }) => operationsService.updateSalesTarget(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.salesTargets() }) }); }
 export function useDeleteSalesTarget() { const qc = useQueryClient(); return useMutation({ mutationFn: (id: string) => operationsService.deleteSalesTarget(id), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.salesTargets() }) }); }
 export function useOperationsStats(storeId?: string) { return useQuery({ queryKey: operationsKeys.stats(storeId), queryFn: () => operationsService.getStats(storeId) }); }
-
-// Procurement
-export const procurementKeys = { all: ["procurement"] as const, locations: () => [...procurementKeys.all, "locations"] as const, inventory: () => [...procurementKeys.all, "inventory"] as const, equipment: () => [...procurementKeys.all, "equipment"] as const, transfers: () => [...procurementKeys.all, "transfers"] as const, stats: (storeId?: string) => [...procurementKeys.all, "stats", storeId] as const };
-export function useInventoryLocations(filters?: InventoryLocationFilters) { return useQuery({ queryKey: [...procurementKeys.locations(), filters], queryFn: () => procurementService.getLocations(filters) }); }
-export function useCreateInventoryLocation() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreateInventoryLocationRequest) => procurementService.createLocation(data), onSuccess: () => qc.invalidateQueries({ queryKey: procurementKeys.locations() }) }); }
-export function useUpdateInventoryLocation() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateInventoryLocationRequest }) => procurementService.updateLocation(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: procurementKeys.locations() }) }); }
-export function useDeleteInventoryLocation() { const qc = useQueryClient(); return useMutation({ mutationFn: (id: string) => procurementService.deleteLocation(id), onSuccess: () => qc.invalidateQueries({ queryKey: procurementKeys.locations() }) }); }
-export function useInventory(filters?: InventoryFilters) { return useQuery({ queryKey: [...procurementKeys.inventory(), filters], queryFn: () => procurementService.getInventory(filters) }); }
-export function useCreateInventoryItem() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreateInventoryRequest) => procurementService.createInventoryItem(data), onSuccess: () => qc.invalidateQueries({ queryKey: procurementKeys.inventory() }) }); }
-export function useUpdateInventoryItem() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateInventoryRequest }) => procurementService.updateInventoryItem(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: procurementKeys.inventory() }) }); }
-export function useDeleteInventoryItem() { const qc = useQueryClient(); return useMutation({ mutationFn: (id: string) => procurementService.deleteInventoryItem(id), onSuccess: () => qc.invalidateQueries({ queryKey: procurementKeys.inventory() }) }); }
-export function useEquipment(filters?: EquipmentFilters) { return useQuery({ queryKey: [...procurementKeys.equipment(), filters], queryFn: () => procurementService.getEquipment(filters) }); }
-export function useCreateEquipment() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreateEquipmentRequest) => procurementService.createEquipment(data), onSuccess: () => qc.invalidateQueries({ queryKey: procurementKeys.equipment() }) }); }
-export function useUpdateEquipment() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateEquipmentRequest }) => procurementService.updateEquipment(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: procurementKeys.equipment() }) }); }
-export function useDeleteEquipment() { const qc = useQueryClient(); return useMutation({ mutationFn: (id: string) => procurementService.deleteEquipment(id), onSuccess: () => qc.invalidateQueries({ queryKey: procurementKeys.equipment() }) }); }
-export function useStockTransfers(filters?: StockTransferFilters) { return useQuery({ queryKey: [...procurementKeys.transfers(), filters], queryFn: () => procurementService.getStockTransfers(filters) }); }
-export function useCreateStockTransfer() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreateStockTransferRequest) => procurementService.createStockTransfer(data), onSuccess: () => qc.invalidateQueries({ queryKey: procurementKeys.transfers() }) }); }
-export function useUpdateStockTransfer() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateStockTransferRequest }) => procurementService.updateStockTransfer(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: procurementKeys.transfers() }) }); }
-export function useDeleteStockTransfer() { const qc = useQueryClient(); return useMutation({ mutationFn: (id: string) => procurementService.deleteStockTransfer(id), onSuccess: () => qc.invalidateQueries({ queryKey: procurementKeys.transfers() }) }); }
-export function useProcurementStats(storeId?: string) { return useQuery({ queryKey: procurementKeys.stats(storeId), queryFn: () => procurementService.getStats(storeId) }); }
 
 // Payouts
 export const payoutKeys = { all: ["payouts"] as const, list: () => [...payoutKeys.all, "list"] as const, stats: (storeId?: string) => [...payoutKeys.all, "stats", storeId] as const };
