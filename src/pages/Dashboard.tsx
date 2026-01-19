@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { cn } from "@/lib/utils";
-import { useLoading } from "@/hooks/use-loading";
+import { useOrderStats, useCustomerStats } from "@/hooks/api";
 import { useStore } from "@/contexts/StoreContext";
 import { RecentOrders } from "@/components/dashboard/RecentOrders";
 
@@ -163,14 +163,25 @@ function OrdersSkeleton() {
 }
 
 export default function Dashboard() {
-  const isLoading = useLoading(1200);
   const { isAllStoresMode, currentStore } = useStore();
+
+  // Fetch stats from API
+  const { data: orderStats, isLoading: ordersLoading } = useOrderStats(currentStore?.id);
+  const { data: customerStats, isLoading: customersLoading } = useCustomerStats();
+  
+  const isLoading = ordersLoading || customersLoading;
 
   // Dynamic stats based on mode (master = combined data)
   const masterMultiplier = isAllStoresMode ? 3 : 1;
-  const revenueValue = `₦${(2.59 * masterMultiplier).toFixed(2)}M`;
-  const ordersValue = `${Math.round(489 * masterMultiplier)}`;
-  const customersValue = `${Math.round(1284 * masterMultiplier).toLocaleString()}`;
+  const revenueValue = orderStats 
+    ? `₦${((orderStats.totalRevenue || 0) / 1000000).toFixed(2)}M`
+    : `₦${(2.59 * masterMultiplier).toFixed(2)}M`;
+  const ordersValue = orderStats 
+    ? `${orderStats.total}` 
+    : `${Math.round(489 * masterMultiplier)}`;
+  const customersValue = customerStats 
+    ? `${customerStats.total.toLocaleString()}` 
+    : `${Math.round(1284 * masterMultiplier).toLocaleString()}`;
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-fade-in">

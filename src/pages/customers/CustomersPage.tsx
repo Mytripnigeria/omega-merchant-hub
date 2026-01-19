@@ -124,26 +124,13 @@ export default function CustomersPage() {
     }).format(amount);
   };
 
-  // Error state
-  if (error) {
-    return (
-      <div className="space-y-4 sm:space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Customers</h1>
-          <p className="text-sm text-muted-foreground">View and manage your customer database</p>
-        </div>
-        <ErrorState onRetry={refetch} description={error.message} />
-      </div>
-    );
-  }
-
   // Pre-filter customers
   const preFilteredCustomers = customers.filter(c => 
     `${c.firstName} ${c.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Use table controls hook
+  // Use table controls hook - must be called before any early returns
   const {
     data: filteredCustomers,
     currentPage,
@@ -157,6 +144,19 @@ export default function CustomersPage() {
     startIndex,
     endIndex,
   } = useTableControls<Customer>({ data: preFilteredCustomers, initialPageSize: 10 });
+
+  // Error state - after all hooks
+  if (error) {
+    return (
+      <div className="space-y-4 sm:space-y-6 animate-fade-in">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Customers</h1>
+          <p className="text-sm text-muted-foreground">View and manage your customer database</p>
+        </div>
+        <ErrorState onRetry={refetch} description={error.message} />
+      </div>
+    );
+  }
 
   const handleViewCustomer = (customer: Customer) => {
     setSelectedCustomer(customer);
