@@ -17,16 +17,20 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import type { Role } from "@/types/hr";
 
-interface Role {
-  id: number;
-  name: string;
-  description: string;
+// Extended Role type for UI with computed fields
+interface RoleWithUI extends Role {
   users: number;
-  permissions: string[];
   isSystem?: boolean;
-  createdAt?: string;
 }
+
+// Transform API Role to UI format
+const transformRole = (role: Role): RoleWithUI => ({
+  ...role,
+  users: role.staffCount,
+  isSystem: role.name === "Admin",
+});
 
 const allPermissions = [
   { id: "orders", label: "Orders", description: "View and manage orders" },
@@ -39,20 +43,23 @@ const allPermissions = [
   { id: "customers", label: "Customers", description: "View customer data" },
 ];
 
-const rolesData: Role[] = [
-  { id: 1, name: "Admin", description: "Full system access", users: 2, permissions: ["all"], isSystem: true, createdAt: "2025-01-01" },
-  { id: 2, name: "Manager", description: "Store management access", users: 4, permissions: ["orders", "staff", "reports", "inventory"], createdAt: "2025-02-15" },
-  { id: 3, name: "Cashier", description: "POS and order access", users: 8, permissions: ["orders", "payments"], createdAt: "2025-03-10" },
-  { id: 4, name: "Chef", description: "Kitchen access only", users: 6, permissions: ["orders", "kitchen"], createdAt: "2025-03-10" },
-  { id: 5, name: "Server", description: "Order taking access", users: 10, permissions: ["orders"], createdAt: "2025-04-01" },
+const mockRoles: Role[] = [
+  { id: "1", storeId: "store-1", name: "Admin", description: "Full system access", permissions: ["all"], staffCount: 2, createdAt: "2025-01-01", updatedAt: "2025-01-01" },
+  { id: "2", storeId: "store-1", name: "Manager", description: "Store management access", permissions: ["orders", "staff", "reports", "inventory"], staffCount: 4, createdAt: "2025-02-15", updatedAt: "2025-02-15" },
+  { id: "3", storeId: "store-1", name: "Cashier", description: "POS and order access", permissions: ["orders", "payments"], staffCount: 8, createdAt: "2025-03-10", updatedAt: "2025-03-10" },
+  { id: "4", storeId: "store-1", name: "Chef", description: "Kitchen access only", permissions: ["orders", "kitchen"], staffCount: 6, createdAt: "2025-03-10", updatedAt: "2025-03-10" },
+  { id: "5", storeId: "store-1", name: "Server", description: "Order taking access", permissions: ["orders"], staffCount: 10, createdAt: "2025-04-01", updatedAt: "2025-04-01" },
 ];
+
+// Transform to UI format
+const rolesData: RoleWithUI[] = mockRoles.map(transformRole);
 
 export default function RolesPage() {
   const [search, setSearch] = useState("");
   const [roles] = useState(rolesData);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [selectedRole, setSelectedRole] = useState<RoleWithUI | null>(null);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 
   const stats = [
@@ -61,7 +68,7 @@ export default function RolesPage() {
     { label: "Permissions", value: allPermissions.length.toString(), icon: Key },
   ];
 
-  const handleViewRole = (role: Role) => {
+  const handleViewRole = (role: RoleWithUI) => {
     setSelectedRole(role);
     setSelectedPermissions(role.permissions);
     setIsViewSheetOpen(true);

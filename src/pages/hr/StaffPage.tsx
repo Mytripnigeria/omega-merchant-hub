@@ -18,35 +18,46 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Search, Plus, MoreHorizontal, Users, UserCheck, UserX, Building2, Mail, Edit, Phone, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { Staff } from "@/types/hr";
 
-interface Staff {
-  id: string;
+// Extended Staff type for UI with computed fields
+interface StaffWithUI extends Staff {
   name: string;
-  email: string;
-  phone: string;
   role: string;
   department: string;
   joinDate: string;
-  baseSalary: number;
-  status: "Active" | "On Leave" | "Inactive";
+  displayStatus: "Active" | "On Leave" | "Inactive";
 }
 
-const staffData: Staff[] = [
-  { id: "1", name: "John Doe", email: "john@store.com", phone: "+234 801 234 5678", role: "Manager", department: "Operations", joinDate: "Jan 15, 2024", baseSalary: 350000, status: "Active" },
-  { id: "2", name: "Sarah Smith", email: "sarah@store.com", phone: "+234 802 345 6789", role: "Cashier", department: "Sales", joinDate: "Mar 20, 2024", baseSalary: 150000, status: "Active" },
-  { id: "3", name: "Mike Johnson", email: "mike@store.com", phone: "+234 803 456 7890", role: "Chef", department: "Kitchen", joinDate: "Feb 10, 2024", baseSalary: 280000, status: "Active" },
-  { id: "4", name: "Lisa Brown", email: "lisa@store.com", phone: "+234 804 567 8901", role: "Server", department: "Service", joinDate: "May 5, 2024", baseSalary: 120000, status: "On Leave" },
-  { id: "5", name: "David Wilson", email: "david@store.com", phone: "+234 805 678 9012", role: "Delivery", department: "Logistics", joinDate: "Jun 12, 2024", baseSalary: 100000, status: "Active" },
-  { id: "6", name: "Emma Davis", email: "emma@store.com", phone: "+234 806 789 0123", role: "Cashier", department: "Sales", joinDate: "Jul 8, 2024", baseSalary: 150000, status: "Inactive" },
+// Transform API Staff to UI format
+const transformStaff = (staff: Staff): StaffWithUI => ({
+  ...staff,
+  name: `${staff.firstName} ${staff.lastName}`,
+  role: staff.roleName,
+  department: staff.roleName, // Using role as department for now
+  joinDate: new Date(staff.hireDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+  displayStatus: staff.status === "active" ? "Active" : staff.status === "on-leave" ? "On Leave" : "Inactive",
+});
+
+const mockStaff: Staff[] = [
+  { id: "1", storeId: "store-1", firstName: "John", lastName: "Doe", email: "john@store.com", phone: "+234 801 234 5678", roleId: "r1", roleName: "Manager", employmentType: "full-time", status: "active", baseSalary: 350000, salaryPeriod: "monthly", hireDate: "2024-01-15", createdAt: "2024-01-15", updatedAt: "2026-01-15" },
+  { id: "2", storeId: "store-1", firstName: "Sarah", lastName: "Smith", email: "sarah@store.com", phone: "+234 802 345 6789", roleId: "r2", roleName: "Cashier", employmentType: "full-time", status: "active", baseSalary: 150000, salaryPeriod: "monthly", hireDate: "2024-03-20", createdAt: "2024-03-20", updatedAt: "2026-01-15" },
+  { id: "3", storeId: "store-1", firstName: "Mike", lastName: "Johnson", email: "mike@store.com", phone: "+234 803 456 7890", roleId: "r3", roleName: "Chef", employmentType: "full-time", status: "active", baseSalary: 280000, salaryPeriod: "monthly", hireDate: "2024-02-10", createdAt: "2024-02-10", updatedAt: "2026-01-15" },
+  { id: "4", storeId: "store-1", firstName: "Lisa", lastName: "Brown", email: "lisa@store.com", phone: "+234 804 567 8901", roleId: "r4", roleName: "Server", employmentType: "part-time", status: "on-leave", baseSalary: 120000, salaryPeriod: "monthly", hireDate: "2024-05-05", createdAt: "2024-05-05", updatedAt: "2026-01-15" },
+  { id: "5", storeId: "store-1", firstName: "David", lastName: "Wilson", email: "david@store.com", phone: "+234 805 678 9012", roleId: "r5", roleName: "Delivery", employmentType: "contract", status: "active", baseSalary: 100000, salaryPeriod: "monthly", hireDate: "2024-06-12", createdAt: "2024-06-12", updatedAt: "2026-01-15" },
+  { id: "6", storeId: "store-1", firstName: "Emma", lastName: "Davis", email: "emma@store.com", phone: "+234 806 789 0123", roleId: "r2", roleName: "Cashier", employmentType: "full-time", status: "inactive", baseSalary: 150000, salaryPeriod: "monthly", hireDate: "2024-07-08", createdAt: "2024-07-08", updatedAt: "2026-01-15" },
 ];
+
+// Transform to UI format
+const staffData: StaffWithUI[] = mockStaff.map(transformStaff);
 
 export default function StaffPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
+  const [selectedStaff, setSelectedStaff] = useState<StaffWithUI | null>(null);
   const [sheetMode, setSheetMode] = useState<"view" | "add" | "edit">("view");
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
-  // Use table controls hook
+  // Use table controls hook with UI type
   const {
     data: paginatedStaff,
     currentPage,
@@ -59,7 +70,7 @@ export default function StaffPage() {
     pageSize,
     startIndex,
     endIndex,
-  } = useTableControls<Staff>({ data: staffData, initialPageSize: 10 });
+  } = useTableControls<StaffWithUI>({ data: staffData, initialPageSize: 10 });
 
   const stats = [
     { label: "Total Staff", value: "24", icon: Users },
@@ -85,7 +96,7 @@ export default function StaffPage() {
     }
   };
 
-  const openSheet = (mode: "view" | "add" | "edit", staff?: Staff) => {
+  const openSheet = (mode: "view" | "add" | "edit", staff?: StaffWithUI) => {
     setSheetMode(mode);
     setSelectedStaff(staff || null);
     setIsSheetOpen(true);

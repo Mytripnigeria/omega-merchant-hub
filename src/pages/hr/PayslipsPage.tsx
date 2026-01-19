@@ -24,6 +24,74 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import type { Payslip as APIPayslip } from "@/types/hr";
+
+// UI Payslip type with computed display fields
+interface PayslipUI {
+  id: string;
+  storeId: string;
+  staffId: string;
+  staffName: string;
+  period: string;
+  periodStart: string;
+  periodEnd: string;
+  baseSalary: number;
+  hoursWorked?: number;
+  overtimeHours?: number;
+  overtimeRate?: number;
+  additions: APIPayslip["additions"];
+  grossPay: number;
+  netPay: number;
+  status: APIPayslip["status"];
+  paymentMethod?: APIPayslip["paymentMethod"];
+  receiptUrl?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  // Computed UI fields
+  staff: string;
+  email: string;
+  role: string;
+  overtime: number;
+  bonus: number;
+  deductions: number;
+  tax: number;
+  displayStatus: "Paid" | "Pending" | "Processing";
+  paidDate?: string;
+  bankAccount?: string;
+}
+
+// Transform API Payslip to UI format
+const transformPayslip = (payslip: APIPayslip): PayslipUI => {
+  const totalDeductions = payslip.deductions.reduce((sum, d) => sum + d.amount, 0);
+  const bonuses = payslip.additions.filter(a => a.type === "bonus").reduce((sum, a) => sum + a.amount, 0);
+  const overtime = (payslip.overtimeHours || 0) * (payslip.overtimeRate || 0);
+  
+  return {
+    ...payslip,
+    staff: payslip.staffName,
+    email: `${payslip.staffName.toLowerCase().replace(" ", ".")}@store.com`,
+    role: "Staff",
+    overtime,
+    bonus: bonuses,
+    deductions: totalDeductions,
+    tax: payslip.deductions.filter(d => d.type === "tax").reduce((sum, d) => sum + d.amount, 0),
+    displayStatus: payslip.status === "paid" ? "Paid" : payslip.status === "pending" ? "Pending" : "Processing",
+    paidDate: payslip.paymentDate,
+    bankAccount: "****1234",
+  };
+};
+
+const mockPayslips: APIPayslip[] = [
+  { id: "PS-001", storeId: "store-1", staffId: "1", staffName: "John Doe", period: "Jan 2026", periodStart: "2026-01-01", periodEnd: "2026-01-31", baseSalary: 300000, overtimeHours: 15, overtimeRate: 1667, additions: [{ id: "a1", name: "Performance Bonus", amount: 10000, type: "bonus" }], deductions: [{ id: "d1", name: "Pension", amount: 15000, type: "insurance" }, { id: "d2", name: "PAYE", amount: 45000, type: "tax" }], grossPay: 335000, netPay: 275000, status: "paid", paymentDate: "2026-01-25", createdAt: "2026-01-20", updatedAt: "2026-01-25" },
+  { id: "PS-002", storeId: "store-1", staffId: "2", staffName: "Sarah Smith", period: "Jan 2026", periodStart: "2026-01-01", periodEnd: "2026-01-31", baseSalary: 250000, overtimeHours: 10, overtimeRate: 1250, additions: [], deductions: [{ id: "d3", name: "Pension", amount: 12500, type: "insurance" }, { id: "d4", name: "PAYE", amount: 35000, type: "tax" }], grossPay: 262500, netPay: 212500, status: "pending", createdAt: "2026-01-20", updatedAt: "2026-01-20" },
+  { id: "PS-003", storeId: "store-1", staffId: "3", staffName: "Mike Johnson", period: "Jan 2026", periodStart: "2026-01-01", periodEnd: "2026-01-31", baseSalary: 280000, additions: [{ id: "a2", name: "Bonus", amount: 5000, type: "bonus" }], deductions: [{ id: "d5", name: "Pension", amount: 14000, type: "insurance" }, { id: "d6", name: "PAYE", amount: 40000, type: "tax" }], grossPay: 285000, netPay: 231000, status: "approved", createdAt: "2026-01-20", updatedAt: "2026-01-22" },
+  { id: "PS-004", storeId: "store-1", staffId: "4", staffName: "Lisa Brown", period: "Jan 2026", periodStart: "2026-01-01", periodEnd: "2026-01-31", baseSalary: 220000, overtimeHours: 18, overtimeRate: 1222, additions: [{ id: "a3", name: "Bonus", amount: 8000, type: "bonus" }], deductions: [{ id: "d7", name: "Pension", amount: 11000, type: "insurance" }, { id: "d8", name: "PAYE", amount: 32000, type: "tax" }], grossPay: 250000, netPay: 203000, status: "paid", paymentDate: "2026-01-25", createdAt: "2026-01-20", updatedAt: "2026-01-25" },
+  { id: "PS-005", storeId: "store-1", staffId: "5", staffName: "David Wilson", period: "Jan 2026", periodStart: "2026-01-01", periodEnd: "2026-01-31", baseSalary: 350000, overtimeHours: 30, overtimeRate: 1944, additions: [{ id: "a4", name: "Bonus", amount: 15000, type: "bonus" }], deductions: [{ id: "d9", name: "Pension", amount: 19000, type: "insurance" }, { id: "d10", name: "PAYE", amount: 55000, type: "tax" }], grossPay: 423320, netPay: 321000, status: "paid", paymentDate: "2026-01-25", createdAt: "2026-01-20", updatedAt: "2026-01-25" },
+];
+
+// Transform to UI format
+const payslips: PayslipUI[] = mockPayslips.map(transformPayslip);
 
 // Custom Charges Component for Breakdown Tab
 interface CustomCharge {
@@ -33,7 +101,7 @@ interface CustomCharge {
   type: "earning" | "deduction";
 }
 
-function BreakdownTab({ payslip, formatCurrency }: { payslip: Payslip | null; formatCurrency: (amount: number) => string }) {
+function BreakdownTab({ payslip, formatCurrency }: { payslip: PayslipUI | null; formatCurrency: (amount: number) => string }) {
   const [customCharges, setCustomCharges] = useState<CustomCharge[]>([]);
   const [newChargeName, setNewChargeName] = useState("");
   const [newChargeAmount, setNewChargeAmount] = useState("");
@@ -162,31 +230,6 @@ function BreakdownTab({ payslip, formatCurrency }: { payslip: Payslip | null; fo
   );
 }
 
-interface Payslip {
-  id: string;
-  staff: string;
-  email: string;
-  role: string;
-  period: string;
-  baseSalary: number;
-  overtime: number;
-  bonus: number;
-  deductions: number;
-  tax: number;
-  netPay: number;
-  status: "Paid" | "Pending" | "Processing";
-  paidDate?: string;
-  bankAccount?: string;
-}
-
-const payslips: Payslip[] = [
-  { id: "PS-001", staff: "John Doe", email: "john@store.com", role: "Manager", period: "Jan 2026", baseSalary: 300000, overtime: 25000, bonus: 10000, deductions: 15000, tax: 45000, netPay: 275000, status: "Paid", paidDate: "2026-01-25", bankAccount: "****1234" },
-  { id: "PS-002", staff: "Sarah Smith", email: "sarah@store.com", role: "Cashier", period: "Jan 2026", baseSalary: 250000, overtime: 10000, bonus: 0, deductions: 12500, tax: 35000, netPay: 212500, status: "Pending", bankAccount: "****5678" },
-  { id: "PS-003", staff: "Mike Johnson", email: "mike@store.com", role: "Chef", period: "Jan 2026", baseSalary: 280000, overtime: 0, bonus: 5000, deductions: 14000, tax: 40000, netPay: 231000, status: "Processing", bankAccount: "****9012" },
-  { id: "PS-004", staff: "Lisa Brown", email: "lisa@store.com", role: "Server", period: "Jan 2026", baseSalary: 220000, overtime: 18000, bonus: 8000, deductions: 11000, tax: 32000, netPay: 203000, status: "Paid", paidDate: "2026-01-25", bankAccount: "****3456" },
-  { id: "PS-005", staff: "David Wilson", email: "david@store.com", role: "Manager", period: "Jan 2026", baseSalary: 350000, overtime: 30000, bonus: 15000, deductions: 19000, tax: 55000, netPay: 321000, status: "Paid", paidDate: "2026-01-25", bankAccount: "****7890" },
-];
-
 const getStatusColor = (status: string) => {
   switch (status) {
     case "Paid": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
@@ -204,7 +247,7 @@ export default function PayslipsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
   const [isGenerateSheetOpen, setIsGenerateSheetOpen] = useState(false);
-  const [selectedPayslip, setSelectedPayslip] = useState<Payslip | null>(null);
+  const [selectedPayslip, setSelectedPayslip] = useState<PayslipUI | null>(null);
 
   const stats = [
     { label: "Total Payroll", value: "₦4.5M", icon: DollarSign, description: "This month" },
@@ -213,7 +256,7 @@ export default function PayslipsPage() {
     { label: "Period", value: "Jan 2026", icon: Calendar, description: "Current cycle" },
   ];
 
-  const handleViewPayslip = (payslip: Payslip) => {
+  const handleViewPayslip = (payslip: PayslipUI) => {
     setSelectedPayslip(payslip);
     setIsViewSheetOpen(true);
   };

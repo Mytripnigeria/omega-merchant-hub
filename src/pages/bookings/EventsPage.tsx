@@ -22,32 +22,67 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { Event as BookingEvent } from "@/types/bookings";
 
-interface Event {
-  id: number;
+// UI Event type with computed display fields
+interface EventUI {
+  id: string;
+  storeId: string;
   name: string;
+  description?: string;
+  type: BookingEvent["type"];
+  date: string;
+  startTime: string;
+  endTime: string;
+  expectedGuests: number;
+  confirmedGuests?: number;
+  status: BookingEvent["status"];
+  contactName: string;
+  contactPhone: string;
+  contactEmail?: string;
+  venueArea?: string;
+  deposit?: number;
+  depositPaid: boolean;
+  totalAmount?: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  // Computed UI fields
   organizer: string;
   phone?: string;
   email?: string;
-  date: string;
   time: string;
-  endTime?: string;
   guests: number;
-  type: string;
-  status: "confirmed" | "pending" | "cancelled";
-  deposit?: number;
+  displayType: string;
+  displayStatus: "confirmed" | "pending" | "cancelled";
   total?: number;
-  notes?: string;
-  createdAt?: string;
   menu?: string;
 }
 
-const eventsData: Event[] = [
-  { id: 1, name: "Corporate Dinner", organizer: "Acme Corp", phone: "+234 801 234 5678", email: "events@acme.com", date: "2026-01-25", time: "6:00 PM", endTime: "10:00 PM", guests: 50, type: "Private", status: "confirmed", deposit: 250000, total: 1500000, notes: "Full venue hire, custom menu required", menu: "3-course dinner", createdAt: "2026-01-10" },
-  { id: 2, name: "Birthday Party", organizer: "John Smith", phone: "+234 802 345 6789", date: "2026-01-28", time: "7:30 PM", endTime: "11:00 PM", guests: 25, type: "Celebration", status: "pending", deposit: 100000, total: 500000, createdAt: "2026-01-15" },
-  { id: 3, name: "Wine Tasting", organizer: "Sommelier Club", phone: "+234 803 456 7890", email: "club@sommelier.ng", date: "2026-02-01", time: "5:00 PM", endTime: "8:00 PM", guests: 30, type: "Special", status: "confirmed", deposit: 150000, total: 600000, menu: "Wine pairing menu", createdAt: "2026-01-12" },
-  { id: 4, name: "Anniversary Dinner", organizer: "Mike & Sarah", phone: "+234 804 567 8901", date: "2026-02-05", time: "8:00 PM", endTime: "11:00 PM", guests: 12, type: "Celebration", status: "confirmed", notes: "10th anniversary, need cake", createdAt: "2026-01-18" },
+// Transform API Event to UI format
+const transformEvent = (event: BookingEvent): EventUI => ({
+  ...event,
+  organizer: event.contactName,
+  phone: event.contactPhone,
+  email: event.contactEmail,
+  time: event.startTime,
+  guests: event.expectedGuests,
+  displayType: event.type.charAt(0).toUpperCase() + event.type.slice(1),
+  displayStatus: event.status === "inquiry" || event.status === "pending" ? "pending" : 
+                 event.status === "cancelled" ? "cancelled" : "confirmed",
+  total: event.totalAmount,
+  menu: undefined,
+});
+
+const mockEvents: BookingEvent[] = [
+  { id: "1", storeId: "store-1", name: "Corporate Dinner", type: "corporate", description: "Full venue hire, custom menu required", date: "2026-01-25", startTime: "6:00 PM", endTime: "10:00 PM", expectedGuests: 50, confirmedGuests: 48, status: "confirmed", contactName: "Acme Corp", contactPhone: "+234 801 234 5678", contactEmail: "events@acme.com", deposit: 250000, depositPaid: true, totalAmount: 1500000, createdAt: "2026-01-10", updatedAt: "2026-01-10" },
+  { id: "2", storeId: "store-1", name: "Birthday Party", type: "birthday", date: "2026-01-28", startTime: "7:30 PM", endTime: "11:00 PM", expectedGuests: 25, status: "pending", contactName: "John Smith", contactPhone: "+234 802 345 6789", deposit: 100000, depositPaid: false, totalAmount: 500000, createdAt: "2026-01-15", updatedAt: "2026-01-15" },
+  { id: "3", storeId: "store-1", name: "Wine Tasting", type: "other", description: "Wine pairing menu", date: "2026-02-01", startTime: "5:00 PM", endTime: "8:00 PM", expectedGuests: 30, status: "confirmed", contactName: "Sommelier Club", contactPhone: "+234 803 456 7890", contactEmail: "club@sommelier.ng", deposit: 150000, depositPaid: true, totalAmount: 600000, createdAt: "2026-01-12", updatedAt: "2026-01-12" },
+  { id: "4", storeId: "store-1", name: "Anniversary Dinner", type: "private", notes: "10th anniversary, need cake", date: "2026-02-05", startTime: "8:00 PM", endTime: "11:00 PM", expectedGuests: 12, status: "confirmed", contactName: "Mike & Sarah", contactPhone: "+234 804 567 8901", deposit: 0, depositPaid: false, createdAt: "2026-01-18", updatedAt: "2026-01-18" },
 ];
+
+// Transform to UI format
+const eventsData: EventUI[] = mockEvents.map(transformEvent);
 
 const eventTypes = ["Private", "Celebration", "Corporate", "Special", "Wedding", "Other"];
 
@@ -57,7 +92,7 @@ export default function EventsPage() {
   const [events] = useState(eventsData);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<EventUI | null>(null);
 
   const stats = [
     { label: "Upcoming", value: events.filter(e => e.status !== "cancelled").length.toString(), icon: Calendar },
@@ -71,7 +106,7 @@ export default function EventsPage() {
     cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   };
 
-  const handleViewEvent = (event: Event) => {
+  const handleViewEvent = (event: EventUI) => {
     setSelectedEvent(event);
     setIsViewSheetOpen(true);
   };

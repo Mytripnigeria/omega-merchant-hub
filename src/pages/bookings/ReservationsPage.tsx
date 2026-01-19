@@ -24,27 +24,38 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DatePeriodFilter, filterByDatePeriod, type DatePeriod } from "@/components/ui/date-period-filter";
 import { TablePagination } from "@/components/ui/table-pagination";
+import type { Reservation as APIReservation } from "@/types/bookings";
 
-interface Reservation {
-  id: number;
+// Extended Reservation type for UI with computed fields
+interface ReservationWithUI extends APIReservation {
   name: string;
   phone: string;
   email?: string;
-  date: string;
-  time: string;
   guests: number;
   table: string;
-  status: "confirmed" | "pending" | "cancelled" | "completed";
-  notes?: string;
-  createdAt?: string;
+  displayStatus: "confirmed" | "pending" | "cancelled" | "completed";
 }
 
-const reservationsData: Reservation[] = [
-  { id: 1, name: "John Smith", phone: "+234 801 234 5678", email: "john@email.com", date: "2026-01-20", time: "7:00 PM", guests: 4, table: "T-5", status: "confirmed", notes: "Anniversary dinner", createdAt: "2026-01-15" },
-  { id: 2, name: "Sarah Johnson", phone: "+234 802 345 6789", email: "sarah@email.com", date: "2026-01-20", time: "8:00 PM", guests: 2, table: "T-3", status: "pending", createdAt: "2026-01-16" },
-  { id: 3, name: "Mike Wilson", phone: "+234 803 456 7890", date: "2026-01-21", time: "6:30 PM", guests: 6, table: "T-8", status: "confirmed", createdAt: "2026-01-14" },
-  { id: 4, name: "Emma Davis", phone: "+234 804 567 8901", email: "emma@email.com", date: "2026-01-21", time: "7:30 PM", guests: 3, table: "T-2", status: "confirmed", notes: "Vegetarian menu requested", createdAt: "2026-01-17" },
+// Transform API Reservation to UI format
+const transformReservation = (res: APIReservation): ReservationWithUI => ({
+  ...res,
+  name: res.customerName,
+  phone: res.customerPhone,
+  email: res.customerEmail,
+  guests: res.partySize,
+  table: res.tableNumber || "TBD",
+  displayStatus: res.status === "seated" ? "confirmed" : res.status === "no-show" ? "cancelled" : res.status as "confirmed" | "pending" | "cancelled" | "completed",
+});
+
+const mockReservations: APIReservation[] = [
+  { id: "1", storeId: "store-1", customerName: "John Smith", customerPhone: "+234 801 234 5678", customerEmail: "john@email.com", partySize: 4, date: "2026-01-20", time: "7:00 PM", duration: 120, tableNumber: "T-5", status: "confirmed", notes: "Anniversary dinner", createdAt: "2026-01-15", updatedAt: "2026-01-15" },
+  { id: "2", storeId: "store-1", customerName: "Sarah Johnson", customerPhone: "+234 802 345 6789", customerEmail: "sarah@email.com", partySize: 2, date: "2026-01-20", time: "8:00 PM", duration: 90, tableNumber: "T-3", status: "pending", createdAt: "2026-01-16", updatedAt: "2026-01-16" },
+  { id: "3", storeId: "store-1", customerName: "Mike Wilson", customerPhone: "+234 803 456 7890", partySize: 6, date: "2026-01-21", time: "6:30 PM", duration: 120, tableNumber: "T-8", status: "confirmed", createdAt: "2026-01-14", updatedAt: "2026-01-14" },
+  { id: "4", storeId: "store-1", customerName: "Emma Davis", customerPhone: "+234 804 567 8901", customerEmail: "emma@email.com", partySize: 3, date: "2026-01-21", time: "7:30 PM", duration: 90, tableNumber: "T-2", status: "confirmed", specialRequests: "Vegetarian menu requested", createdAt: "2026-01-17", updatedAt: "2026-01-17" },
 ];
+
+// Transform to UI format
+const reservationsData: ReservationWithUI[] = mockReservations.map(transformReservation);
 
 const tables = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10"];
 
@@ -59,7 +70,7 @@ export default function ReservationsPage() {
   const [reservations] = useState(reservationsData);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
-  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+  const [selectedReservation, setSelectedReservation] = useState<ReservationWithUI | null>(null);
 
   const stats = [
     { label: "Today", value: reservations.filter(r => r.date === "2026-01-20").length.toString(), icon: Calendar },
@@ -74,7 +85,7 @@ export default function ReservationsPage() {
     completed: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   };
 
-  const handleViewReservation = (reservation: Reservation) => {
+  const handleViewReservation = (reservation: ReservationWithUI) => {
     setSelectedReservation(reservation);
     setIsViewSheetOpen(true);
   };
