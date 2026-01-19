@@ -21,6 +21,8 @@ import {
   Monitor,
   Search,
   X,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,6 +34,11 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { StoreSelector } from "@/components/store/StoreSelector";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -192,9 +199,10 @@ interface NavMenuItemProps {
   onNavigate?: () => void;
   expandedItem: string | null;
   onExpand: (title: string | null) => void;
+  collapsed?: boolean;
 }
 
-function NavMenuItem({ item, onNavigate, expandedItem, onExpand }: NavMenuItemProps) {
+function NavMenuItem({ item, onNavigate, expandedItem, onExpand, collapsed }: NavMenuItemProps) {
   const location = useLocation();
   
   const isActive = item.href 
@@ -215,6 +223,33 @@ function NavMenuItem({ item, onNavigate, expandedItem, onExpand }: NavMenuItemPr
   const handleToggle = () => {
     onExpand(isOpen ? null : item.title);
   };
+
+  // Collapsed state - show only icons with tooltips
+  if (collapsed) {
+    const firstChildHref = item.children?.[0]?.href || item.href || "#";
+    
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Link
+            to={firstChildHref}
+            onClick={onNavigate}
+            className={cn(
+              "flex items-center justify-center rounded-md p-2 transition-colors",
+              isActive 
+                ? "bg-accent text-foreground" 
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            )}
+          >
+            <item.icon className="h-4 w-4" />
+          </Link>
+        </TooltipTrigger>
+        <TooltipContent side="right" sideOffset={8}>
+          {item.title}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
 
   if (item.children) {
     return (
@@ -276,7 +311,7 @@ function NavMenuItem({ item, onNavigate, expandedItem, onExpand }: NavMenuItemPr
   );
 }
 
-export function Sidebar({ collapsed, mobileOpen, onMobileOpenChange }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileOpenChange }: SidebarProps) {
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   
   const handleNavigate = () => {
@@ -318,6 +353,45 @@ export function Sidebar({ collapsed, mobileOpen, onMobileOpenChange }: SidebarPr
     </>
   );
 
+  const collapsedContent = (
+    <>
+      {/* Collapsed Logo */}
+      <div className="flex items-center justify-center p-3 border-b border-border">
+        <div className="flex h-6 w-6 items-center justify-center rounded bg-foreground">
+          <span className="text-xs font-bold text-background">Ω</span>
+        </div>
+      </div>
+
+      {/* Collapsed Search Icon */}
+      <div className="flex items-center justify-center p-3">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9">
+              <Search className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Search</TooltipContent>
+        </Tooltip>
+      </div>
+
+      {/* Collapsed Navigation */}
+      <ScrollArea className="flex-1 px-2 pb-4">
+        <nav className="space-y-1">
+          {navItems.map((item) => (
+            <NavMenuItem 
+              key={item.title} 
+              item={item} 
+              onNavigate={handleNavigate}
+              expandedItem={expandedItem}
+              onExpand={setExpandedItem}
+              collapsed
+            />
+          ))}
+        </nav>
+      </ScrollArea>
+    </>
+  );
+
   return (
     <>
       {/* Mobile Drawer */}
@@ -346,11 +420,46 @@ export function Sidebar({ collapsed, mobileOpen, onMobileOpenChange }: SidebarPr
       </Sheet>
 
       {/* Desktop Sidebar */}
-      {!collapsed && (
-        <aside className="fixed top-0 left-0 z-30 hidden md:flex h-screen w-64 flex-col border-r border-border bg-background">
-          {sidebarContent}
-        </aside>
-      )}
+      <aside 
+        className={cn(
+          "fixed top-0 left-0 z-30 hidden md:flex h-screen flex-col border-r border-border bg-background transition-all duration-300",
+          collapsed ? "w-14" : "w-64"
+        )}
+      >
+        {collapsed ? collapsedContent : sidebarContent}
+        
+        {/* Toggle Button */}
+        <div className={cn(
+          "border-t border-border p-2",
+          collapsed ? "flex justify-center" : "px-3"
+        )}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size={collapsed ? "icon" : "sm"}
+                className={cn(
+                  "h-8 text-muted-foreground hover:text-foreground",
+                  collapsed ? "w-8" : "w-full justify-start gap-2"
+                )}
+                onClick={onToggle}
+              >
+                {collapsed ? (
+                  <PanelLeft className="h-4 w-4" />
+                ) : (
+                  <>
+                    <PanelLeftClose className="h-4 w-4" />
+                    <span className="text-xs">Collapse</span>
+                  </>
+                )}
+              </Button>
+            </TooltipTrigger>
+            {collapsed && (
+              <TooltipContent side="right">Expand sidebar</TooltipContent>
+            )}
+          </Tooltip>
+        </div>
+      </aside>
     </>
   );
 }

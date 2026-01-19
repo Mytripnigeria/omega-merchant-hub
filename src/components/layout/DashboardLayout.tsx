@@ -4,6 +4,7 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { MobileMenuButton } from "./MobileMenuButton";
 import { useOverflowDebug } from "@/hooks/use-overflow-debug";
+import { cn } from "@/lib/utils";
 
 export function DashboardLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -20,7 +21,10 @@ export function DashboardLayout() {
         mobileOpen={mobileMenuOpen}
         onMobileOpenChange={setMobileMenuOpen}
       />
-      <div className="flex flex-col min-h-screen md:ml-64">
+      <div className={cn(
+        "flex flex-col min-h-screen transition-all duration-300",
+        sidebarCollapsed ? "md:ml-14" : "md:ml-64"
+      )}>
         <Header />
         <main className="flex-1 overflow-x-hidden">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 sm:py-8">
