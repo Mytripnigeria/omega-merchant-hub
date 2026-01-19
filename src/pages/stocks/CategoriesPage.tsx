@@ -39,6 +39,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Category {
   id: string;
@@ -60,6 +79,95 @@ const mockCategories: Category[] = [
   { id: "cat-5", name: "Mains", emoji: "🍛", description: "Main course dishes", image: null, productCount: 15, isActive: true, order: 5, visibility: ["pos", "storefront", "ubereats"] },
   { id: "cat-6", name: "Desserts", emoji: "🍰", description: "Sweet treats", image: null, productCount: 4, isActive: false, order: 6, visibility: ["pos"] },
 ];
+
+// Sortable Category Card Component
+interface SortableCategoryCardProps {
+  category: Category;
+  onView: (category: Category) => void;
+  onEdit: (category: Category) => void;
+  onToggle: (categoryId: string) => void;
+}
+
+function SortableCategoryCard({ category, onView, onEdit, onToggle }: SortableCategoryCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: category.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "group transition-all hover:shadow-md cursor-pointer",
+        isDragging && "opacity-50 shadow-lg z-50"
+      )}
+      onClick={() => onView(category)}
+    >
+      <CardContent className="p-4 sm:p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-muted text-xl sm:text-2xl">
+              {category.emoji}
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm sm:text-base">{category.name}</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                {category.productCount} products
+              </p>
+            </div>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 sm:opacity-0 sm:group-hover:opacity-100">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(category); }}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <div className="mt-4 flex items-center justify-between border-t pt-4">
+          <div 
+            className="flex items-center gap-2 cursor-grab active:cursor-grabbing"
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Order: {category.order}</span>
+          </div>
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <span className="text-xs text-muted-foreground">
+              {category.isActive ? "Active" : "Hidden"}
+            </span>
+            <Switch
+              checked={category.isActive}
+              onCheckedChange={() => onToggle(category.id)}
+            />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function StatsSkeleton() {
   return (
@@ -130,6 +238,32 @@ export default function CategoriesPage() {
     setIsViewSheetOpen(true);
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setCategories((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        const newItems = arrayMove(items, oldIndex, newIndex);
+        // Update order values
+        return newItems.map((item, index) => ({ ...item, order: index + 1 }));
+      });
+      toast.success("Categories reordered");
+    }
+  };
+
   const filteredCategories = categories.filter(cat =>
     cat.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -191,63 +325,25 @@ export default function CategoriesPage() {
       {isLoading ? (
         <CategoriesSkeleton />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredCategories.map((category) => (
-            <Card
-              key={category.id}
-              className="group transition-all hover:shadow-md cursor-pointer"
-              onClick={() => handleViewCategory(category)}
-            >
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-muted text-xl sm:text-2xl">
-                      {category.emoji}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-sm sm:text-base">{category.name}</h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground">
-                        {category.productCount} products
-                      </p>
-                    </div>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 sm:opacity-0 sm:group-hover:opacity-100">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditCategory(category); }}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                <div className="mt-4 flex items-center justify-between border-t pt-4">
-                  <div className="flex items-center gap-2">
-                    <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-                    <span className="text-xs text-muted-foreground">Order: {category.order}</span>
-                  </div>
-                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-xs text-muted-foreground">
-                      {category.isActive ? "Active" : "Hidden"}
-                    </span>
-                    <Switch
-                      checked={category.isActive}
-                      onCheckedChange={() => toggleCategory(category.id)}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={filteredCategories} strategy={rectSortingStrategy}>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {filteredCategories.map((category) => (
+                <SortableCategoryCard
+                  key={category.id}
+                  category={category}
+                  onView={handleViewCategory}
+                  onEdit={handleEditCategory}
+                  onToggle={toggleCategory}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* Add Category Sheet */}
