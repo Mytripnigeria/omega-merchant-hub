@@ -25,27 +25,41 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Equipment as APIEquipment } from "@/types/procurement";
 
-interface Equipment {
-  id: number;
-  name: string;
-  category: string;
-  status: "operational" | "maintenance" | "offline";
+// UI-specific interface extending API type with computed display fields
+interface EquipmentUI extends Omit<APIEquipment, 'id'> {
+  id: string;
+  location: string;
+  displayTemperature?: string;
+  displayUptime?: string;
   lastMaintenance: string;
   nextMaintenance: string;
-  location: string;
-  temperature?: string;
-  uptime?: string;
+  displayCategory: string;
 }
 
-const equipmentList: Equipment[] = [
-  { id: 1, name: "Industrial Oven", category: "Cooking", status: "operational", lastMaintenance: "2026-01-10", nextMaintenance: "2026-04-10", location: "Kitchen A", temperature: "180°C", uptime: "99.8%" },
-  { id: 2, name: "Walk-in Freezer", category: "Storage", status: "maintenance", lastMaintenance: "2026-01-05", nextMaintenance: "2026-02-05", location: "Back Area", temperature: "-18°C", uptime: "98.5%" },
-  { id: 3, name: "Dishwasher", category: "Cleaning", status: "operational", lastMaintenance: "2026-01-15", nextMaintenance: "2026-04-15", location: "Kitchen B", uptime: "99.2%" },
-  { id: 4, name: "Espresso Machine", category: "Beverage", status: "operational", lastMaintenance: "2026-01-08", nextMaintenance: "2026-03-08", location: "Bar", temperature: "92°C", uptime: "99.9%" },
-  { id: 5, name: "Refrigerator Unit 1", category: "Storage", status: "operational", lastMaintenance: "2026-01-12", nextMaintenance: "2026-04-12", location: "Kitchen A", temperature: "4°C", uptime: "99.7%" },
-  { id: 6, name: "Deep Fryer", category: "Cooking", status: "offline", lastMaintenance: "2025-12-20", nextMaintenance: "2026-01-20", location: "Kitchen A", uptime: "95.0%" },
+// Transform API equipment to UI format
+const transformEquipment = (equipment: APIEquipment): EquipmentUI => ({
+  ...equipment,
+  location: equipment.locationName || "Unknown",
+  displayTemperature: equipment.currentTemperature !== undefined ? `${equipment.currentTemperature}°C` : undefined,
+  displayUptime: equipment.uptime !== undefined ? `${equipment.uptime}%` : undefined,
+  lastMaintenance: equipment.lastMaintenanceDate || "N/A",
+  nextMaintenance: equipment.nextMaintenanceDate || "N/A",
+  displayCategory: equipment.category.charAt(0).toUpperCase() + equipment.category.slice(1),
+});
+
+// Mock data using API types
+const mockEquipmentList: APIEquipment[] = [
+  { id: "eq-1", storeId: "store-1", locationId: "loc-1", locationName: "Kitchen A", name: "Industrial Oven", category: "kitchen", status: "operational", lastMaintenanceDate: "2026-01-10", nextMaintenanceDate: "2026-04-10", currentTemperature: 180, uptime: 99.8, createdAt: "2025-01-01", updatedAt: "2026-01-10" },
+  { id: "eq-2", storeId: "store-1", locationId: "loc-2", locationName: "Back Area", name: "Walk-in Freezer", category: "refrigeration", status: "maintenance", lastMaintenanceDate: "2026-01-05", nextMaintenanceDate: "2026-02-05", currentTemperature: -18, uptime: 98.5, createdAt: "2025-01-01", updatedAt: "2026-01-05" },
+  { id: "eq-3", storeId: "store-1", locationId: "loc-3", locationName: "Kitchen B", name: "Dishwasher", category: "kitchen", status: "operational", lastMaintenanceDate: "2026-01-15", nextMaintenanceDate: "2026-04-15", uptime: 99.2, createdAt: "2025-01-01", updatedAt: "2026-01-15" },
+  { id: "eq-4", storeId: "store-1", locationId: "loc-4", locationName: "Bar", name: "Espresso Machine", category: "kitchen", status: "operational", lastMaintenanceDate: "2026-01-08", nextMaintenanceDate: "2026-03-08", currentTemperature: 92, uptime: 99.9, createdAt: "2025-01-01", updatedAt: "2026-01-08" },
+  { id: "eq-5", storeId: "store-1", locationId: "loc-1", locationName: "Kitchen A", name: "Refrigerator Unit 1", category: "refrigeration", status: "operational", lastMaintenanceDate: "2026-01-12", nextMaintenanceDate: "2026-04-12", currentTemperature: 4, uptime: 99.7, createdAt: "2025-01-01", updatedAt: "2026-01-12" },
+  { id: "eq-6", storeId: "store-1", locationId: "loc-1", locationName: "Kitchen A", name: "Deep Fryer", category: "kitchen", status: "offline", lastMaintenanceDate: "2025-12-20", nextMaintenanceDate: "2026-01-20", uptime: 95.0, createdAt: "2025-01-01", updatedAt: "2025-12-20" },
 ];
+
+const equipmentList: EquipmentUI[] = mockEquipmentList.map(transformEquipment);
 
 function StatsSkeleton() {
   return (
@@ -131,7 +145,7 @@ export default function EquipmentPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
-  const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
+  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentUI | null>(null);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
   const isLoading = useLoading(1000);
 
@@ -143,7 +157,7 @@ export default function EquipmentPage() {
 
   const filteredEquipment = equipmentList.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) ||
-                          item.category.toLowerCase().includes(search.toLowerCase());
+                          item.displayCategory.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "all" || item.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -161,7 +175,7 @@ export default function EquipmentPage() {
     }
   };
 
-  const handleViewEquipment = (equipment: Equipment) => {
+  const handleViewEquipment = (equipment: EquipmentUI) => {
     setSelectedEquipment(equipment);
     setIsViewSheetOpen(true);
   };
@@ -252,7 +266,7 @@ export default function EquipmentPage() {
                       </div>
                       <div className="min-w-0">
                         <p className="font-medium text-sm truncate">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">{item.category} · {item.location}</p>
+                        <p className="text-xs text-muted-foreground">{item.displayCategory} · {item.location}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -260,16 +274,16 @@ export default function EquipmentPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    {item.temperature && (
+                    {item.displayTemperature && (
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Thermometer className="h-3 w-3" />
-                        <span>{item.temperature}</span>
+                        <span>{item.displayTemperature}</span>
                       </div>
                     )}
-                    {item.uptime && (
+                    {item.displayUptime && (
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Clock className="h-3 w-3" />
-                        <span>Uptime: {item.uptime}</span>
+                        <span>Uptime: {item.displayUptime}</span>
                       </div>
                     )}
                   </div>
@@ -324,7 +338,7 @@ export default function EquipmentPage() {
                             <span className="font-medium text-sm">{item.name}</span>
                           </div>
                         </td>
-                        <td className="p-4 text-sm text-muted-foreground">{item.category}</td>
+                        <td className="p-4 text-sm text-muted-foreground">{item.displayCategory}</td>
                         <td className="p-4 text-sm text-muted-foreground">{item.location}</td>
                         <td className="p-4 text-sm text-muted-foreground">{item.lastMaintenance}</td>
                         <td className="p-4 text-sm text-muted-foreground">{item.nextMaintenance}</td>
@@ -421,7 +435,7 @@ export default function EquipmentPage() {
                   </div>
                   <div>
                     <SheetTitle>{selectedEquipment.name}</SheetTitle>
-                    <SheetDescription>{selectedEquipment.category} · {selectedEquipment.location}</SheetDescription>
+                    <SheetDescription>{selectedEquipment.displayCategory} · {selectedEquipment.location}</SheetDescription>
                   </div>
                 </div>
               </SheetHeader>
@@ -430,16 +444,16 @@ export default function EquipmentPage() {
                   <span className="text-sm text-muted-foreground">Status</span>
                   {getStatusBadge(selectedEquipment.status)}
                 </div>
-                {selectedEquipment.temperature && (
+                {selectedEquipment.displayTemperature && (
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Temperature</span>
-                    <span className="font-medium">{selectedEquipment.temperature}</span>
+                    <span className="font-medium">{selectedEquipment.displayTemperature}</span>
                   </div>
                 )}
-                {selectedEquipment.uptime && (
+                {selectedEquipment.displayUptime && (
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Uptime</span>
-                    <span className="font-medium">{selectedEquipment.uptime}</span>
+                    <span className="font-medium">{selectedEquipment.displayUptime}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between">

@@ -6,17 +6,37 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Users, Gift, DollarSign, Download, Settings, MoreHorizontal } from "lucide-react";
+import { Referral } from "@/types/marketing";
+
+// UI-specific interface extending API type with computed display fields
+interface ReferralUI extends Omit<Referral, 'id'> {
+  id: string;
+  displayReward: string;
+  displayDate: string;
+  displayStatus: string;
+}
+
+// Transform API referral to UI format
+const transformReferral = (referral: Referral): ReferralUI => ({
+  ...referral,
+  displayReward: `₦${(referral.referrerReward || 0).toLocaleString()}`,
+  displayDate: referral.createdAt,
+  displayStatus: referral.status.replace(/-/g, ' '),
+});
+
+// Mock data using API types
+const mockReferrals: Referral[] = [
+  { id: "ref-1", storeId: "store-1", referrerId: "cust-1", referrerName: "John Doe", referredId: "cust-5", referredName: "Mike Smith", referredEmail: "mike@example.com", referralCode: "JOHN123", status: "rewarded", referrerReward: 1000, referredReward: 500, rewardType: "credit", createdAt: "2026-01-12", updatedAt: "2026-01-12" },
+  { id: "ref-2", storeId: "store-1", referrerId: "cust-2", referrerName: "Sarah Lee", referredEmail: "lisa@example.com", referralCode: "SARAH456", status: "pending", referrerReward: 1000, referredReward: 500, rewardType: "credit", createdAt: "2026-01-11", updatedAt: "2026-01-11" },
+  { id: "ref-3", storeId: "store-1", referrerId: "cust-1", referrerName: "John Doe", referredId: "cust-6", referredName: "Tom Wilson", referredEmail: "tom@example.com", referralCode: "JOHN123", status: "rewarded", referrerReward: 1000, referredReward: 500, rewardType: "credit", createdAt: "2026-01-10", updatedAt: "2026-01-10" },
+  { id: "ref-4", storeId: "store-1", referrerId: "cust-3", referrerName: "Emma Davis", referredId: "cust-7", referredName: "Anna White", referredEmail: "anna@example.com", referralCode: "EMMA789", status: "rewarded", referrerReward: 1000, referredReward: 500, rewardType: "credit", createdAt: "2026-01-09", updatedAt: "2026-01-09" },
+];
 
 export default function ReferralsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const referrals = [
-    { id: 1, referrer: "John Doe", referred: "Mike Smith", date: "2026-01-12", status: "completed", reward: 1000 },
-    { id: 2, referrer: "Sarah Lee", referred: "Lisa Brown", date: "2026-01-11", status: "pending", reward: 1000 },
-    { id: 3, referrer: "John Doe", referred: "Tom Wilson", date: "2026-01-10", status: "completed", reward: 1000 },
-    { id: 4, referrer: "Emma Davis", referred: "Anna White", date: "2026-01-09", status: "completed", reward: 1000 },
-  ];
+  const referrals: ReferralUI[] = mockReferrals.map(transformReferral);
 
   const stats = [
     { label: "Total Referrals", value: "234", icon: Users },
@@ -25,8 +45,11 @@ export default function ReferralsPage() {
   ];
 
   const statusColors: Record<string, string> = {
-    completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    rewarded: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    "first-purchase": "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
     pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    "signed-up": "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    expired: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   };
 
   return (
@@ -81,8 +104,11 @@ export default function ReferralsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="rewarded">Rewarded</SelectItem>
+                <SelectItem value="first-purchase">First Purchase</SelectItem>
+                <SelectItem value="signed-up">Signed Up</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="expired">Expired</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -94,16 +120,16 @@ export default function ReferralsPage() {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <p className="font-medium">{ref.referrer}</p>
-                      <p className="text-xs text-muted-foreground">referred {ref.referred}</p>
+                      <p className="font-medium">{ref.referrerName}</p>
+                      <p className="text-xs text-muted-foreground">referred {ref.referredName || ref.referredEmail}</p>
                     </div>
-                    <Badge className={statusColors[ref.status]} variant="secondary">
-                      {ref.status}
+                    <Badge className={statusColors[ref.status] || "bg-muted text-muted-foreground"} variant="secondary">
+                      {ref.displayStatus}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between mt-2 text-sm">
-                    <span className="text-muted-foreground">{ref.date}</span>
-                    <span className="font-medium">₦{ref.reward.toLocaleString()}</span>
+                    <span className="text-muted-foreground">{ref.displayDate}</span>
+                    <span className="font-medium">{ref.displayReward}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -128,13 +154,13 @@ export default function ReferralsPage() {
                   <tbody>
                     {referrals.map((ref) => (
                       <tr key={ref.id} className="border-b border-border/50 last:border-0 group cursor-pointer hover:bg-muted/50">
-                        <td className="font-medium text-sm p-4">{ref.referrer}</td>
-                        <td className="text-sm text-muted-foreground p-4">{ref.referred}</td>
-                        <td className="text-sm text-muted-foreground p-4">{ref.date}</td>
-                        <td className="text-sm font-medium text-right p-4">₦{ref.reward.toLocaleString()}</td>
+                        <td className="font-medium text-sm p-4">{ref.referrerName}</td>
+                        <td className="text-sm text-muted-foreground p-4">{ref.referredName || ref.referredEmail}</td>
+                        <td className="text-sm text-muted-foreground p-4">{ref.displayDate}</td>
+                        <td className="text-sm font-medium text-right p-4">{ref.displayReward}</td>
                         <td className="p-4">
-                          <Badge className={statusColors[ref.status]} variant="secondary">
-                            {ref.status}
+                          <Badge className={statusColors[ref.status] || "bg-muted text-muted-foreground"} variant="secondary">
+                            {ref.displayStatus}
                           </Badge>
                         </td>
                         <td className="p-4">
