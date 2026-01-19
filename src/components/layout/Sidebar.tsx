@@ -347,7 +347,7 @@ export function Sidebar({ collapsed, mobileOpen, onMobileOpenChange }: SidebarPr
 
       {/* Desktop Sidebar */}
       {!collapsed && (
-        <aside className="sticky top-0 hidden md:flex h-screen w-64 flex-col border-r border-border bg-background">
+        <aside className="fixed top-0 left-0 z-30 hidden md:flex h-screen w-64 flex-col border-r border-border bg-background">
           {sidebarContent}
         </aside>
       )}
