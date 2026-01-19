@@ -11,6 +11,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePeriodFilter, useDatePeriodFilter, type DatePeriod } from "@/components/ui/date-period-filter";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { Search, DollarSign, Clock, CheckCircle2, Download, Filter, Wallet } from "lucide-react";
+import type { Payout } from "@/types/payouts";
+
+// Extended Payout type for UI with computed fields and orders
+interface PayoutWithOrders extends Payout {
+  // Computed fields for display
+  settledAmount: number;
+  method: string;
+  account: string;
+  bankDetails: string;
+  date: string;
+  orders: PayoutOrder[];
+}
 
 interface PayoutOrder {
   orderId: string;
@@ -22,92 +34,110 @@ interface PayoutOrder {
   settledAmount: number;
 }
 
-interface Payout {
-  id: string;
-  date: string;
-  amount: number;
-  fees: number;
-  commission: number;
-  tax: number;
-  settledAmount: number;
-  method: string;
-  account: string;
-  bankDetails: string;
-  status: "success" | "pending" | "failed";
-  orders: PayoutOrder[];
-}
+// Transform API Payout to UI format
+const transformPayout = (payout: Payout): PayoutWithOrders => ({
+  ...payout,
+  settledAmount: payout.netAmount,
+  method: payout.paymentMethod === "bank-transfer" ? "Bank Transfer" : payout.paymentMethod || "Bank Transfer",
+  account: payout.bankAccount ? `****${payout.bankAccount.slice(-4)}` : "****0000",
+  bankDetails: `${payout.bankName || "Bank"} - ${payout.bankAccount || "N/A"}`,
+  date: payout.periodEnd,
+  orders: [], // Will be populated from linked transactions
+});
 
-const payoutsData: Payout[] = [
+const mockPayouts: Payout[] = [
   { 
     id: "PAY-001", 
-    date: "2026-01-10", 
-    amount: 285000, 
-    fees: 5700, 
-    commission: 8550, 
-    tax: 4275, 
-    settledAmount: 266475, 
-    method: "Bank Transfer", 
-    account: "****4521", 
-    bankDetails: "GTBank - 0123456789",
-    status: "success",
-    orders: [
-      { orderId: "ORD-101", date: "2026-01-09", totalAmount: 95000, fees: 1900, commission: 2850, tax: 1425, settledAmount: 88825 },
-      { orderId: "ORD-102", date: "2026-01-09", totalAmount: 120000, fees: 2400, commission: 3600, tax: 1800, settledAmount: 112200 },
-      { orderId: "ORD-103", date: "2026-01-08", totalAmount: 70000, fees: 1400, commission: 2100, tax: 1050, settledAmount: 65450 },
-    ]
+    storeId: "store-1",
+    period: "Week 2, Jan 2026",
+    periodStart: "2026-01-06",
+    periodEnd: "2026-01-10", 
+    grossAmount: 285000, 
+    fees: [{ id: "f1", name: "Platform Fee", type: "platform", amount: 5700, percentage: 2 }],
+    totalFees: 5700,
+    commissions: [{ id: "c1", name: "Sales Commission", type: "sales", amount: 8550, percentage: 3 }],
+    totalCommissions: 8550,
+    taxes: [{ id: "t1", name: "WHT", type: "withholding", amount: 4275, rate: 1.5 }],
+    totalTaxes: 4275,
+    netAmount: 266475, 
+    status: "completed",
+    paymentMethod: "bank-transfer",
+    bankName: "GTBank",
+    bankAccount: "0123456789",
+    paidDate: "2026-01-10",
+    createdAt: "2026-01-10",
+    updatedAt: "2026-01-10",
   },
   { 
     id: "PAY-002", 
-    date: "2026-01-05", 
-    amount: 185000, 
-    fees: 3700, 
-    commission: 5550, 
-    tax: 2775, 
-    settledAmount: 172975, 
-    method: "Bank Transfer", 
-    account: "****4521",
-    bankDetails: "GTBank - 0123456789", 
-    status: "success",
-    orders: [
-      { orderId: "ORD-098", date: "2026-01-04", totalAmount: 85000, fees: 1700, commission: 2550, tax: 1275, settledAmount: 79475 },
-      { orderId: "ORD-099", date: "2026-01-04", totalAmount: 100000, fees: 2000, commission: 3000, tax: 1500, settledAmount: 93500 },
-    ]
+    storeId: "store-1",
+    period: "Week 1, Jan 2026",
+    periodStart: "2026-01-01",
+    periodEnd: "2026-01-05", 
+    grossAmount: 185000, 
+    fees: [{ id: "f2", name: "Platform Fee", type: "platform", amount: 3700, percentage: 2 }],
+    totalFees: 3700,
+    commissions: [{ id: "c2", name: "Sales Commission", type: "sales", amount: 5550, percentage: 3 }],
+    totalCommissions: 5550,
+    taxes: [{ id: "t2", name: "WHT", type: "withholding", amount: 2775, rate: 1.5 }],
+    totalTaxes: 2775,
+    netAmount: 172975, 
+    status: "completed",
+    paymentMethod: "bank-transfer",
+    bankName: "GTBank",
+    bankAccount: "0123456789",
+    paidDate: "2026-01-05",
+    createdAt: "2026-01-05",
+    updatedAt: "2026-01-05",
   },
   { 
     id: "PAY-003", 
-    date: "2026-01-14", 
-    amount: 320000, 
-    fees: 6400, 
-    commission: 9600, 
-    tax: 4800, 
-    settledAmount: 299200, 
-    method: "Bank Transfer", 
-    account: "****4521",
-    bankDetails: "GTBank - 0123456789", 
+    storeId: "store-1",
+    period: "Week 3, Jan 2026",
+    periodStart: "2026-01-13",
+    periodEnd: "2026-01-14", 
+    grossAmount: 320000, 
+    fees: [{ id: "f3", name: "Platform Fee", type: "platform", amount: 6400, percentage: 2 }],
+    totalFees: 6400,
+    commissions: [{ id: "c3", name: "Sales Commission", type: "sales", amount: 9600, percentage: 3 }],
+    totalCommissions: 9600,
+    taxes: [{ id: "t3", name: "WHT", type: "withholding", amount: 4800, rate: 1.5 }],
+    totalTaxes: 4800,
+    netAmount: 299200, 
     status: "pending",
-    orders: [
-      { orderId: "ORD-110", date: "2026-01-13", totalAmount: 150000, fees: 3000, commission: 4500, tax: 2250, settledAmount: 140250 },
-      { orderId: "ORD-111", date: "2026-01-13", totalAmount: 170000, fees: 3400, commission: 5100, tax: 2550, settledAmount: 158950 },
-    ]
+    paymentMethod: "bank-transfer",
+    bankName: "GTBank",
+    bankAccount: "0123456789",
+    scheduledDate: "2026-01-17",
+    createdAt: "2026-01-14",
+    updatedAt: "2026-01-14",
   },
   { 
     id: "PAY-004", 
-    date: "2025-12-28", 
-    amount: 210000, 
-    fees: 4200, 
-    commission: 6300, 
-    tax: 3150, 
-    settledAmount: 196350, 
-    method: "Bank Transfer", 
-    account: "****4521",
-    bankDetails: "GTBank - 0123456789", 
-    status: "success",
-    orders: [
-      { orderId: "ORD-095", date: "2025-12-27", totalAmount: 110000, fees: 2200, commission: 3300, tax: 1650, settledAmount: 102850 },
-      { orderId: "ORD-096", date: "2025-12-27", totalAmount: 100000, fees: 2000, commission: 3000, tax: 1500, settledAmount: 93500 },
-    ]
+    storeId: "store-1",
+    period: "Week 4, Dec 2025",
+    periodStart: "2025-12-23",
+    periodEnd: "2025-12-28", 
+    grossAmount: 210000, 
+    fees: [{ id: "f4", name: "Platform Fee", type: "platform", amount: 4200, percentage: 2 }],
+    totalFees: 4200,
+    commissions: [{ id: "c4", name: "Sales Commission", type: "sales", amount: 6300, percentage: 3 }],
+    totalCommissions: 6300,
+    taxes: [{ id: "t4", name: "WHT", type: "withholding", amount: 3150, rate: 1.5 }],
+    totalTaxes: 3150,
+    netAmount: 196350, 
+    status: "completed",
+    paymentMethod: "bank-transfer",
+    bankName: "GTBank",
+    bankAccount: "0123456789",
+    paidDate: "2025-12-28",
+    createdAt: "2025-12-28",
+    updatedAt: "2025-12-28",
   },
 ];
+
+// Transform to UI format
+const payoutsData: PayoutWithOrders[] = mockPayouts.map(transformPayout);
 
 function StatsSkeleton() {
   return (
@@ -180,7 +210,7 @@ export default function PayoutsPage() {
   const [datePeriod, setDatePeriod] = useState<DatePeriod>("all");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
-  const [selectedPayout, setSelectedPayout] = useState<Payout | null>(null);
+  const [selectedPayout, setSelectedPayout] = useState<PayoutWithOrders | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
@@ -198,7 +228,7 @@ export default function PayoutsPage() {
     datePeriod,
     customStartDate,
     customEndDate,
-    "date" as keyof Payout
+    "date" as keyof PayoutWithOrders
   );
 
   const filteredPayouts = dateFilteredPayouts.filter(p => {
@@ -216,14 +246,17 @@ export default function PayoutsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "completed":
       case "success": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-      case "pending": return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
-      case "failed": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+      case "pending":
+      case "processing": return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+      case "failed":
+      case "on-hold": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
       default: return "";
     }
   };
 
-  const openSheet = (payout: Payout) => {
+  const openSheet = (payout: PayoutWithOrders) => {
     setSelectedPayout(payout);
     setIsSheetOpen(true);
   };
@@ -407,28 +440,32 @@ export default function PayoutsPage() {
                   <h4 className="text-sm font-medium text-muted-foreground">Payout Summary</h4>
                   <div className="grid gap-3">
                     <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Period</span>
+                      <span className="text-sm font-medium">{selectedPayout.period}</span>
+                    </div>
+                    <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Date</span>
                       <span className="text-sm font-medium">{selectedPayout.date}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Total Amount</span>
-                      <span className="text-sm font-medium">₦{selectedPayout.amount.toLocaleString()}</span>
+                      <span className="text-sm text-muted-foreground">Gross Amount</span>
+                      <span className="text-sm font-medium">₦{selectedPayout.grossAmount.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Fees</span>
-                      <span className="text-sm font-medium text-red-600">-₦{selectedPayout.fees.toLocaleString()}</span>
+                      <span className="text-sm font-medium text-red-600">-₦{selectedPayout.totalFees.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Commission</span>
-                      <span className="text-sm font-medium text-red-600">-₦{selectedPayout.commission.toLocaleString()}</span>
+                      <span className="text-sm font-medium text-red-600">-₦{selectedPayout.totalCommissions.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Tax</span>
-                      <span className="text-sm font-medium text-red-600">-₦{selectedPayout.tax.toLocaleString()}</span>
+                      <span className="text-sm font-medium text-red-600">-₦{selectedPayout.totalTaxes.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between pt-3 border-t">
                       <span className="text-sm font-medium">Settled Amount</span>
-                      <span className="text-sm font-bold text-green-600">₦{selectedPayout.settledAmount.toLocaleString()}</span>
+                      <span className="text-sm font-bold text-green-600">₦{selectedPayout.netAmount.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
