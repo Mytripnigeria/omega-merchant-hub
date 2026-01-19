@@ -152,6 +152,23 @@
     outline: none !important;
   }
 
+  /* Safari modal/sheet border fix - remove black border on dialog content */
+  [data-radix-dialog-content],
+  [data-radix-popper-content],
+  [role="dialog"],
+  [role="alertdialog"] {
+    outline: none !important;
+    border-color: hsl(var(--border)) !important;
+    -webkit-appearance: none;
+  }
+  
+  /* Additional Safari fix for Sheet/Dialog components */
+  .fixed[data-state="open"],
+  .fixed[data-state="closed"] {
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   /* Clean scrollbar */
   ::-webkit-scrollbar {
     width: 6px;

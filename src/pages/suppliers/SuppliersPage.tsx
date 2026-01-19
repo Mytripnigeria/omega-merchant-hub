@@ -30,6 +30,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import type { Supplier, PurchaseOrder } from "@/types/suppliers";
+
+// Extended Supplier type for UI with computed fields
+interface SupplierWithUI extends Supplier {
+  businessName: string;
+  sellerName: string;
+  outstanding: number;
+  purchases: PurchaseHistory[];
+}
 
 interface PurchaseHistory {
   id: string;
@@ -43,84 +52,108 @@ interface PurchaseHistory {
   outstanding: number;
 }
 
-interface Supplier {
-  id: string;
-  businessName: string;
-  sellerName: string;
-  email: string;
-  phone: string;
-  category: string;
-  outstanding: number;
-  status: "Active" | "Inactive";
-  purchases: PurchaseHistory[];
-}
+// Transform API Supplier to UI format
+const transformSupplier = (supplier: Supplier): SupplierWithUI => ({
+  ...supplier,
+  businessName: supplier.name,
+  sellerName: supplier.contactName || supplier.name,
+  outstanding: supplier.totalSpent * 0.1, // Example: 10% outstanding
+  purchases: [], // Will be populated from purchase orders
+});
 
-const suppliers: Supplier[] = [
+// Map API category to display category
+const categoryMap: Record<string, string> = {
+  food: "Produce",
+  beverages: "Beverages",
+  equipment: "Equipment",
+  packaging: "Packaging",
+  cleaning: "Cleaning",
+  other: "Other",
+};
+
+const mockSuppliers: Supplier[] = [
   { 
     id: "1", 
-    businessName: "Fresh Farms Ltd", 
-    sellerName: "John Adams", 
+    storeId: "store-1",
+    name: "Fresh Farms Ltd", 
+    contactName: "John Adams", 
     email: "john@freshfarms.com", 
     phone: "+234 801 234 5678", 
-    category: "Produce", 
-    outstanding: 125000, 
-    status: "Active",
-    purchases: [
-      { id: "PO-001", date: "2026-01-15", items: "Fresh Tomatoes", quantity: "50", unit: "kg", location: "Main Kitchen", totalPrice: 75000, paidAmount: 50000, outstanding: 25000 },
-      { id: "PO-002", date: "2026-01-10", items: "Onions, Peppers", quantity: "30", unit: "kg", location: "Cold Storage", totalPrice: 45000, paidAmount: 45000, outstanding: 0 },
-    ]
+    category: "food",
+    status: "active",
+    totalOrders: 24,
+    totalSpent: 1250000,
+    createdAt: "2025-06-01",
+    updatedAt: "2026-01-15",
   },
   { 
     id: "2", 
-    businessName: "Metro Beverages", 
-    sellerName: "Sarah Lee", 
+    storeId: "store-1",
+    name: "Metro Beverages", 
+    contactName: "Sarah Lee", 
     email: "sarah@metro.com", 
     phone: "+234 802 345 6789", 
-    category: "Beverages", 
-    outstanding: 0, 
-    status: "Active",
-    purchases: []
+    category: "beverages",
+    status: "active",
+    totalOrders: 18,
+    totalSpent: 850000,
+    createdAt: "2025-07-01",
+    updatedAt: "2026-01-10",
   },
   { 
     id: "3", 
-    businessName: "Quality Meats", 
-    sellerName: "Mike Brown", 
+    storeId: "store-1",
+    name: "Quality Meats", 
+    contactName: "Mike Brown", 
     email: "mike@qualitymeats.com", 
     phone: "+234 803 456 7890", 
-    category: "Meat", 
-    outstanding: 340000, 
-    status: "Active",
-    purchases: [
-      { id: "PO-003", date: "2026-01-14", items: "Chicken Breast", quantity: "100", unit: "kg", location: "Cold Storage", totalPrice: 350000, paidAmount: 200000, outstanding: 150000 },
-    ]
+    category: "food",
+    status: "active",
+    totalOrders: 32,
+    totalSpent: 3400000,
+    createdAt: "2025-05-15",
+    updatedAt: "2026-01-14",
   },
   { 
     id: "4", 
-    businessName: "Bakery Supplies Co", 
-    sellerName: "Lisa White", 
+    storeId: "store-1",
+    name: "Bakery Supplies Co", 
+    contactName: "Lisa White", 
     email: "lisa@bakerysupplies.com", 
     phone: "+234 804 567 8901", 
-    category: "Baking", 
-    outstanding: 80000, 
-    status: "Inactive",
-    purchases: []
+    category: "food",
+    status: "inactive",
+    totalOrders: 8,
+    totalSpent: 800000,
+    createdAt: "2025-08-01",
+    updatedAt: "2025-12-01",
   },
   { 
     id: "5", 
-    businessName: "Seafood Direct", 
-    sellerName: "David Chen", 
+    storeId: "store-1",
+    name: "Seafood Direct", 
+    contactName: "David Chen", 
     email: "david@seafood.com", 
     phone: "+234 805 678 9012", 
-    category: "Seafood", 
-    outstanding: 215000, 
-    status: "Active",
-    purchases: []
+    category: "food",
+    status: "active",
+    totalOrders: 15,
+    totalSpent: 2150000,
+    createdAt: "2025-06-15",
+    updatedAt: "2026-01-12",
   },
 ];
 
-const categories = ["Produce", "Beverages", "Meat", "Baking", "Seafood", "Packs"];
+// Transform to UI format
+const suppliers: SupplierWithUI[] = mockSuppliers.map(transformSupplier);
+
+const categories = ["Produce", "Beverages", "Meat", "Baking", "Seafood", "Packaging", "Equipment"];
 
 const statusColors: Record<string, string> = {
+  active: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  inactive: "bg-gray-100 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400",
+  blacklisted: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+  // Legacy UI status names
   Active: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
   Inactive: "bg-gray-100 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400",
 };
@@ -147,7 +180,7 @@ export default function SuppliersPage() {
   // Sheet states
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
-  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [selectedSupplier, setSelectedSupplier] = useState<SupplierWithUI | null>(null);
 
   const formatPrice = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -159,12 +192,12 @@ export default function SuppliersPage() {
 
   const totalOutstanding = suppliers.reduce((acc, s) => acc + s.outstanding, 0);
 
-  const handleViewSupplier = (supplier: Supplier) => {
+  const handleViewSupplier = (supplier: SupplierWithUI) => {
     setSelectedSupplier(supplier);
     setIsViewSheetOpen(true);
   };
 
-  const handleEditSupplier = (supplier: Supplier) => {
+  const handleEditSupplier = (supplier: SupplierWithUI) => {
     setSelectedSupplier(supplier);
     setIsAddSheetOpen(true);
   };
@@ -209,7 +242,7 @@ export default function SuppliersPage() {
           <Card>
             <CardContent className="p-3 sm:p-4">
               <p className="text-xs sm:text-sm text-muted-foreground">Active</p>
-              <p className="text-xl sm:text-2xl font-semibold">{suppliers.filter(s => s.status === "Active").length}</p>
+              <p className="text-xl sm:text-2xl font-semibold">{suppliers.filter(s => s.status === "active").length}</p>
             </CardContent>
           </Card>
           <Card>
