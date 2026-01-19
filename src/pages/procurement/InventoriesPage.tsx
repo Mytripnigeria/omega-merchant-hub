@@ -481,7 +481,7 @@ export default function InventoriesPage() {
                 </div>
                 <div className="flex items-center justify-between p-3 border rounded-lg">
                   <span className="text-sm">Status</span>
-                  <Badge variant={selectedItem.status === "ok" ? "default" : selectedItem.status === "low" ? "secondary" : "destructive"}>
+                  <Badge variant={selectedItem.status === "in-stock" ? "default" : selectedItem.status === "low-stock" ? "secondary" : "destructive"}>
                     {selectedItem.status}
                   </Badge>
                 </div>
