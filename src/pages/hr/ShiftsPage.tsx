@@ -8,9 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Calendar, Clock, Plus, Users, ArrowLeftRight, ChevronLeft, ChevronRight, Edit, Trash2 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, addWeeks, addMonths, subDays, subWeeks, subMonths, eachDayOfInterval, isSameDay } from "date-fns";
+import type { Shift } from "@/types/hr";
 
+// Extended Shift type for UI with computed fields
 interface ShiftSchedule {
-  id: number;
+  id: string;
   period: "Morning" | "Afternoon" | "Night";
   role: string;
   date: string;
@@ -18,60 +20,59 @@ interface ShiftSchedule {
   endTime: string;
 }
 
-interface Shift {
-  id: number;
-  staffId: number;
+interface ShiftGroup {
+  id: string;
+  staffId: string;
   staff: string;
   schedules: ShiftSchedule[];
 }
 
-const shiftsData: Shift[] = [
-  { 
-    id: 1, 
-    staffId: 1,
-    staff: "John Doe", 
-    schedules: [
-      { id: 1, period: "Morning", role: "Manager", date: "2026-01-13", startTime: "06:00", endTime: "14:00" },
-      { id: 2, period: "Morning", role: "Manager", date: "2026-01-14", startTime: "06:00", endTime: "14:00" },
-      { id: 7, period: "Afternoon", role: "Manager", date: "2026-01-18", startTime: "14:00", endTime: "22:00" },
-    ]
-  },
-  { 
-    id: 2, 
-    staffId: 2,
-    staff: "Sarah Smith", 
-    schedules: [
-      { id: 3, period: "Afternoon", role: "Cashier", date: "2026-01-13", startTime: "14:00", endTime: "22:00" },
-      { id: 8, period: "Morning", role: "Cashier", date: "2026-01-15", startTime: "06:00", endTime: "14:00" },
-    ]
-  },
-  { 
-    id: 3, 
-    staffId: 3,
-    staff: "Mike Johnson", 
-    schedules: [
-      { id: 4, period: "Morning", role: "Chef", date: "2026-01-13", startTime: "06:00", endTime: "14:00" },
-      { id: 9, period: "Night", role: "Chef", date: "2026-01-16", startTime: "22:00", endTime: "06:00" },
-    ]
-  },
-  { 
-    id: 4, 
-    staffId: 4,
-    staff: "Lisa Brown", 
-    schedules: [
-      { id: 5, period: "Afternoon", role: "Waiter", date: "2026-01-14", startTime: "14:00", endTime: "22:00" },
-      { id: 10, period: "Morning", role: "Waiter", date: "2026-01-17", startTime: "06:00", endTime: "14:00" },
-    ]
-  },
-  { 
-    id: 5, 
-    staffId: 5,
-    staff: "David Wilson", 
-    schedules: [
-      { id: 6, period: "Morning", role: "Rider", date: "2026-01-15", startTime: "06:00", endTime: "14:00" },
-    ]
-  },
+// Transform API Shifts to grouped UI format
+const groupShiftsByStaff = (shifts: Shift[]): ShiftGroup[] => {
+  const grouped: Record<string, ShiftGroup> = {};
+  
+  shifts.forEach(shift => {
+    if (!grouped[shift.staffId]) {
+      grouped[shift.staffId] = {
+        id: shift.staffId,
+        staffId: shift.staffId,
+        staff: shift.staffName,
+        schedules: [],
+      };
+    }
+    
+    const startHour = parseInt(shift.startTime.split(":")[0]);
+    const period: "Morning" | "Afternoon" | "Night" = 
+      startHour < 12 ? "Morning" : startHour < 18 ? "Afternoon" : "Night";
+    
+    grouped[shift.staffId].schedules.push({
+      id: shift.id,
+      period,
+      role: shift.roleName || "Staff",
+      date: shift.date,
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+    });
+  });
+  
+  return Object.values(grouped);
+};
+
+const mockShifts: Shift[] = [
+  { id: "s1", storeId: "store-1", staffId: "1", staffName: "John Doe", roleId: "r1", roleName: "Manager", date: "2026-01-13", startTime: "06:00", endTime: "14:00", status: "scheduled", createdAt: "2026-01-10", updatedAt: "2026-01-10" },
+  { id: "s2", storeId: "store-1", staffId: "1", staffName: "John Doe", roleId: "r1", roleName: "Manager", date: "2026-01-14", startTime: "06:00", endTime: "14:00", status: "scheduled", createdAt: "2026-01-10", updatedAt: "2026-01-10" },
+  { id: "s3", storeId: "store-1", staffId: "1", staffName: "John Doe", roleId: "r1", roleName: "Manager", date: "2026-01-18", startTime: "14:00", endTime: "22:00", status: "scheduled", createdAt: "2026-01-10", updatedAt: "2026-01-10" },
+  { id: "s4", storeId: "store-1", staffId: "2", staffName: "Sarah Smith", roleId: "r2", roleName: "Cashier", date: "2026-01-13", startTime: "14:00", endTime: "22:00", status: "scheduled", createdAt: "2026-01-10", updatedAt: "2026-01-10" },
+  { id: "s5", storeId: "store-1", staffId: "2", staffName: "Sarah Smith", roleId: "r2", roleName: "Cashier", date: "2026-01-15", startTime: "06:00", endTime: "14:00", status: "scheduled", createdAt: "2026-01-10", updatedAt: "2026-01-10" },
+  { id: "s6", storeId: "store-1", staffId: "3", staffName: "Mike Johnson", roleId: "r3", roleName: "Chef", date: "2026-01-13", startTime: "06:00", endTime: "14:00", status: "scheduled", createdAt: "2026-01-10", updatedAt: "2026-01-10" },
+  { id: "s7", storeId: "store-1", staffId: "3", staffName: "Mike Johnson", roleId: "r3", roleName: "Chef", date: "2026-01-16", startTime: "22:00", endTime: "06:00", status: "scheduled", createdAt: "2026-01-10", updatedAt: "2026-01-10" },
+  { id: "s8", storeId: "store-1", staffId: "4", staffName: "Lisa Brown", roleId: "r4", roleName: "Waiter", date: "2026-01-14", startTime: "14:00", endTime: "22:00", status: "scheduled", createdAt: "2026-01-10", updatedAt: "2026-01-10" },
+  { id: "s9", storeId: "store-1", staffId: "4", staffName: "Lisa Brown", roleId: "r4", roleName: "Waiter", date: "2026-01-17", startTime: "06:00", endTime: "14:00", status: "scheduled", createdAt: "2026-01-10", updatedAt: "2026-01-10" },
+  { id: "s10", storeId: "store-1", staffId: "5", staffName: "David Wilson", roleId: "r5", roleName: "Rider", date: "2026-01-15", startTime: "06:00", endTime: "14:00", status: "scheduled", createdAt: "2026-01-10", updatedAt: "2026-01-10" },
 ];
+
+// Transform to UI format
+const shiftsData: ShiftGroup[] = groupShiftsByStaff(mockShifts);
 
 const periodColors = {
   Morning: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
@@ -81,7 +82,7 @@ const periodColors = {
 
 export default function ShiftsPage() {
   const [view, setView] = useState<"day" | "week" | "month">("week");
-  const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
+  const [selectedShift, setSelectedShift] = useState<ShiftGroup | null>(null);
   const [sheetMode, setSheetMode] = useState<"view" | "add" | "edit">("view");
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [schedules, setSchedules] = useState<Partial<ShiftSchedule>[]>([{ period: "Morning", role: "", date: "", startTime: "", endTime: "" }]);
@@ -98,7 +99,7 @@ export default function ShiftsPage() {
     { label: "Swap Requests", value: "3", icon: ArrowLeftRight },
   ];
 
-  const openSheet = (mode: "view" | "add" | "edit", shift?: Shift) => {
+  const openSheet = (mode: "view" | "add" | "edit", shift?: ShiftGroup) => {
     setSheetMode(mode);
     setSelectedShift(shift || null);
     if (mode === "add") {
@@ -161,7 +162,7 @@ export default function ShiftsPage() {
   // Get shifts for a specific date
   const getShiftsForDate = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
-    const result: { shift: Shift; schedule: ShiftSchedule }[] = [];
+    const result: { shift: ShiftGroup; schedule: ShiftSchedule }[] = [];
     shiftsData.forEach(shift => {
       shift.schedules.forEach(schedule => {
         if (schedule.date === dateStr) {
