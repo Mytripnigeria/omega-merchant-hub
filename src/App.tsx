@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -5,99 +6,118 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { StoreProvider } from "@/contexts/StoreContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import Login from "./pages/auth/Login";
-import Onboarding from "./pages/auth/Onboarding";
-import ForgotPassword from "./pages/auth/ForgotPassword";
-import Dashboard from "./pages/Dashboard";
+
+// Page loading fallback
+const PageLoader = () => (
+  <div className="flex h-screen w-full items-center justify-center">
+    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+  </div>
+);
+
+// Lazy load pages for better initial bundle size
+const Index = lazy(() => import("./pages/Index"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Login = lazy(() => import("./pages/auth/Login"));
+const Onboarding = lazy(() => import("./pages/auth/Onboarding"));
+const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
 
 // Orders
-import OrdersPage from "./pages/orders/OrdersPage";
-import TransactionsPage from "./pages/orders/TransactionsPage";
-import AccountBalancingPage from "./pages/orders/AccountBalancingPage";
+const OrdersPage = lazy(() => import("./pages/orders/OrdersPage"));
+const TransactionsPage = lazy(() => import("./pages/orders/TransactionsPage"));
+const AccountBalancingPage = lazy(() => import("./pages/orders/AccountBalancingPage"));
 
 // Stocks
-import ProductsPage from "./pages/stocks/ProductsPage";
-import CategoriesPage from "./pages/stocks/CategoriesPage";
-import IngredientsPage from "./pages/stocks/IngredientsPage";
-import VariationsPage from "./pages/stocks/VariationsPage";
-import AddOnsPage from "./pages/stocks/AddOnsPage";
-import CombosPage from "./pages/stocks/CombosPage";
+const ProductsPage = lazy(() => import("./pages/stocks/ProductsPage"));
+const CategoriesPage = lazy(() => import("./pages/stocks/CategoriesPage"));
+const IngredientsPage = lazy(() => import("./pages/stocks/IngredientsPage"));
+const VariationsPage = lazy(() => import("./pages/stocks/VariationsPage"));
+const AddOnsPage = lazy(() => import("./pages/stocks/AddOnsPage"));
+const CombosPage = lazy(() => import("./pages/stocks/CombosPage"));
 
 // Procurement
-import InventoriesPage from "./pages/procurement/InventoriesPage";
-import StockTransferPage from "./pages/procurement/StockTransferPage";
-import LocationsPage from "./pages/procurement/LocationsPage";
-import ProcurementEquipmentPage from "./pages/procurement/EquipmentPage";
+const InventoriesPage = lazy(() => import("./pages/procurement/InventoriesPage"));
+const StockTransferPage = lazy(() => import("./pages/procurement/StockTransferPage"));
+const LocationsPage = lazy(() => import("./pages/procurement/LocationsPage"));
+const ProcurementEquipmentPage = lazy(() => import("./pages/procurement/EquipmentPage"));
 
 // Suppliers
-import SuppliersPage from "./pages/suppliers/SuppliersPage";
+const SuppliersPage = lazy(() => import("./pages/suppliers/SuppliersPage"));
 
 // Customers
-import CustomersPage from "./pages/customers/CustomersPage";
+const CustomersPage = lazy(() => import("./pages/customers/CustomersPage"));
 
 // Marketing
-import DiscountCodesPage from "./pages/marketing/DiscountCodesPage";
-import LoyaltyPage from "./pages/marketing/LoyaltyPage";
-import ReferralsPage from "./pages/marketing/ReferralsPage";
+const DiscountCodesPage = lazy(() => import("./pages/marketing/DiscountCodesPage"));
+const LoyaltyPage = lazy(() => import("./pages/marketing/LoyaltyPage"));
+const ReferralsPage = lazy(() => import("./pages/marketing/ReferralsPage"));
 
 // HR
-import StaffPage from "./pages/hr/StaffPage";
-import ShiftsPage from "./pages/hr/ShiftsPage";
-import PayslipsPage from "./pages/hr/PayslipsPage";
-import RolesPage from "./pages/hr/RolesPage";
+const StaffPage = lazy(() => import("./pages/hr/StaffPage"));
+const ShiftsPage = lazy(() => import("./pages/hr/ShiftsPage"));
+const PayslipsPage = lazy(() => import("./pages/hr/PayslipsPage"));
+const RolesPage = lazy(() => import("./pages/hr/RolesPage"));
 
 // Bookings
-import BookingsPage from "./pages/bookings/BookingsPage";
-import ReservationsPage from "./pages/bookings/ReservationsPage";
-import EventsPage from "./pages/bookings/EventsPage";
-import CalendarPage from "./pages/bookings/CalendarPage";
+const BookingsPage = lazy(() => import("./pages/bookings/BookingsPage"));
+const ReservationsPage = lazy(() => import("./pages/bookings/ReservationsPage"));
+const EventsPage = lazy(() => import("./pages/bookings/EventsPage"));
+const CalendarPage = lazy(() => import("./pages/bookings/CalendarPage"));
 
 // Payouts
-import PayoutsPage from "./pages/payouts/PayoutsPage";
+const PayoutsPage = lazy(() => import("./pages/payouts/PayoutsPage"));
 
 // Reports
-import ReportsPage from "./pages/reports/ReportsPage";
-import DownloadReportsPage from "./pages/reports/DownloadReportsPage";
-import BestSellersPage from "./pages/reports/BestSellersPage";
-import DailySalesPage from "./pages/reports/DailySalesPage";
-import CategoryReportPage from "./pages/reports/CategoryReportPage";
-import StockReportPage from "./pages/reports/StockReportPage";
+const ReportsPage = lazy(() => import("./pages/reports/ReportsPage"));
+const DownloadReportsPage = lazy(() => import("./pages/reports/DownloadReportsPage"));
+const BestSellersPage = lazy(() => import("./pages/reports/BestSellersPage"));
+const DailySalesPage = lazy(() => import("./pages/reports/DailySalesPage"));
+const CategoryReportPage = lazy(() => import("./pages/reports/CategoryReportPage"));
+const StockReportPage = lazy(() => import("./pages/reports/StockReportPage"));
 
 // Storefront
-import StorefrontPage from "./pages/storefront/StorefrontPage";
-import ThemePage from "./pages/storefront/ThemePage";
-import PagesPage from "./pages/storefront/PagesPage";
-import StorefrontSettingsPage from "./pages/storefront/StorefrontSettingsPage";
+const StorefrontPage = lazy(() => import("./pages/storefront/StorefrontPage"));
+const ThemePage = lazy(() => import("./pages/storefront/ThemePage"));
+const PagesPage = lazy(() => import("./pages/storefront/PagesPage"));
+const StorefrontSettingsPage = lazy(() => import("./pages/storefront/StorefrontSettingsPage"));
 
 // Operations
-import OperationsPage from "./pages/operations/OperationsPage";
-import EquipmentPage from "./pages/operations/EquipmentPage";
-import ChecklistsPage from "./pages/operations/ChecklistsPage";
-import KpiPage from "./pages/operations/KpiPage";
-import ExpensesPage from "./pages/operations/ExpensesPage";
-import SalesTargetPage from "./pages/operations/SalesTargetPage";
-import FoodCostPage from "./pages/operations/FoodCostPage";
-import WastePage from "./pages/operations/WastePage";
+const OperationsPage = lazy(() => import("./pages/operations/OperationsPage"));
+const EquipmentPage = lazy(() => import("./pages/operations/EquipmentPage"));
+const ChecklistsPage = lazy(() => import("./pages/operations/ChecklistsPage"));
+const KpiPage = lazy(() => import("./pages/operations/KpiPage"));
+const ExpensesPage = lazy(() => import("./pages/operations/ExpensesPage"));
+const SalesTargetPage = lazy(() => import("./pages/operations/SalesTargetPage"));
+const FoodCostPage = lazy(() => import("./pages/operations/FoodCostPage"));
+const WastePage = lazy(() => import("./pages/operations/WastePage"));
 
 // Workstation
-import WorkstationPage from "./pages/workstation/WorkstationPage";
-import DeliveryPage from "./pages/workstation/DeliveryPage";
-import UsersPage from "./pages/workstation/UsersPage";
-import WorkstationShiftsPage from "./pages/workstation/WorkstationShiftsPage";
-import ActivityPage from "./pages/workstation/ActivityPage";
-import WorkstationSettingsPage from "./pages/workstation/WorkstationSettingsPage";
+const WorkstationPage = lazy(() => import("./pages/workstation/WorkstationPage"));
+const DeliveryPage = lazy(() => import("./pages/workstation/DeliveryPage"));
+const UsersPage = lazy(() => import("./pages/workstation/UsersPage"));
+const WorkstationShiftsPage = lazy(() => import("./pages/workstation/WorkstationShiftsPage"));
+const ActivityPage = lazy(() => import("./pages/workstation/ActivityPage"));
+const WorkstationSettingsPage = lazy(() => import("./pages/workstation/WorkstationSettingsPage"));
 
 // Plugins
-import PluginsPage from "./pages/plugins/PluginsPage";
-import OmnichannelPage from "./pages/plugins/OmnichannelPage";
-import IntegrationsPage from "./pages/plugins/IntegrationsPage";
+const PluginsPage = lazy(() => import("./pages/plugins/PluginsPage"));
+const OmnichannelPage = lazy(() => import("./pages/plugins/OmnichannelPage"));
+const IntegrationsPage = lazy(() => import("./pages/plugins/IntegrationsPage"));
 
 // Settings
-import SettingsPage from "./pages/settings/SettingsPage";
+const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 
-const queryClient = new QueryClient();
+// Optimized QueryClient with sensible defaults
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 30, // 30 minutes (formerly cacheTime)
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -106,103 +126,105 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth/login" element={<Login />} />
-            <Route path="/auth/onboarding" element={<Onboarding />} />
-            <Route path="/auth/forgot-password" element={<ForgotPassword />} />
-            
-            <Route element={<DashboardLayout />}>
-              <Route path="/dashboard" element={<Dashboard />} />
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth/login" element={<Login />} />
+              <Route path="/auth/onboarding" element={<Onboarding />} />
+              <Route path="/auth/forgot-password" element={<ForgotPassword />} />
               
-              {/* Orders */}
-              <Route path="/orders" element={<OrdersPage />} />
-              <Route path="/orders/transactions" element={<TransactionsPage />} />
-              <Route path="/orders/account" element={<AccountBalancingPage />} />
+              <Route element={<DashboardLayout />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                
+                {/* Orders */}
+                <Route path="/orders" element={<OrdersPage />} />
+                <Route path="/orders/transactions" element={<TransactionsPage />} />
+                <Route path="/orders/account" element={<AccountBalancingPage />} />
+                
+                {/* Stocks */}
+                <Route path="/stocks/products" element={<ProductsPage />} />
+                <Route path="/stocks/categories" element={<CategoriesPage />} />
+                <Route path="/stocks/ingredients" element={<IngredientsPage />} />
+                <Route path="/stocks/variations" element={<VariationsPage />} />
+                <Route path="/stocks/addons" element={<AddOnsPage />} />
+                <Route path="/stocks/combos" element={<CombosPage />} />
+                
+                {/* Procurement */}
+                <Route path="/procurement/inventories" element={<InventoriesPage />} />
+                <Route path="/procurement/transfers" element={<StockTransferPage />} />
+                <Route path="/procurement/locations" element={<LocationsPage />} />
+                <Route path="/procurement/equipment" element={<ProcurementEquipmentPage />} />
+                
+                {/* Suppliers */}
+                <Route path="/suppliers" element={<SuppliersPage />} />
+                
+                {/* Customers */}
+                <Route path="/customers" element={<CustomersPage />} />
+                
+                {/* Marketing */}
+                <Route path="/marketing/discounts" element={<DiscountCodesPage />} />
+                <Route path="/marketing/loyalty" element={<LoyaltyPage />} />
+                <Route path="/marketing/referrals" element={<ReferralsPage />} />
+                
+                {/* HR */}
+                <Route path="/hr/staff" element={<StaffPage />} />
+                <Route path="/hr/shifts" element={<ShiftsPage />} />
+                <Route path="/hr/payslips" element={<PayslipsPage />} />
+                <Route path="/hr/roles" element={<RolesPage />} />
+                
+                {/* Reports */}
+                <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/reports/download" element={<DownloadReportsPage />} />
+                <Route path="/reports/bestsellers" element={<BestSellersPage />} />
+                <Route path="/reports/daily-sales" element={<DailySalesPage />} />
+                <Route path="/reports/category" element={<CategoryReportPage />} />
+                <Route path="/reports/stock" element={<StockReportPage />} />
+                
+                {/* Bookings */}
+                <Route path="/bookings" element={<BookingsPage />} />
+                <Route path="/bookings/reservations" element={<ReservationsPage />} />
+                <Route path="/bookings/events" element={<EventsPage />} />
+                <Route path="/bookings/calendar" element={<CalendarPage />} />
+                
+                {/* Payouts */}
+                <Route path="/payouts" element={<PayoutsPage />} />
+                
+                {/* Storefront */}
+                <Route path="/storefront" element={<StorefrontPage />} />
+                <Route path="/storefront/theme" element={<ThemePage />} />
+                <Route path="/storefront/pages" element={<PagesPage />} />
+                <Route path="/storefront/settings" element={<StorefrontSettingsPage />} />
+                
+                {/* Operations */}
+                <Route path="/operations" element={<OperationsPage />} />
+                <Route path="/operations/equipment" element={<EquipmentPage />} />
+                <Route path="/operations/checklists" element={<ChecklistsPage />} />
+                <Route path="/operations/kpi" element={<KpiPage />} />
+                <Route path="/operations/expenses" element={<ExpensesPage />} />
+                <Route path="/operations/sales-target" element={<SalesTargetPage />} />
+                <Route path="/operations/food-cost" element={<FoodCostPage />} />
+                <Route path="/operations/waste" element={<WastePage />} />
+                
+                {/* Workstation */}
+                <Route path="/workstation" element={<WorkstationPage />} />
+                <Route path="/workstation/delivery" element={<DeliveryPage />} />
+                <Route path="/workstation/users" element={<UsersPage />} />
+                <Route path="/workstation/shifts" element={<WorkstationShiftsPage />} />
+                <Route path="/workstation/activity" element={<ActivityPage />} />
+                <Route path="/workstation/settings" element={<WorkstationSettingsPage />} />
+                
+                {/* Plugins */}
+                <Route path="/plugins" element={<PluginsPage />} />
+                <Route path="/plugins/omnichannel" element={<OmnichannelPage />} />
+                <Route path="/plugins/integrations" element={<IntegrationsPage />} />
+                
+                {/* Settings */}
+                <Route path="/settings" element={<SettingsPage />} />
+              </Route>
               
-              {/* Stocks */}
-              <Route path="/stocks/products" element={<ProductsPage />} />
-              <Route path="/stocks/categories" element={<CategoriesPage />} />
-              <Route path="/stocks/ingredients" element={<IngredientsPage />} />
-              <Route path="/stocks/variations" element={<VariationsPage />} />
-              <Route path="/stocks/addons" element={<AddOnsPage />} />
-              <Route path="/stocks/combos" element={<CombosPage />} />
-              
-              {/* Procurement */}
-              <Route path="/procurement/inventories" element={<InventoriesPage />} />
-              <Route path="/procurement/transfers" element={<StockTransferPage />} />
-              <Route path="/procurement/locations" element={<LocationsPage />} />
-              <Route path="/procurement/equipment" element={<ProcurementEquipmentPage />} />
-              
-              {/* Suppliers */}
-              <Route path="/suppliers" element={<SuppliersPage />} />
-              
-              {/* Customers */}
-              <Route path="/customers" element={<CustomersPage />} />
-              
-              {/* Marketing */}
-              <Route path="/marketing/discounts" element={<DiscountCodesPage />} />
-              <Route path="/marketing/loyalty" element={<LoyaltyPage />} />
-              <Route path="/marketing/referrals" element={<ReferralsPage />} />
-              
-              {/* HR */}
-              <Route path="/hr/staff" element={<StaffPage />} />
-              <Route path="/hr/shifts" element={<ShiftsPage />} />
-              <Route path="/hr/payslips" element={<PayslipsPage />} />
-              <Route path="/hr/roles" element={<RolesPage />} />
-              
-              {/* Reports */}
-              <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/reports/download" element={<DownloadReportsPage />} />
-              <Route path="/reports/bestsellers" element={<BestSellersPage />} />
-              <Route path="/reports/daily-sales" element={<DailySalesPage />} />
-              <Route path="/reports/category" element={<CategoryReportPage />} />
-              <Route path="/reports/stock" element={<StockReportPage />} />
-              
-              {/* Bookings */}
-              <Route path="/bookings" element={<BookingsPage />} />
-              <Route path="/bookings/reservations" element={<ReservationsPage />} />
-              <Route path="/bookings/events" element={<EventsPage />} />
-              <Route path="/bookings/calendar" element={<CalendarPage />} />
-              
-              {/* Payouts */}
-              <Route path="/payouts" element={<PayoutsPage />} />
-              
-              {/* Storefront */}
-              <Route path="/storefront" element={<StorefrontPage />} />
-              <Route path="/storefront/theme" element={<ThemePage />} />
-              <Route path="/storefront/pages" element={<PagesPage />} />
-              <Route path="/storefront/settings" element={<StorefrontSettingsPage />} />
-              
-              {/* Operations */}
-              <Route path="/operations" element={<OperationsPage />} />
-              <Route path="/operations/equipment" element={<EquipmentPage />} />
-              <Route path="/operations/checklists" element={<ChecklistsPage />} />
-              <Route path="/operations/kpi" element={<KpiPage />} />
-              <Route path="/operations/expenses" element={<ExpensesPage />} />
-              <Route path="/operations/sales-target" element={<SalesTargetPage />} />
-              <Route path="/operations/food-cost" element={<FoodCostPage />} />
-              <Route path="/operations/waste" element={<WastePage />} />
-              
-              {/* Workstation */}
-              <Route path="/workstation" element={<WorkstationPage />} />
-              <Route path="/workstation/delivery" element={<DeliveryPage />} />
-              <Route path="/workstation/users" element={<UsersPage />} />
-              <Route path="/workstation/shifts" element={<WorkstationShiftsPage />} />
-              <Route path="/workstation/activity" element={<ActivityPage />} />
-              <Route path="/workstation/settings" element={<WorkstationSettingsPage />} />
-              
-              {/* Plugins */}
-              <Route path="/plugins" element={<PluginsPage />} />
-              <Route path="/plugins/omnichannel" element={<OmnichannelPage />} />
-              <Route path="/plugins/integrations" element={<IntegrationsPage />} />
-              
-              {/* Settings */}
-              <Route path="/settings" element={<SettingsPage />} />
-            </Route>
-            
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </StoreProvider>
     </TooltipProvider>
