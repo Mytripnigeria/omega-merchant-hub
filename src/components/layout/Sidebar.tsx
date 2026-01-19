@@ -163,6 +163,7 @@ const navItems: NavItem[] = [
     children: [
       { title: "Theme", href: "/storefront/theme" },
       { title: "Pages", href: "/storefront/pages" },
+      { title: "Feature Banners", href: "/storefront/banners" },
       { title: "Settings", href: "/storefront/settings" },
     ],
   },

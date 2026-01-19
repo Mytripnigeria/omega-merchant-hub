@@ -79,6 +79,7 @@ const StockReportPage = lazy(() => import("./pages/reports/StockReportPage"));
 const StorefrontPage = lazy(() => import("./pages/storefront/StorefrontPage"));
 const ThemePage = lazy(() => import("./pages/storefront/ThemePage"));
 const PagesPage = lazy(() => import("./pages/storefront/PagesPage"));
+const FeatureBannersPage = lazy(() => import("./pages/storefront/FeatureBannersPage"));
 const StorefrontSettingsPage = lazy(() => import("./pages/storefront/StorefrontSettingsPage"));
 
 // Operations
@@ -193,6 +194,7 @@ const App = () => (
                 <Route path="/storefront" element={<StorefrontPage />} />
                 <Route path="/storefront/theme" element={<ThemePage />} />
                 <Route path="/storefront/pages" element={<PagesPage />} />
+                <Route path="/storefront/banners" element={<FeatureBannersPage />} />
                 <Route path="/storefront/settings" element={<StorefrontSettingsPage />} />
                 
                 {/* Operations */}
