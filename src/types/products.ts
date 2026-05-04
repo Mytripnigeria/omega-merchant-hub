@@ -12,36 +12,50 @@ export interface ProductVariation {
 export interface ProductIngredient {
   id: string;
   ingredientId: string;
-  name: string;
+  name?: string;
   unit: string;
   quantity: number;
+  ingredient?: {
+    id: string;
+    name: string;
+    unit: string;
+  };
+}
+
+export interface ProductAddonGroupSummary {
+  id: string;
+  name: string;
 }
 
 export interface Product {
   id: string;
   name: string;
-  description: string;
-  productCode: string;
-  category: string;
-  categoryId: string;
+  description?: string;
+  productCode?: string;
+  category?: string;
+  categoryId?: string;
   price: number;
   sellingPrice: number;
-  sku: string;
+  sku?: string;
   stock: number;
   status: boolean;
   supplierId?: string;
   supplier?: string;
-  prepTime: number;
-  taxOption: string;
-  discountOption: string;
-  visibility: ProductVisibility[];
-  ingredients: ProductIngredient[];
-  variations: ProductVariation[];
-  addons: string[];
+  prepTime?: string | number;
+  taxOption?: string;
+  discountOption?: string;
+  visibility?: ProductVisibility[];
+  productIngredients?: ProductIngredient[];
+  ingredients?: ProductIngredient[];
+  variations?: ProductVariation[];
+  addonGroups?: ProductAddonGroupSummary[];
+  addons?: string[];
+  imageUrl?: string | null;
+  imageFileId?: string | null;
   image?: string;
   storeId: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type ProductVisibility = "pos" | "storefront" | "ubereats" | "glovo" | "chowdeck";
@@ -84,49 +98,76 @@ export interface Ingredient {
   storeId: string;
 }
 
+export interface ComboItem {
+  id: string;
+  comboId: string;
+  productId: string;
+  quantity: number;
+  product?: {
+    id: string;
+    name: string;
+    price: number;
+    sellingPrice: number;
+    imageUrl?: string;
+  };
+}
+
 export interface Combo {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   price: number;
   originalPrice: number;
-  products: { productId: string; quantity: number }[];
-  image?: string;
+  items: ComboItem[];
+  imageUrl?: string;
   isActive: boolean;
+  sales: number;
   storeId: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // API Request/Response Types
 export interface CreateProductRequest {
   name: string;
-  description: string;
-  categoryId: string;
-  price: number;
-  sellingPrice: number;
+  description?: string;
+  productCode?: string;
+  categoryId?: string;
+  price?: number;
+  sellingPrice?: number;
   sku?: string;
   stock?: number;
+  status?: boolean;
   supplierId?: string;
-  prepTime?: number;
+  prepTime?: string;
   taxOption?: string;
+  discountOption?: string;
   visibility?: ProductVisibility[];
-  ingredients?: Omit<ProductIngredient, 'id'>[];
-  variations?: Omit<ProductVariation, 'id'>[];
-  addons?: string[];
+  imageUrl?: string | null;
+  imageFileId?: string | null;
+  ingredients?: { ingredientId: string; quantity: number; unit: string }[];
+  variations?: { name: string; sku?: string; price?: number; sellingPrice?: number; stock?: number }[];
+  addonGroupIds?: string[];
   storeId: string;
 }
 
 export interface UpdateProductRequest {
   name?: string;
   description?: string;
+  productCode?: string;
   categoryId?: string;
   price?: number;
   sellingPrice?: number;
+  sku?: string;
   stock?: number;
   status?: boolean;
-  prepTime?: number;
+  supplierId?: string;
+  prepTime?: string;
+  taxOption?: string;
+  discountOption?: string;
   visibility?: ProductVisibility[];
-  ingredients?: ProductIngredient[];
-  variations?: ProductVariation[];
+  imageUrl?: string | null;
+  imageFileId?: string | null;
 }
 
 export interface ProductFilters {

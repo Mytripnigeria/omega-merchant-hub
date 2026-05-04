@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLoading } from "@/hooks/use-loading";
+import { useCategories, useCategoryStats, useCreateCategory, useUpdateCategory, useDeleteCategory, useReorderCategories, useUploadImage } from "@/hooks/api/use-stock";
+import { useStore } from "@/contexts/StoreContext";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +33,8 @@ import {
   GripVertical,
   Search,
   Upload,
+  Loader2,
+  X,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -64,21 +67,14 @@ interface Category {
   name: string;
   emoji: string;
   description: string;
-  image: string | null;
+  imageUrl?: string | null;
+  imageFileId?: string | null;
   productCount: number;
   isActive: boolean;
   order: number;
   visibility: string[];
+  storeId: string;
 }
-
-const mockCategories: Category[] = [
-  { id: "cat-1", name: "Popular", emoji: "🔥", description: "Most ordered items", image: null, productCount: 12, isActive: true, order: 1, visibility: ["pos", "storefront"] },
-  { id: "cat-2", name: "New Release", emoji: "✨", description: "Fresh additions to our menu", image: null, productCount: 5, isActive: true, order: 2, visibility: ["pos", "storefront", "ubereats"] },
-  { id: "cat-3", name: "Specialties", emoji: "🏆", description: "Chef's special dishes", image: null, productCount: 8, isActive: true, order: 3, visibility: ["pos", "storefront"] },
-  { id: "cat-4", name: "Starters", emoji: "🥗", description: "Appetizers and small plates", image: null, productCount: 6, isActive: true, order: 4, visibility: ["pos", "storefront"] },
-  { id: "cat-5", name: "Mains", emoji: "🍛", description: "Main course dishes", image: null, productCount: 15, isActive: true, order: 5, visibility: ["pos", "storefront", "ubereats"] },
-  { id: "cat-6", name: "Desserts", emoji: "🍰", description: "Sweet treats", image: null, productCount: 4, isActive: false, order: 6, visibility: ["pos"] },
-];
 
 // Sortable Category Card Component
 interface SortableCategoryCardProps {
@@ -86,9 +82,10 @@ interface SortableCategoryCardProps {
   onView: (category: Category) => void;
   onEdit: (category: Category) => void;
   onToggle: (categoryId: string) => void;
+  onDelete: (category: Category) => void;
 }
 
-function SortableCategoryCard({ category, onView, onEdit, onToggle }: SortableCategoryCardProps) {
+function SortableCategoryCard({ category, onView, onEdit, onToggle, onDelete }: SortableCategoryCardProps) {
   const {
     attributes,
     listeners,
@@ -137,7 +134,10 @@ function SortableCategoryCard({ category, onView, onEdit, onToggle }: SortableCa
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={(e) => { e.stopPropagation(); onDelete(category); }}
+              >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
               </DropdownMenuItem>
@@ -211,19 +211,162 @@ function CategoriesSkeleton() {
   );
 }
 
+const VISIBILITY_OPTIONS: { id: string; label: string; value: string }[] = [
+  { id: "pos", label: "Show on POS", value: "pos" },
+  { id: "self", label: "Show on Self-Order", value: "self" },
+  { id: "storefront", label: "Show on Storefront", value: "storefront" },
+  { id: "omni", label: "Show on Omnichannels", value: "omni" },
+];
+
+const DEFAULT_VISIBILITY = ["pos", "storefront"];
+
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>(mockCategories);
+  const { currentStore } = useStore();
+  const storeId = currentStore?.id;
+  const { data: categoriesData, isLoading } = useCategories(storeId ? { storeId } : undefined);
+  const categories: Category[] = (categoriesData as { data?: Category[] })?.data ?? (categoriesData as Category[] | undefined) ?? [];
+  const updateCategory = useUpdateCategory();
+  const createCategory = useCreateCategory();
+  const deleteCategory = useDeleteCategory();
+  const reorderCategories = useReorderCategories();
+  const uploadImage = useUploadImage();
+
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const isLoading = useLoading(1000);
+
+  // Form state
+  const [formName, setFormName] = useState("");
+  const [formEmoji, setFormEmoji] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const [formImageUrl, setFormImageUrl] = useState<string | null>(null);
+  const [formImageFileId, setFormImageFileId] = useState<string | null>(null);
+  const [formVisibility, setFormVisibility] = useState<string[]>(DEFAULT_VISIBILITY);
+  const [formIsActive, setFormIsActive] = useState(true);
+  const addFileInputRef = useRef<HTMLInputElement | null>(null);
+  const editFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const resetForm = () => {
+    setFormName("");
+    setFormEmoji("");
+    setFormDescription("");
+    setFormImageUrl(null);
+    setFormImageFileId(null);
+    setFormVisibility(DEFAULT_VISIBILITY);
+    setFormIsActive(true);
+  };
+
+  const populateFormFromCategory = (c: Category) => {
+    setFormName(c.name);
+    setFormEmoji(c.emoji ?? "");
+    setFormDescription(c.description ?? "");
+    setFormImageUrl(c.imageUrl ?? null);
+    setFormImageFileId(c.imageFileId ?? null);
+    setFormVisibility(c.visibility ?? DEFAULT_VISIBILITY);
+    setFormIsActive(c.isActive);
+  };
+
+  useEffect(() => {
+    if (selectedCategory && isEditMode) {
+      populateFormFromCategory(selectedCategory);
+    }
+  }, [selectedCategory, isEditMode]);
+
+  const toggleVisibility = (value: string, checked: boolean) => {
+    setFormVisibility((prev) =>
+      checked ? Array.from(new Set([...prev, value])) : prev.filter((v) => v !== value),
+    );
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const result = await uploadImage.mutateAsync({ file, folder: "categories" });
+      setFormImageUrl(result.url);
+      setFormImageFileId(result.id);
+      toast.success("Image uploaded");
+    } catch (err) {
+      toast.error((err as Error).message ?? "Upload failed");
+    }
+  };
+
+  const clearFormImage = () => {
+    setFormImageUrl(null);
+    setFormImageFileId(null);
+  };
+
+  const handleCreate = async () => {
+    if (!storeId) {
+      toast.error("Select a store first");
+      return;
+    }
+    if (!formName.trim()) {
+      toast.error("Category name is required");
+      return;
+    }
+    try {
+      await createCategory.mutateAsync({
+        name: formName.trim(),
+        emoji: formEmoji || undefined,
+        description: formDescription || undefined,
+        imageFileId: formImageFileId,
+        visibility: formVisibility,
+        isActive: formIsActive,
+        storeId,
+      } as Parameters<typeof createCategory.mutateAsync>[0]);
+      toast.success("Category created");
+      setIsAddSheetOpen(false);
+      resetForm();
+    } catch (err) {
+      toast.error((err as Error).message ?? "Failed to create category");
+    }
+  };
+
+  const handleSave = async () => {
+    if (!selectedCategory) return;
+    if (!formName.trim()) {
+      toast.error("Category name is required");
+      return;
+    }
+    try {
+      await updateCategory.mutateAsync({
+        id: selectedCategory.id,
+        data: {
+          name: formName.trim(),
+          emoji: formEmoji || undefined,
+          description: formDescription || undefined,
+          imageFileId: formImageFileId,
+          visibility: formVisibility,
+          isActive: formIsActive,
+        },
+      });
+      toast.success("Category updated");
+      setIsViewSheetOpen(false);
+      setIsEditMode(false);
+      setSelectedCategory(null);
+    } catch (err) {
+      toast.error((err as Error).message ?? "Failed to update category");
+    }
+  };
+
+  const handleDelete = (category: Category) => {
+    deleteCategory.mutate(category.id, {
+      onSuccess: () => {
+        toast.success("Category deleted");
+        setIsViewSheetOpen(false);
+        setSelectedCategory(null);
+      },
+      onError: (e: Error) => toast.error(e.message ?? "Failed to delete"),
+    });
+  };
 
   const toggleCategory = (categoryId: string) => {
-    setCategories(categories.map(c => 
-      c.id === categoryId ? { ...c, isActive: !c.isActive } : c
-    ));
+    const cat = categories.find(c => c.id === categoryId);
+    if (cat) updateCategory.mutate({ id: categoryId, data: { isActive: !cat.isActive } });
   };
 
   const handleViewCategory = (category: Category) => {
@@ -236,6 +379,11 @@ export default function CategoriesPage() {
     setSelectedCategory(category);
     setIsEditMode(true);
     setIsViewSheetOpen(true);
+  };
+
+  const handleAddNewClick = () => {
+    resetForm();
+    setIsAddSheetOpen(true);
   };
 
   const sensors = useSensors(
@@ -253,13 +401,11 @@ export default function CategoriesPage() {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      setCategories((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-        const newItems = arrayMove(items, oldIndex, newIndex);
-        // Update order values
-        return newItems.map((item, index) => ({ ...item, order: index + 1 }));
-      });
+      const oldIndex = categories.findIndex((item) => item.id === active.id);
+      const newIndex = categories.findIndex((item) => item.id === over.id);
+      const reordered = arrayMove(categories, oldIndex, newIndex);
+      const items = reordered.map((item, index) => ({ id: item.id, order: index + 1 }));
+      reorderCategories.mutate(items);
       toast.success("Categories reordered");
     }
   };
@@ -276,7 +422,7 @@ export default function CategoriesPage() {
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Categories</h1>
           <p className="text-sm text-muted-foreground">Organize your menu with categories</p>
         </div>
-        <Button size="sm" className="w-full sm:w-auto" onClick={() => setIsAddSheetOpen(true)}>
+        <Button size="sm" className="w-full sm:w-auto" onClick={handleAddNewClick}>
           <Plus className="mr-2 h-4 w-4" />
           Add Category
         </Button>
@@ -339,6 +485,7 @@ export default function CategoriesPage() {
                   onView={handleViewCategory}
                   onEdit={handleEditCategory}
                   onToggle={toggleCategory}
+                  onDelete={handleDelete}
                 />
               ))}
             </div>
@@ -358,47 +505,93 @@ export default function CategoriesPage() {
           <div className="grid gap-4 py-6">
             <div className="space-y-2">
               <Label htmlFor="name">Category Name</Label>
-              <Input id="name" placeholder="e.g., Breakfast" />
+              <Input
+                id="name"
+                placeholder="e.g., Breakfast"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="emoji">Emoji</Label>
-              <Input id="emoji" placeholder="e.g., 🍳" className="text-2xl" />
+              <Input
+                id="emoji"
+                placeholder="e.g., 🍳"
+                className="text-2xl"
+                value={formEmoji}
+                onChange={(e) => setFormEmoji(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>Description</Label>
-              <Textarea placeholder="Brief description of this category..." rows={3} />
+              <Textarea
+                placeholder="Brief description of this category..."
+                rows={3}
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>Image</Label>
-              <div className="border-2 border-dashed rounded-lg p-6 text-center">
-                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
-              </div>
+              <input
+                ref={addFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              {formImageUrl ? (
+                <div className="relative border rounded-lg overflow-hidden">
+                  <img src={formImageUrl} alt="Category" className="w-full h-40 object-cover" />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    className="absolute top-2 right-2 h-7 w-7"
+                    onClick={clearFormImage}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => addFileInputRef.current?.click()}
+                  disabled={uploadImage.isPending}
+                  className="w-full border-2 border-dashed rounded-lg p-6 text-center hover:bg-muted/50 disabled:opacity-50"
+                >
+                  {uploadImage.isPending ? (
+                    <Loader2 className="h-8 w-8 mx-auto text-muted-foreground mb-2 animate-spin" />
+                  ) : (
+                    <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  )}
+                  <p className="text-sm text-muted-foreground">
+                    {uploadImage.isPending ? "Uploading..." : "Click to upload"}
+                  </p>
+                </button>
+              )}
             </div>
             <div className="space-y-3">
               <Label>Visibility</Label>
               <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="pos" defaultChecked />
-                  <label htmlFor="pos" className="text-sm">Show on POS</label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="self" />
-                  <label htmlFor="self" className="text-sm">Show on Self-Order</label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="storefront" defaultChecked />
-                  <label htmlFor="storefront" className="text-sm">Show on Storefront</label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="omni" />
-                  <label htmlFor="omni" className="text-sm">Show on Omnichannels</label>
-                </div>
+                {VISIBILITY_OPTIONS.map((opt) => (
+                  <div key={opt.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`add-${opt.id}`}
+                      checked={formVisibility.includes(opt.value)}
+                      onCheckedChange={(checked) => toggleVisibility(opt.value, checked === true)}
+                    />
+                    <label htmlFor={`add-${opt.id}`} className="text-sm">{opt.label}</label>
+                  </div>
+                ))}
               </div>
             </div>
             <div className="flex items-center justify-between pt-4 border-t">
               <Label>Status</Label>
-              <Select defaultValue="active">
+              <Select
+                value={formIsActive ? "active" : "inactive"}
+                onValueChange={(v) => setFormIsActive(v === "active")}
+              >
                 <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
@@ -408,10 +601,20 @@ export default function CategoriesPage() {
             </div>
           </div>
           <SheetFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsAddSheetOpen(false)} className="w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={() => setIsAddSheetOpen(false)}
+              className="w-full sm:w-auto"
+              disabled={createCategory.isPending}
+            >
               Cancel
             </Button>
-            <Button className="w-full sm:w-auto">
+            <Button
+              className="w-full sm:w-auto"
+              onClick={handleCreate}
+              disabled={createCategory.isPending}
+            >
+              {createCategory.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Category
             </Button>
           </SheetFooter>
@@ -439,47 +642,85 @@ export default function CategoriesPage() {
                   <>
                     <div className="space-y-2">
                       <Label>Category Name</Label>
-                      <Input defaultValue={selectedCategory.name} />
+                      <Input value={formName} onChange={(e) => setFormName(e.target.value)} />
                     </div>
                     <div className="space-y-2">
                       <Label>Emoji</Label>
-                      <Input defaultValue={selectedCategory.emoji} className="text-2xl" />
+                      <Input
+                        value={formEmoji}
+                        onChange={(e) => setFormEmoji(e.target.value)}
+                        className="text-2xl"
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>Description</Label>
-                      <Textarea defaultValue={selectedCategory.description} rows={3} />
+                      <Textarea
+                        value={formDescription}
+                        onChange={(e) => setFormDescription(e.target.value)}
+                        rows={3}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>Image</Label>
-                      <div className="border-2 border-dashed rounded-lg p-6 text-center">
-                        <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                        <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
-                      </div>
+                      <input
+                        ref={editFileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
+                      {formImageUrl ? (
+                        <div className="relative border rounded-lg overflow-hidden">
+                          <img src={formImageUrl} alt="Category" className="w-full h-40 object-cover" />
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon"
+                            className="absolute top-2 right-2 h-7 w-7"
+                            onClick={clearFormImage}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => editFileInputRef.current?.click()}
+                          disabled={uploadImage.isPending}
+                          className="w-full border-2 border-dashed rounded-lg p-6 text-center hover:bg-muted/50 disabled:opacity-50"
+                        >
+                          {uploadImage.isPending ? (
+                            <Loader2 className="h-8 w-8 mx-auto text-muted-foreground mb-2 animate-spin" />
+                          ) : (
+                            <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                          )}
+                          <p className="text-sm text-muted-foreground">
+                            {uploadImage.isPending ? "Uploading..." : "Click to upload"}
+                          </p>
+                        </button>
+                      )}
                     </div>
                     <div className="space-y-3">
                       <Label>Visibility</Label>
                       <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox id="edit-pos" defaultChecked={selectedCategory.visibility.includes("pos")} />
-                          <label htmlFor="edit-pos" className="text-sm">Show on POS</label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox id="edit-self" defaultChecked={selectedCategory.visibility.includes("self")} />
-                          <label htmlFor="edit-self" className="text-sm">Show on Self-Order</label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox id="edit-storefront" defaultChecked={selectedCategory.visibility.includes("storefront")} />
-                          <label htmlFor="edit-storefront" className="text-sm">Show on Storefront</label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox id="edit-omni" defaultChecked={selectedCategory.visibility.includes("ubereats")} />
-                          <label htmlFor="edit-omni" className="text-sm">Show on Omnichannels</label>
-                        </div>
+                        {VISIBILITY_OPTIONS.map((opt) => (
+                          <div key={opt.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`edit-${opt.id}`}
+                              checked={formVisibility.includes(opt.value)}
+                              onCheckedChange={(checked) => toggleVisibility(opt.value, checked === true)}
+                            />
+                            <label htmlFor={`edit-${opt.id}`} className="text-sm">{opt.label}</label>
+                          </div>
+                        ))}
                       </div>
                     </div>
                     <div className="flex items-center justify-between pt-4 border-t">
                       <Label>Status</Label>
-                      <Select defaultValue={selectedCategory.isActive ? "active" : "inactive"}>
+                      <Select
+                        value={formIsActive ? "active" : "inactive"}
+                        onValueChange={(v) => setFormIsActive(v === "active")}
+                      >
                         <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="active">Active</SelectItem>
@@ -522,17 +763,35 @@ export default function CategoriesPage() {
               <SheetFooter className="flex-col sm:flex-row gap-2">
                 {isEditMode ? (
                   <>
-                    <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsEditMode(false)}>
+                    <Button
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() => setIsEditMode(false)}
+                      disabled={updateCategory.isPending}
+                    >
                       Cancel
                     </Button>
-                    <Button className="w-full sm:w-auto">Save Changes</Button>
+                    <Button
+                      className="w-full sm:w-auto"
+                      onClick={handleSave}
+                      disabled={updateCategory.isPending}
+                    >
+                      {updateCategory.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Save Changes
+                    </Button>
                   </>
                 ) : (
                   <>
                     <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsEditMode(true)}>
                       <Edit className="h-4 w-4 mr-2" />Edit
                     </Button>
-                    <Button variant="destructive" className="w-full sm:w-auto">
+                    <Button
+                      variant="destructive"
+                      className="w-full sm:w-auto"
+                      onClick={() => handleDelete(selectedCategory)}
+                      disabled={deleteCategory.isPending}
+                    >
+                      {deleteCategory.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       <Trash2 className="h-4 w-4 mr-2" />Delete
                     </Button>
                   </>

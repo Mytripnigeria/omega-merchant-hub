@@ -1,15 +1,14 @@
-// Products API Hook
+// Products API Hook — delegates to real API
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { productService } from "@/services/mock/products";
-import type { 
-  Product, 
-  ProductFilters, 
-  CreateProductRequest, 
+import { productApi, categoryApi } from "@/services/api/stock";
+import type {
+  Product,
+  ProductFilters,
+  CreateProductRequest,
   UpdateProductRequest,
-  Category 
+  Category,
 } from "@/types/products";
 
-// Query keys
 export const productKeys = {
   all: ["products"] as const,
   lists: () => [...productKeys.all, "list"] as const,
@@ -20,45 +19,45 @@ export const productKeys = {
   categories: (storeId?: string) => [...productKeys.all, "categories", storeId] as const,
 };
 
-// Get products list
 export function useProducts(filters?: ProductFilters) {
   return useQuery({
     queryKey: productKeys.list(filters),
-    queryFn: () => productService.getProducts(filters),
+    queryFn: async () => {
+      const res = await productApi.list(filters as Record<string, string | number | boolean | undefined>);
+      return res.data ?? res;
+    },
   });
 }
 
-// Get single product
 export function useProduct(id: string) {
   return useQuery({
     queryKey: productKeys.detail(id),
-    queryFn: () => productService.getProduct(id),
+    queryFn: () => productApi.get(id),
     enabled: !!id,
   });
 }
 
-// Get product stats
 export function useProductStats(storeId?: string) {
   return useQuery({
     queryKey: productKeys.stats(storeId),
-    queryFn: () => productService.getStats(storeId),
+    queryFn: () => productApi.stats(storeId),
   });
 }
 
-// Get categories
 export function useCategories(storeId?: string) {
   return useQuery({
     queryKey: productKeys.categories(storeId),
-    queryFn: () => productService.getCategories(storeId),
+    queryFn: async () => {
+      const res = await categoryApi.list(storeId ? { storeId } : undefined);
+      return res.data ?? res;
+    },
   });
 }
 
-// Create product mutation
 export function useCreateProduct() {
   const queryClient = useQueryClient();
-  
   return useMutation({
-    mutationFn: (data: CreateProductRequest) => productService.createProduct(data),
+    mutationFn: (data: CreateProductRequest) => productApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: productKeys.lists() });
       queryClient.invalidateQueries({ queryKey: productKeys.stats() });
@@ -66,15 +65,13 @@ export function useCreateProduct() {
   });
 }
 
-// Update product mutation
 export function useUpdateProduct() {
   const queryClient = useQueryClient();
-  
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateProductRequest }) => 
-      productService.updateProduct(id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateProductRequest }) =>
+      productApi.update(id, data),
     onSuccess: (updatedProduct) => {
-      if (updatedProduct) {
+      if (updatedProduct && 'id' in updatedProduct) {
         queryClient.setQueryData(productKeys.detail(updatedProduct.id), updatedProduct);
       }
       queryClient.invalidateQueries({ queryKey: productKeys.lists() });
@@ -82,12 +79,10 @@ export function useUpdateProduct() {
   });
 }
 
-// Delete product mutation
 export function useDeleteProduct() {
   const queryClient = useQueryClient();
-  
   return useMutation({
-    mutationFn: (id: string) => productService.deleteProduct(id),
+    mutationFn: (id: string) => productApi.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: productKeys.lists() });
       queryClient.invalidateQueries({ queryKey: productKeys.stats() });
@@ -95,14 +90,13 @@ export function useDeleteProduct() {
   });
 }
 
-// Toggle product status mutation
 export function useToggleProductStatus() {
   const queryClient = useQueryClient();
-  
   return useMutation({
-    mutationFn: (id: string) => productService.toggleStatus(id),
+    mutationFn: ({ id, status }: { id: string; status: boolean }) =>
+      productApi.toggleStatus(id, status),
     onSuccess: (updatedProduct) => {
-      if (updatedProduct) {
+      if (updatedProduct && 'id' in updatedProduct) {
         queryClient.setQueryData(productKeys.detail(updatedProduct.id), updatedProduct);
       }
       queryClient.invalidateQueries({ queryKey: productKeys.lists() });
@@ -111,15 +105,91 @@ export function useToggleProductStatus() {
   });
 }
 
-// Create category mutation
 export function useCreateCategory() {
   const queryClient = useQueryClient();
-  
   return useMutation({
-    mutationFn: (data: Omit<Category, 'id' | 'productCount'>) => 
-      productService.createCategory(data),
+    mutationFn: (data: Omit<Category, 'id' | 'productCount'>) =>
+      categoryApi.create(data as Parameters<typeof categoryApi.create>[0]),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: productKeys.categories() });
+    },
+  });
+}
+
+export function useAddProductVariation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, data }: { productId: string; data: object }) =>
+      productApi.addVariation(productId, data),
+    onSuccess: (_r, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(productId) });
+      queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+    },
+  });
+}
+
+export function useUpdateProductVariation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, varId, data }: { productId: string; varId: string; data: object }) =>
+      productApi.updateVariation(productId, varId, data),
+    onSuccess: (_r, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(productId) });
+    },
+  });
+}
+
+export function useRemoveProductVariation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, varId }: { productId: string; varId: string }) =>
+      productApi.removeVariation(productId, varId),
+    onSuccess: (_r, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(productId) });
+    },
+  });
+}
+
+export function useLinkProductIngredient() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, data }: { productId: string; data: { ingredientId: string; quantity: number; unit: string } }) =>
+      productApi.linkIngredient(productId, data),
+    onSuccess: (_r, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(productId) });
+    },
+  });
+}
+
+export function useUnlinkProductIngredient() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, ingredientId }: { productId: string; ingredientId: string }) =>
+      productApi.unlinkIngredient(productId, ingredientId),
+    onSuccess: (_r, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(productId) });
+    },
+  });
+}
+
+export function useLinkProductAddonGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, groupId }: { productId: string; groupId: string }) =>
+      productApi.linkAddonGroup(productId, groupId),
+    onSuccess: (_r, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(productId) });
+    },
+  });
+}
+
+export function useUnlinkProductAddonGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, groupId }: { productId: string; groupId: string }) =>
+      productApi.unlinkAddonGroup(productId, groupId),
+    onSuccess: (_r, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(productId) });
     },
   });
 }

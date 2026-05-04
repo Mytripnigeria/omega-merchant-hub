@@ -7,3 +7,4 @@ export * from "./use-hr";
 export * from "./use-modules";
 export * from "./use-marketing";
 export * from "./use-procurement";
+export * from "./use-stock";

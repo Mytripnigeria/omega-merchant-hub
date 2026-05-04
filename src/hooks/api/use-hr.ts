@@ -1,6 +1,6 @@
 // HR API Hooks
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { hrService } from "@/services/mock/hr";
+import { hrService } from "@/services/api/hr";
 import type { StaffFilters, RoleFilters, ShiftFilters, PayslipFilters, CreateStaffRequest, UpdateStaffRequest, CreateRoleRequest, UpdateRoleRequest, CreateShiftRequest, UpdateShiftRequest, CreatePayslipRequest, UpdatePayslipRequest } from "@/types/hr";
 
 export const hrKeys = {

@@ -1,11 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLoading } from "@/hooks/use-loading";
+import {
+  useAddonGroups,
+  useAddonGroupStats,
+  useCreateAddonGroup,
+  useUpdateAddonGroup,
+  useDeleteAddonGroup,
+  useAddAddon,
+  useUpdateAddon,
+  useDeleteAddon,
+  useToggleAddonAvailability,
+} from "@/hooks/api/use-stock";
+import { useStore } from "@/contexts/StoreContext";
 import {
   Table,
   TableBody,
@@ -37,8 +48,8 @@ import {
   MoreHorizontal,
   PlusCircle,
   Search,
-  X,
   Eye,
+  Loader2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -46,73 +57,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 interface AddOn {
   id: string;
   name: string;
   price: number;
   isAvailable: boolean;
+  addOnGroupId?: string;
 }
 
 interface AddOnGroup {
   id: string;
   name: string;
-  addOns: AddOn[];
+  addons: AddOn[];
   minSelection: number;
-  maxSelection: number;
-  linkedProducts: number;
-  status: "active" | "inactive";
+  maxSelection: number | null;
+  status: boolean;
+  storeId: string;
 }
-
-const mockAddOnGroups: AddOnGroup[] = [
-  {
-    id: "addon-1",
-    name: "Extra Protein",
-    addOns: [
-      { id: "a1", name: "Extra Chicken", price: 800, isAvailable: true },
-      { id: "a2", name: "Extra Beef", price: 1000, isAvailable: true },
-      { id: "a3", name: "Extra Fish", price: 1200, isAvailable: false },
-    ],
-    minSelection: 0,
-    maxSelection: 3,
-    linkedProducts: 10,
-    status: "active",
-  },
-  {
-    id: "addon-2",
-    name: "Sides",
-    addOns: [
-      { id: "a4", name: "Plantain", price: 500, isAvailable: true },
-      { id: "a5", name: "Coleslaw", price: 400, isAvailable: true },
-      { id: "a6", name: "Moi Moi", price: 600, isAvailable: true },
-    ],
-    minSelection: 0,
-    maxSelection: 2,
-    linkedProducts: 8,
-    status: "active",
-  },
-  {
-    id: "addon-3",
-    name: "Drinks",
-    addOns: [
-      { id: "a7", name: "Coke", price: 500, isAvailable: true },
-      { id: "a8", name: "Fanta", price: 500, isAvailable: true },
-      { id: "a9", name: "Water", price: 200, isAvailable: true },
-      { id: "a10", name: "Chapman", price: 1500, isAvailable: true },
-    ],
-    minSelection: 0,
-    maxSelection: 1,
-    linkedProducts: 15,
-    status: "active",
-  },
-];
-
-const mockProducts = [
-  { id: "p1", name: "Jollof Rice", price: 2500 },
-  { id: "p2", name: "Fried Rice", price: 2800 },
-  { id: "p3", name: "Chicken Suya", price: 1500 },
-  { id: "p4", name: "Peppered Snail", price: 3500 },
-];
 
 function StatsSkeleton() {
   return (
@@ -148,14 +111,8 @@ function AddOnsSkeleton() {
             <div className="divide-y divide-border">
               {Array.from({ length: 3 }).map((_, j) => (
                 <div key={j} className="p-4 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-3 w-16" />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="h-6 w-10 rounded-full" />
-                    <Skeleton className="h-8 w-8" />
-                  </div>
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-6 w-10 rounded-full" />
                 </div>
               ))}
             </div>
@@ -166,42 +123,197 @@ function AddOnsSkeleton() {
   );
 }
 
+const formatPrice = (amount: number) =>
+  new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+  }).format(amount);
+
 export default function AddOnsPage() {
-  const [addOnGroups] = useState<AddOnGroup[]>(mockAddOnGroups);
+  const { currentStore } = useStore();
+  const storeId = currentStore?.id;
+  const { data: addOnGroupsData, isLoading } = useAddonGroups(storeId ? { storeId } : undefined);
+  const { data: stats } = useAddonGroupStats(storeId);
+  const addOnGroups: AddOnGroup[] =
+    ((addOnGroupsData as { data?: AddOnGroup[] })?.data ?? []) as AddOnGroup[];
+
+  const createGroup = useCreateAddonGroup();
+  const updateGroup = useUpdateAddonGroup();
+  const deleteGroup = useDeleteAddonGroup();
+  const addAddon = useAddAddon();
+  const updateAddon = useUpdateAddon();
+  const deleteAddon = useDeleteAddon();
+  const toggleAvailability = useToggleAddonAvailability();
+
   const [searchQuery, setSearchQuery] = useState("");
-  const isLoading = useLoading(1000);
 
-  // Sheet states
-  const [isAddGroupSheetOpen, setIsAddGroupSheetOpen] = useState(false);
-  const [isAddItemSheetOpen, setIsAddItemSheetOpen] = useState(false);
-  const [isViewGroupSheetOpen, setIsViewGroupSheetOpen] = useState(false);
+  // Group form state
+  const [isGroupSheetOpen, setIsGroupSheetOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<AddOnGroup | null>(null);
+  const [groupName, setGroupName] = useState("");
+  const [groupMin, setGroupMin] = useState<number>(0);
+  const [groupMax, setGroupMax] = useState<number | "">("");
+  const [groupStatus, setGroupStatus] = useState(true);
 
-  const formatPrice = (amount: number) => {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  // Item form state
+  const [isItemSheetOpen, setIsItemSheetOpen] = useState(false);
+  const [editingAddon, setEditingAddon] = useState<AddOn | null>(null);
+  const [itemGroupId, setItemGroupId] = useState<string | null>(null);
+  const [itemName, setItemName] = useState("");
+  const [itemPrice, setItemPrice] = useState<number>(0);
+  const [itemIsAvailable, setItemIsAvailable] = useState(true);
 
-  const filteredGroups = addOnGroups.filter(group =>
-    group.name.toLowerCase().includes(searchQuery.toLowerCase())
+  // View sheet
+  const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
+  const [viewingGroup, setViewingGroup] = useState<AddOnGroup | null>(null);
+
+  const filteredGroups = addOnGroups.filter((g) =>
+    g.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
+  // Group form handlers
+  const resetGroupForm = () => {
+    setGroupName("");
+    setGroupMin(0);
+    setGroupMax("");
+    setGroupStatus(true);
+  };
+
+  const openGroupForCreate = () => {
+    setSelectedGroup(null);
+    resetGroupForm();
+    setIsGroupSheetOpen(true);
+  };
+
+  const openGroupForEdit = (group: AddOnGroup) => {
+    setSelectedGroup(group);
+    setIsGroupSheetOpen(true);
+  };
+
+  useEffect(() => {
+    if (selectedGroup && isGroupSheetOpen) {
+      setGroupName(selectedGroup.name);
+      setGroupMin(selectedGroup.minSelection ?? 0);
+      setGroupMax(selectedGroup.maxSelection ?? "");
+      setGroupStatus(selectedGroup.status);
+    }
+  }, [selectedGroup, isGroupSheetOpen]);
+
+  const handleSaveGroup = async () => {
+    if (!storeId) {
+      toast.error("Select a store first");
+      return;
+    }
+    if (!groupName.trim()) {
+      toast.error("Group name is required");
+      return;
+    }
+    const payload = {
+      name: groupName.trim(),
+      minSelection: groupMin,
+      maxSelection: groupMax === "" ? null : Number(groupMax),
+      status: groupStatus,
+    };
+    try {
+      if (selectedGroup) {
+        await updateGroup.mutateAsync({ id: selectedGroup.id, data: payload });
+        toast.success("Group updated");
+      } else {
+        await createGroup.mutateAsync({ ...payload, storeId, addons: [] });
+        toast.success("Group created");
+      }
+      setIsGroupSheetOpen(false);
+      resetGroupForm();
+      setSelectedGroup(null);
+    } catch (err) {
+      toast.error((err as Error).message ?? "Failed to save group");
+    }
+  };
+
+  const handleDeleteGroup = (group: AddOnGroup) => {
+    deleteGroup.mutate(group.id, {
+      onSuccess: () => {
+        toast.success("Group deleted");
+        setIsViewSheetOpen(false);
+        setIsGroupSheetOpen(false);
+      },
+      onError: (e: Error) => toast.error(e.message ?? "Failed to delete"),
+    });
+  };
+
+  // Item form handlers
+  const resetItemForm = () => {
+    setItemName("");
+    setItemPrice(0);
+    setItemIsAvailable(true);
+  };
+
+  const openItemForCreate = (groupId: string) => {
+    setEditingAddon(null);
+    setItemGroupId(groupId);
+    resetItemForm();
+    setIsItemSheetOpen(true);
+  };
+
+  const openItemForEdit = (groupId: string, addon: AddOn) => {
+    setEditingAddon(addon);
+    setItemGroupId(groupId);
+    setItemName(addon.name);
+    setItemPrice(Number(addon.price));
+    setItemIsAvailable(addon.isAvailable);
+    setIsItemSheetOpen(true);
+  };
+
+  const handleSaveItem = async () => {
+    if (!itemGroupId) return;
+    if (!itemName.trim()) {
+      toast.error("Add-on name is required");
+      return;
+    }
+    try {
+      if (editingAddon) {
+        await updateAddon.mutateAsync({
+          groupId: itemGroupId,
+          addonId: editingAddon.id,
+          data: { name: itemName.trim(), price: itemPrice, isAvailable: itemIsAvailable },
+        });
+        toast.success("Add-on updated");
+      } else {
+        await addAddon.mutateAsync({
+          groupId: itemGroupId,
+          data: { name: itemName.trim(), price: itemPrice, isAvailable: itemIsAvailable },
+        });
+        toast.success("Add-on added");
+      }
+      setIsItemSheetOpen(false);
+      resetItemForm();
+      setEditingAddon(null);
+    } catch (err) {
+      toast.error((err as Error).message ?? "Failed to save add-on");
+    }
+  };
+
+  const handleDeleteAddon = (groupId: string, addonId: string) => {
+    deleteAddon.mutate(
+      { groupId, addonId },
+      {
+        onSuccess: () => toast.success("Add-on removed"),
+        onError: (e: Error) => toast.error(e.message ?? "Failed to remove"),
+      },
+    );
+  };
+
+  const handleToggleAddon = (groupId: string, addonId: string) => {
+    toggleAvailability.mutate(
+      { groupId, addonId },
+      { onError: () => toast.error("Failed to toggle availability") },
+    );
+  };
+
   const handleViewGroup = (group: AddOnGroup) => {
-    setSelectedGroup(group);
-    setIsViewGroupSheetOpen(true);
-  };
-
-  const handleEditGroup = (group: AddOnGroup) => {
-    setSelectedGroup(group);
-    setIsAddGroupSheetOpen(true);
-  };
-
-  const handleAddItem = (group: AddOnGroup) => {
-    setSelectedGroup(group);
-    setIsAddItemSheetOpen(true);
+    setViewingGroup(group);
+    setIsViewSheetOpen(true);
   };
 
   return (
@@ -214,7 +326,7 @@ export default function AddOnsPage() {
             Create add-on groups for extra items and upgrades
           </p>
         </div>
-        <Button size="sm" className="w-full sm:w-auto" onClick={() => { setSelectedGroup(null); setIsAddGroupSheetOpen(true); }}>
+        <Button size="sm" className="w-full sm:w-auto" onClick={openGroupForCreate}>
           <Plus className="mr-2 h-4 w-4" />
           Add Group
         </Button>
@@ -228,14 +340,17 @@ export default function AddOnsPage() {
           <Card>
             <CardContent className="p-3 sm:p-4">
               <p className="text-xs sm:text-sm text-muted-foreground">Add-on Groups</p>
-              <p className="text-xl sm:text-2xl font-semibold">{addOnGroups.length}</p>
+              <p className="text-xl sm:text-2xl font-semibold">
+                {stats?.totalGroups ?? addOnGroups.length}
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3 sm:p-4">
               <p className="text-xs sm:text-sm text-muted-foreground">Total Add-ons</p>
               <p className="text-xl sm:text-2xl font-semibold">
-                {addOnGroups.reduce((acc, g) => acc + g.addOns.length, 0)}
+                {stats?.totalAddons ??
+                  addOnGroups.reduce((acc, g) => acc + (g.addons?.length ?? 0), 0)}
               </p>
             </CardContent>
           </Card>
@@ -243,7 +358,11 @@ export default function AddOnsPage() {
             <CardContent className="p-3 sm:p-4">
               <p className="text-xs sm:text-sm text-muted-foreground">Available</p>
               <p className="text-xl sm:text-2xl font-semibold text-green-600">
-                {addOnGroups.reduce((acc, g) => acc + g.addOns.filter(a => a.isAvailable).length, 0)}
+                {stats?.availableAddons ??
+                  addOnGroups.reduce(
+                    (acc, g) => acc + (g.addons ?? []).filter((a) => a.isAvailable).length,
+                    0,
+                  )}
               </p>
             </CardContent>
           </Card>
@@ -269,7 +388,7 @@ export default function AddOnsPage() {
           {filteredGroups.map((group) => (
             <Card key={group.id}>
               <div className="flex items-center justify-between border-b p-4">
-                <div 
+                <div
                   className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
                   onClick={() => handleViewGroup(group)}
                 >
@@ -279,12 +398,20 @@ export default function AddOnsPage() {
                   <div className="min-w-0">
                     <h3 className="font-semibold text-sm sm:text-base truncate">{group.name}</h3>
                     <p className="text-xs sm:text-sm text-muted-foreground">
-                      {group.minSelection === 0 ? "Optional" : `Min ${group.minSelection}`} · Max {group.maxSelection} · {group.linkedProducts} products
+                      {(group.minSelection ?? 0) === 0 ? "Optional" : `Min ${group.minSelection}`}
+                      {group.maxSelection != null ? ` · Max ${group.maxSelection}` : ""}
+                      {" · "}
+                      {(group.addons ?? []).length} items
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <Button variant="outline" size="sm" className="hidden sm:flex" onClick={() => handleAddItem(group)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="hidden sm:flex"
+                    onClick={() => openItemForCreate(group.id)}
+                  >
                     <Plus className="mr-1 h-4 w-4" />
                     Add
                   </Button>
@@ -299,15 +426,21 @@ export default function AddOnsPage() {
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="sm:hidden" onClick={() => handleAddItem(group)}>
+                      <DropdownMenuItem
+                        className="sm:hidden"
+                        onClick={() => openItemForCreate(group.id)}
+                      >
                         <Plus className="mr-2 h-4 w-4" />
                         Add Add-on
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleEditGroup(group)}>
+                      <DropdownMenuItem onClick={() => openGroupForEdit(group)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Group
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => handleDeleteGroup(group)}
+                      >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete Group
                       </DropdownMenuItem>
@@ -316,39 +449,6 @@ export default function AddOnsPage() {
                 </div>
               </div>
               <CardContent className="p-0">
-                {/* Mobile List View */}
-                <div className="block sm:hidden divide-y divide-border">
-                  {group.addOns.map((addon) => (
-                    <div key={addon.id} className="p-4 flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">{addon.name}</p>
-                        <p className="text-xs text-muted-foreground">{formatPrice(addon.price)}</p>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <Switch checked={addon.isAvailable} />
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Desktop Table View */}
                 <div className="hidden sm:block">
                   <Table>
                     <TableHeader>
@@ -360,69 +460,166 @@ export default function AddOnsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {group.addOns.map((addon) => (
+                      {(group.addons ?? []).map((addon) => (
                         <TableRow key={addon.id} className="group">
                           <TableCell className="pl-6 font-medium">{addon.name}</TableCell>
-                          <TableCell>{formatPrice(addon.price)}</TableCell>
+                          <TableCell>{formatPrice(Number(addon.price))}</TableCell>
                           <TableCell>
-                            <Switch checked={addon.isAvailable} />
+                            <Switch
+                              checked={addon.isAvailable}
+                              onCheckedChange={() => handleToggleAddon(group.id, addon.id)}
+                              disabled={toggleAvailability.isPending}
+                            />
                           </TableCell>
                           <TableCell className="pr-6">
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => openItemForEdit(group.id, addon)}
+                              >
                                 <Edit className="h-3.5 w-3.5" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive"
+                                onClick={() => handleDeleteAddon(group.id, addon.id)}
+                              >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </TableCell>
                         </TableRow>
                       ))}
+                      {(group.addons ?? []).length === 0 && (
+                        <TableRow>
+                          <TableCell
+                            colSpan={4}
+                            className="text-center text-sm text-muted-foreground py-6"
+                          >
+                            No add-ons yet
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
+                </div>
+                <div className="block sm:hidden divide-y divide-border">
+                  {(group.addons ?? []).map((addon) => (
+                    <div key={addon.id} className="p-4 flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{addon.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatPrice(Number(addon.price))}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <Switch
+                          checked={addon.isAvailable}
+                          onCheckedChange={() => handleToggleAddon(group.id, addon.id)}
+                          disabled={toggleAvailability.isPending}
+                        />
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openItemForEdit(group.id, addon)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => handleDeleteAddon(group.id, addon.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
           ))}
+          {filteredGroups.length === 0 && (
+            <div className="col-span-full p-12 text-center text-sm text-muted-foreground">
+              No add-on groups yet — click "Add Group" to create one.
+            </div>
+          )}
         </div>
       )}
 
-      {/* Add/Edit Group Sheet */}
-      <Sheet open={isAddGroupSheetOpen} onOpenChange={setIsAddGroupSheetOpen}>
+      {/* Group Sheet */}
+      <Sheet
+        open={isGroupSheetOpen}
+        onOpenChange={(open) => {
+          setIsGroupSheetOpen(open);
+          if (!open) {
+            setSelectedGroup(null);
+            resetGroupForm();
+          }
+        }}
+      >
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{selectedGroup ? "Edit Add-on Group" : "Add Add-on Group"}</SheetTitle>
             <SheetDescription>
-              {selectedGroup ? "Update group details" : "Create a new add-on group (e.g., Extra Sides, Drinks)"}
+              {selectedGroup ? "Update group details" : "Create a new add-on group"}
             </SheetDescription>
           </SheetHeader>
           <div className="grid gap-6 py-6">
-            {/* Group Details */}
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-muted-foreground">Group Details</h3>
               <div className="space-y-2">
                 <Label htmlFor="name">Group Name</Label>
-                <Input id="name" placeholder="e.g., Extra Sides" defaultValue={selectedGroup?.name} />
+                <Input
+                  id="name"
+                  placeholder="e.g., Extra Sides"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="min">Minimum Selection</Label>
-                  <Input id="min" type="number" placeholder="0" defaultValue={selectedGroup?.minSelection || 0} />
+                  <Input
+                    id="min"
+                    type="number"
+                    min={0}
+                    value={groupMin}
+                    onChange={(e) => setGroupMin(Number(e.target.value))}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="max">Maximum Selection</Label>
-                  <Input id="max" type="number" placeholder="3" defaultValue={selectedGroup?.maxSelection || 3} />
+                  <Input
+                    id="max"
+                    type="number"
+                    min={0}
+                    placeholder="No limit"
+                    value={groupMax}
+                    onChange={(e) =>
+                      setGroupMax(e.target.value === "" ? "" : Number(e.target.value))
+                    }
+                  />
                 </div>
               </div>
             </div>
-
-            {/* Publish */}
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-muted-foreground">Publish</h3>
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select defaultValue={selectedGroup?.status || "active"}>
+                <Select
+                  value={groupStatus ? "active" : "inactive"}
+                  onValueChange={(v) => setGroupStatus(v === "active")}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -435,121 +632,167 @@ export default function AddOnsPage() {
             </div>
           </div>
           <SheetFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsAddGroupSheetOpen(false)} className="w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={() => setIsGroupSheetOpen(false)}
+              className="w-full sm:w-auto"
+              disabled={createGroup.isPending || updateGroup.isPending}
+            >
               Cancel
             </Button>
-            <Button className="w-full sm:w-auto">
+            <Button
+              className="w-full sm:w-auto"
+              onClick={handleSaveGroup}
+              disabled={createGroup.isPending || updateGroup.isPending}
+            >
+              {(createGroup.isPending || updateGroup.isPending) && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               {selectedGroup ? "Update Group" : "Create Group"}
             </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
 
-      {/* Add Item to Group Sheet */}
-      <Sheet open={isAddItemSheetOpen} onOpenChange={setIsAddItemSheetOpen}>
+      {/* Item Sheet */}
+      <Sheet
+        open={isItemSheetOpen}
+        onOpenChange={(open) => {
+          setIsItemSheetOpen(open);
+          if (!open) {
+            setEditingAddon(null);
+            resetItemForm();
+          }
+        }}
+      >
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Add Item to {selectedGroup?.name}</SheetTitle>
+            <SheetTitle>{editingAddon ? "Edit Add-on" : "Add Item"}</SheetTitle>
             <SheetDescription>
-              Add a new item to this add-on group
+              {editingAddon ? "Update add-on details" : "Add a new item to this group"}
             </SheetDescription>
           </SheetHeader>
           <div className="grid gap-6 py-6">
-            {/* Item Details */}
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-muted-foreground">Item Details</h3>
               <div className="space-y-2">
-                <Label>Select from Products</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mockProducts.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} - {formatPrice(product.price)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Item Name</Label>
+                <Input
+                  placeholder="e.g., Extra Cheese"
+                  value={itemName}
+                  onChange={(e) => setItemName(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
-                <Label>Or Enter Custom Name</Label>
-                <Input placeholder="e.g., Extra Cheese" />
+                <Label>Price (₦)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={itemPrice}
+                  onChange={(e) => setItemPrice(Number(e.target.value))}
+                />
               </div>
-              <div className="space-y-2">
-                <Label>Selling Price</Label>
-                <Input type="number" placeholder="0" />
+              <div className="flex items-center justify-between pt-2">
+                <Label>Available</Label>
+                <Switch
+                  checked={itemIsAvailable}
+                  onCheckedChange={setItemIsAvailable}
+                />
               </div>
             </div>
           </div>
           <SheetFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsAddItemSheetOpen(false)} className="w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={() => setIsItemSheetOpen(false)}
+              className="w-full sm:w-auto"
+              disabled={addAddon.isPending || updateAddon.isPending}
+            >
               Cancel
             </Button>
-            <Button className="w-full sm:w-auto">Add Item</Button>
+            <Button
+              className="w-full sm:w-auto"
+              onClick={handleSaveItem}
+              disabled={addAddon.isPending || updateAddon.isPending}
+            >
+              {(addAddon.isPending || updateAddon.isPending) && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {editingAddon ? "Update" : "Add Item"}
+            </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
 
-      {/* View Group Details Sheet */}
-      <Sheet open={isViewGroupSheetOpen} onOpenChange={setIsViewGroupSheetOpen}>
+      {/* View Sheet */}
+      <Sheet open={isViewSheetOpen} onOpenChange={setIsViewSheetOpen}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>{selectedGroup?.name}</SheetTitle>
+            <SheetTitle>{viewingGroup?.name}</SheetTitle>
             <SheetDescription>Add-on group details and items</SheetDescription>
           </SheetHeader>
-          {selectedGroup && (
+          {viewingGroup && (
             <div className="grid gap-6 py-6">
-              {/* Group Info */}
               <div className="space-y-3">
                 <h3 className="text-sm font-medium text-muted-foreground">Group Settings</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-3 bg-muted/50 rounded-lg">
                     <p className="text-xs text-muted-foreground">Min Selection</p>
-                    <p className="font-medium">{selectedGroup.minSelection}</p>
+                    <p className="font-medium">{viewingGroup.minSelection ?? 0}</p>
                   </div>
                   <div className="p-3 bg-muted/50 rounded-lg">
                     <p className="text-xs text-muted-foreground">Max Selection</p>
-                    <p className="font-medium">{selectedGroup.maxSelection}</p>
+                    <p className="font-medium">
+                      {viewingGroup.maxSelection ?? "No limit"}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <span className="text-sm">Linked Products</span>
-                  <Badge variant="secondary">{selectedGroup.linkedProducts}</Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                   <span className="text-sm">Status</span>
-                  <Badge className={selectedGroup.status === "active" 
-                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                    : ""
-                  }>
-                    {selectedGroup.status}
+                  <Badge
+                    className={
+                      viewingGroup.status
+                        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                        : ""
+                    }
+                  >
+                    {viewingGroup.status ? "Active" : "Inactive"}
                   </Badge>
                 </div>
               </div>
 
-              {/* Items List */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-muted-foreground">Items ({selectedGroup.addOns.length})</h3>
-                  <Button variant="outline" size="sm" onClick={() => { setIsViewGroupSheetOpen(false); handleAddItem(selectedGroup); }}>
+                  <h3 className="text-sm font-medium text-muted-foreground">
+                    Items ({(viewingGroup.addons ?? []).length})
+                  </h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsViewSheetOpen(false);
+                      openItemForCreate(viewingGroup.id);
+                    }}
+                  >
                     <Plus className="mr-1 h-4 w-4" />
                     Add Item
                   </Button>
                 </div>
                 <div className="space-y-2">
-                  {selectedGroup.addOns.map((addon) => (
-                    <div key={addon.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  {(viewingGroup.addons ?? []).map((addon) => (
+                    <div
+                      key={addon.id}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
                       <div>
                         <p className="font-medium text-sm">{addon.name}</p>
-                        <p className="text-xs text-muted-foreground">{formatPrice(addon.price)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatPrice(Number(addon.price))}
+                        </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={addon.isAvailable ? "default" : "secondary"}>
-                          {addon.isAvailable ? "Available" : "Unavailable"}
-                        </Badge>
-                      </div>
+                      <Badge variant={addon.isAvailable ? "default" : "secondary"}>
+                        {addon.isAvailable ? "Available" : "Unavailable"}
+                      </Badge>
                     </div>
                   ))}
                 </div>
@@ -557,12 +800,24 @@ export default function AddOnsPage() {
             </div>
           )}
           <SheetFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsViewGroupSheetOpen(false)} className="w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={() => setIsViewSheetOpen(false)}
+              className="w-full sm:w-auto"
+            >
               Close
             </Button>
-            <Button onClick={() => { setIsViewGroupSheetOpen(false); handleEditGroup(selectedGroup!); }} className="w-full sm:w-auto">
-              Edit Group
-            </Button>
+            {viewingGroup && (
+              <Button
+                onClick={() => {
+                  setIsViewSheetOpen(false);
+                  openGroupForEdit(viewingGroup);
+                }}
+                className="w-full sm:w-auto"
+              >
+                Edit Group
+              </Button>
+            )}
           </SheetFooter>
         </SheetContent>
       </Sheet>
