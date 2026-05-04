@@ -1,12 +1,37 @@
 // Store Types
+export interface DayHours {
+  open: string;
+  close: string;
+  closed: boolean;
+}
+
+export interface WeeklyHours {
+  monday: DayHours;
+  tuesday: DayHours;
+  wednesday: DayHours;
+  thursday: DayHours;
+  friday: DayHours;
+  saturday: DayHours;
+  sunday: DayHours;
+}
+
 export interface Store {
   id: string;
+  businessId: string;
   name: string;
   address: string;
+  city?: string;
+  state?: string;
   phone: string;
   email: string;
+  logoUrl?: string;
+  description?: string;
+  timezone?: string;
+  openingHours?: WeeklyHours | null;
+  deliveryRadiusKm?: number | null;
   isActive: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 // Product Types
