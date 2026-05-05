@@ -20,20 +20,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
-import { cn } from "@/lib/utils";
-import { useOrderStats, useCustomerStats } from "@/hooks/api";
+import { useState, useMemo } from "react";
 import { useStore } from "@/contexts/StoreContext";
+import { useDashboardSummary, useSalesReport } from "@/hooks/api/use-reports";
 import { RecentOrders } from "@/components/dashboard/RecentOrders";
 
-const chartData = [
-  { name: "Mon", value: 245 },
-  { name: "Tue", value: 312 },
-  { name: "Wed", value: 289 },
-  { name: "Thu", value: 378 },
-  { name: "Fri", value: 456 },
-  { name: "Sat", value: 512 },
-  { name: "Sun", value: 398 },
-];
+type Period = "24h" | "7d" | "30d" | "90d";
+
+function rangeFor(period: Period): { dateFrom: string; dateTo: string } {
+  const to = new Date();
+  const from = new Date();
+  if (period === "24h") from.setHours(from.getHours() - 24);
+  else if (period === "7d") from.setDate(from.getDate() - 7);
+  else if (period === "30d") from.setDate(from.getDate() - 30);
+  else from.setDate(from.getDate() - 90);
+  return {
+    dateFrom: from.toISOString().split("T")[0],
+    dateTo: to.toISOString().split("T")[0],
+  };
+}
 
 interface StatCardProps {
   title: string;
@@ -164,24 +169,36 @@ function OrdersSkeleton() {
 
 export default function Dashboard() {
   const { isAllStoresMode, currentStore } = useStore();
+  const [period, setPeriod] = useState<Period>("7d");
+  const range = useMemo(() => rangeFor(period), [period]);
 
-  // Fetch stats from API
-  const { data: orderStats, isLoading: ordersLoading } = useOrderStats(currentStore?.id);
-  const { data: customerStats, isLoading: customersLoading } = useCustomerStats();
-  
-  const isLoading = ordersLoading || customersLoading;
+  // Real reports data driving the dashboard.
+  const { data: summary, isLoading: summaryLoading } = useDashboardSummary(
+    currentStore?.id,
+  );
+  const { data: sales, isLoading: salesLoading } = useSalesReport({
+    storeId: currentStore?.id,
+    ...range,
+    groupBy: period === "90d" ? "week" : "day",
+  });
 
-  // Dynamic stats based on mode (master = combined data)
-  const masterMultiplier = isAllStoresMode ? 3 : 1;
-  const revenueValue = orderStats 
-    ? `₦${((orderStats.totalRevenue || 0) / 1000000).toFixed(2)}M`
-    : `₦${(2.59 * masterMultiplier).toFixed(2)}M`;
-  const ordersValue = orderStats 
-    ? `${orderStats.total}` 
-    : `${Math.round(489 * masterMultiplier)}`;
-  const customersValue = customerStats 
-    ? `${customerStats.total.toLocaleString()}` 
-    : `${Math.round(1284 * masterMultiplier).toLocaleString()}`;
+  const isLoading = summaryLoading || salesLoading;
+
+  const totalRevenue = sales?.totalRevenue ?? 0;
+  const totalOrders = sales?.totalOrders ?? 0;
+  const aov = sales?.averageOrderValue ?? 0;
+
+  // Map sales buckets into chart data the AreaChart expects.
+  const chartData = (sales?.buckets ?? []).map((b) => ({
+    name: b.bucket.slice(5), // MM-DD
+    revenue: b.revenue,
+    orders: b.orders,
+  }));
+
+  const formatRevenue = (n: number) =>
+    n >= 1_000_000
+      ? `₦${(n / 1_000_000).toFixed(2)}M`
+      : `₦${Math.round(n).toLocaleString()}`;
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-fade-in">
@@ -204,7 +221,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          <Select defaultValue="7d">
+          <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
             <SelectTrigger className="w-full sm:w-36 h-9 text-sm">
               <SelectValue />
             </SelectTrigger>
@@ -224,34 +241,34 @@ export default function Dashboard() {
       {/* Stats Grid - 2 cols on mobile, 4 on desktop */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
-          title="Total Revenue"
-          value={revenueValue}
-          change="+12.5%"
+          title="Revenue"
+          value={formatRevenue(totalRevenue)}
+          change={`Today ${formatRevenue(summary?.todayRevenue ?? 0)}`}
           trend="up"
           icon={<DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
           isLoading={isLoading}
         />
         <StatCard
           title="Orders"
-          value={ordersValue}
-          change="+8.2%"
+          value={`${totalOrders}`}
+          change={`Today ${summary?.todayOrders ?? 0}`}
           trend="up"
           icon={<ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
           isLoading={isLoading}
         />
         <StatCard
-          title="Customers"
-          value={customersValue}
-          change="+23.1%"
+          title="Open orders"
+          value={`${summary?.openOrders ?? 0}`}
+          change={`${summary?.deliveriesInTransit ?? 0} delivering`}
           trend="up"
           icon={<Users className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
           isLoading={isLoading}
         />
         <StatCard
-          title="Avg Order"
-          value="₦5,300"
-          change="-2.3%"
-          trend="down"
+          title="Avg order"
+          value={formatRevenue(Math.round(aov))}
+          change={`${summary?.activeShifts ?? 0} active shifts`}
+          trend={aov > 0 ? "up" : "down"}
           icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
           isLoading={isLoading}
         />
@@ -290,12 +307,12 @@ export default function Dashboard() {
                       tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
                       interval="preserveStartEnd"
                     />
-                    <YAxis 
+                    <YAxis
                       axisLine={false}
                       tickLine={false}
                       tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
-                      tickFormatter={(value) => `${value}k`}
-                      width={35}
+                      tickFormatter={(value) => formatRevenue(Number(value))}
+                      width={50}
                     />
                     <Tooltip
                       contentStyle={{
@@ -304,11 +321,11 @@ export default function Dashboard() {
                         borderRadius: "8px",
                         fontSize: "12px",
                       }}
-                      formatter={(value: number) => [`₦${value}k`, "Revenue"]}
+                      formatter={(value: number) => [formatRevenue(Number(value)), "Revenue"]}
                     />
                     <Area
                       type="monotone"
-                      dataKey="value"
+                      dataKey="revenue"
                       stroke="hsl(217, 91%, 60%)"
                       strokeWidth={2}
                       fill="url(#revenueGradient)"
@@ -368,7 +385,7 @@ export default function Dashboard() {
                     />
                     <Area
                       type="monotone"
-                      dataKey="value"
+                      dataKey="orders"
                       stroke="hsl(142, 76%, 36%)"
                       strokeWidth={2}
                       fill="url(#ordersGradient)"
