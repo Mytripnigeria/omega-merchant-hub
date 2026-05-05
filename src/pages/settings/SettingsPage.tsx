@@ -14,6 +14,7 @@ import {
   Printer,
   Bell,
   Store,
+  Activity,
 } from "lucide-react";
 
 import { GeneralSettingsTab } from "./tabs/GeneralSettingsTab";
@@ -27,6 +28,7 @@ import { TeamTab } from "./tabs/TeamTab";
 import { SecurityTab } from "./tabs/SecurityTab";
 import { WebhooksTab } from "./tabs/WebhooksTab";
 import { DomainsTab } from "./tabs/DomainsTab";
+import { ActivityLogTab } from "./tabs/ActivityLogTab";
 
 const TABS = [
   { value: "general", label: "General", icon: Settings, component: <GeneralSettingsTab /> },
@@ -40,6 +42,7 @@ const TABS = [
   { value: "security", label: "Security", icon: Shield, component: <SecurityTab /> },
   { value: "webhooks", label: "Webhooks", icon: Webhook, component: <WebhooksTab /> },
   { value: "domains", label: "Domains", icon: Globe, component: <DomainsTab /> },
+  { value: "activity", label: "Audit Log", icon: Activity, component: <ActivityLogTab /> },
 ];
 
 export default function SettingsPage() {

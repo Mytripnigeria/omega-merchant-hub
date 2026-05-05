@@ -68,7 +68,10 @@ export function PrintersTab() {
     if (!storeFilter && currentStore?.id) setStoreFilter(currentStore.id);
   }, [currentStore, storeFilter]);
 
-  const { data: printers = [], isLoading } = usePrinters(storeFilter || undefined);
+  const ALL_STORES = "__all__";
+  const { data: printers = [], isLoading } = usePrinters(
+    storeFilter && storeFilter !== ALL_STORES ? storeFilter : undefined,
+  );
   const createPrinter = useCreatePrinter();
   const updatePrinter = useUpdatePrinter();
   const deletePrinter = useDeletePrinter();
@@ -158,12 +161,12 @@ export function PrintersTab() {
           <p className="text-sm text-muted-foreground">Per-store printer configuration</p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={storeFilter} onValueChange={setStoreFilter}>
+          <Select value={storeFilter || ALL_STORES} onValueChange={setStoreFilter}>
             <SelectTrigger className="w-44">
               <SelectValue placeholder="Filter by store" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All stores</SelectItem>
+              <SelectItem value={ALL_STORES}>All stores</SelectItem>
               {stores.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
                   {s.name}
