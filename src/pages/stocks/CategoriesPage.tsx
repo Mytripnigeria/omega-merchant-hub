@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCategories, useCategoryStats, useCreateCategory, useUpdateCategory, useDeleteCategory, useReorderCategories, useUploadImage } from "@/hooks/api/use-stock";
-import { useStore } from "@/contexts/StoreContext";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -73,7 +72,6 @@ interface Category {
   isActive: boolean;
   order: number;
   visibility: string[];
-  storeId: string;
 }
 
 // Sortable Category Card Component
@@ -221,9 +219,8 @@ const VISIBILITY_OPTIONS: { id: string; label: string; value: string }[] = [
 const DEFAULT_VISIBILITY = ["pos", "storefront"];
 
 export default function CategoriesPage() {
-  const { currentStore } = useStore();
-  const storeId = currentStore?.id;
-  const { data: categoriesData, isLoading } = useCategories(storeId ? { storeId } : undefined);
+  // Categories are business-scoped on the backend, so we don't filter by store.
+  const { data: categoriesData, isLoading } = useCategories();
   const categories: Category[] = (categoriesData as { data?: Category[] })?.data ?? (categoriesData as Category[] | undefined) ?? [];
   const updateCategory = useUpdateCategory();
   const createCategory = useCreateCategory();
@@ -300,10 +297,6 @@ export default function CategoriesPage() {
   };
 
   const handleCreate = async () => {
-    if (!storeId) {
-      toast.error("Select a store first");
-      return;
-    }
     if (!formName.trim()) {
       toast.error("Category name is required");
       return;
@@ -316,7 +309,6 @@ export default function CategoriesPage() {
         imageFileId: formImageFileId,
         visibility: formVisibility,
         isActive: formIsActive,
-        storeId,
       } as Parameters<typeof createCategory.mutateAsync>[0]);
       toast.success("Category created");
       setIsAddSheetOpen(false);

@@ -16,7 +16,6 @@ import {
   useDeleteAddon,
   useToggleAddonAvailability,
 } from "@/hooks/api/use-stock";
-import { useStore } from "@/contexts/StoreContext";
 import {
   Table,
   TableBody,
@@ -74,7 +73,6 @@ interface AddOnGroup {
   minSelection: number;
   maxSelection: number | null;
   status: boolean;
-  storeId: string;
 }
 
 function StatsSkeleton() {
@@ -131,10 +129,9 @@ const formatPrice = (amount: number) =>
   }).format(amount);
 
 export default function AddOnsPage() {
-  const { currentStore } = useStore();
-  const storeId = currentStore?.id;
-  const { data: addOnGroupsData, isLoading } = useAddonGroups(storeId ? { storeId } : undefined);
-  const { data: stats } = useAddonGroupStats(storeId);
+  // Add-on groups are business-scoped on the backend.
+  const { data: addOnGroupsData, isLoading } = useAddonGroups();
+  const { data: stats } = useAddonGroupStats();
   const addOnGroups: AddOnGroup[] =
     ((addOnGroupsData as { data?: AddOnGroup[] })?.data ?? []) as AddOnGroup[];
 
@@ -201,10 +198,6 @@ export default function AddOnsPage() {
   }, [selectedGroup, isGroupSheetOpen]);
 
   const handleSaveGroup = async () => {
-    if (!storeId) {
-      toast.error("Select a store first");
-      return;
-    }
     if (!groupName.trim()) {
       toast.error("Group name is required");
       return;
@@ -220,7 +213,7 @@ export default function AddOnsPage() {
         await updateGroup.mutateAsync({ id: selectedGroup.id, data: payload });
         toast.success("Group updated");
       } else {
-        await createGroup.mutateAsync({ ...payload, storeId, addons: [] });
+        await createGroup.mutateAsync({ ...payload, addons: [] });
         toast.success("Group created");
       }
       setIsGroupSheetOpen(false);

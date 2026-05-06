@@ -74,10 +74,13 @@ export function useCategory(id: string) {
   });
 }
 
-export function useCategoryStats(storeId?: string) {
+export function useCategoryStats(_storeId?: string) {
+  // Categories are business-scoped on the backend; storeId is accepted for
+  // call-site compatibility but ignored.
+  void _storeId;
   return useQuery({
-    queryKey: stockKeys.categories.stats(storeId),
-    queryFn: () => categoryApi.stats(storeId),
+    queryKey: stockKeys.categories.stats(),
+    queryFn: () => categoryApi.stats(),
   });
 }
 
@@ -208,10 +211,11 @@ export function useVariationGroup(id: string) {
   });
 }
 
-export function useVariationGroupStats(storeId?: string) {
+export function useVariationGroupStats(_storeId?: string) {
+  void _storeId;
   return useQuery({
-    queryKey: stockKeys.variationGroups.stats(storeId),
-    queryFn: () => variationGroupApi.stats(storeId),
+    queryKey: stockKeys.variationGroups.stats(),
+    queryFn: () => variationGroupApi.stats(),
   });
 }
 
@@ -263,10 +267,11 @@ export function useAddonGroup(id: string) {
   });
 }
 
-export function useAddonGroupStats(storeId?: string) {
+export function useAddonGroupStats(_storeId?: string) {
+  void _storeId;
   return useQuery({
-    queryKey: stockKeys.addonGroups.stats(storeId),
-    queryFn: () => addonGroupApi.stats(storeId),
+    queryKey: stockKeys.addonGroups.stats(),
+    queryFn: () => addonGroupApi.stats(),
   });
 }
 

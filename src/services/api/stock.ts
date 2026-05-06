@@ -20,10 +20,12 @@ export interface PaginatedResponse<T> {
 }
 
 // ─── Categories ────────────────────────────────────────────────────────────
+// Categories are business-scoped on the backend (not store-scoped).
+// Sending `storeId` would be rejected by `forbidNonWhitelisted` validation.
 
 export const categoryApi = {
   list(params?: Record<string, string | number | boolean | undefined>) {
-    const qs = buildQs(params);
+    const qs = buildQs(stripStoreScope(params));
     return apiRequest<PaginatedResponse<Category>>(`/categories${qs}`);
   },
 
@@ -31,14 +33,21 @@ export const categoryApi = {
     return apiRequest<Category>(`/categories/${id}`);
   },
 
-  stats(storeId?: string) {
+  stats() {
     return apiRequest<{ total: number; active: number; inactive: number }>(
-      `/categories/stats${storeId ? `?storeId=${storeId}` : ''}`,
+      `/categories/stats`,
     );
   },
 
-  create(data: Partial<Category> & { storeId: string }) {
-    return apiRequest<Category>('/categories', { method: 'POST', body: JSON.stringify(data) });
+  create(data: Partial<Category>) {
+    const { storeId: _ignored, ...rest } = data as Partial<Category> & {
+      storeId?: string;
+    };
+    void _ignored;
+    return apiRequest<Category>('/categories', {
+      method: 'POST',
+      body: JSON.stringify(rest),
+    });
   },
 
   update(id: string, data: Partial<Category>) {
@@ -167,7 +176,8 @@ export interface VariationGroup {
 
 export const variationGroupApi = {
   list(params?: Record<string, string | number | undefined>) {
-    const qs = buildQs(params);
+    // Variation groups are business-scoped — drop any storeId callers pass.
+    const qs = buildQs(stripStoreScope(params));
     return apiRequest<PaginatedResponse<VariationGroup>>(`/variation-groups${qs}`);
   },
 
@@ -175,14 +185,21 @@ export const variationGroupApi = {
     return apiRequest<VariationGroup>(`/variation-groups/${id}`);
   },
 
-  stats(storeId?: string) {
+  stats() {
     return apiRequest<{ groups: number; totalOptions: number }>(
-      `/variation-groups/stats${storeId ? `?storeId=${storeId}` : ''}`,
+      `/variation-groups/stats`,
     );
   },
 
-  create(data: { name: string; storeId: string; isActive?: boolean; options?: { name: string }[] }) {
-    return apiRequest<VariationGroup>('/variation-groups', { method: 'POST', body: JSON.stringify(data) });
+  create(data: { name: string; isActive?: boolean; options?: { name: string }[] }) {
+    const { storeId: _ignored, ...rest } = data as typeof data & {
+      storeId?: string;
+    };
+    void _ignored;
+    return apiRequest<VariationGroup>('/variation-groups', {
+      method: 'POST',
+      body: JSON.stringify(rest),
+    });
   },
 
   update(id: string, data: object) {
@@ -198,7 +215,8 @@ export const variationGroupApi = {
 
 export const addonGroupApi = {
   list(params?: Record<string, string | number | undefined>) {
-    const qs = buildQs(params);
+    // Addon groups are business-scoped — drop any storeId callers pass.
+    const qs = buildQs(stripStoreScope(params));
     return apiRequest<PaginatedResponse<AddOnGroup>>(`/addon-groups${qs}`);
   },
 
@@ -206,14 +224,19 @@ export const addonGroupApi = {
     return apiRequest<AddOnGroup>(`/addon-groups/${id}`);
   },
 
-  stats(storeId?: string) {
+  stats() {
     return apiRequest<{ totalGroups: number; totalAddons: number; availableAddons: number }>(
-      `/addon-groups/stats${storeId ? `?storeId=${storeId}` : ''}`,
+      `/addon-groups/stats`,
     );
   },
 
-  create(data: object) {
-    return apiRequest<AddOnGroup>('/addon-groups', { method: 'POST', body: JSON.stringify(data) });
+  create(data: Record<string, unknown>) {
+    const { storeId: _ignored, ...rest } = data;
+    void _ignored;
+    return apiRequest<AddOnGroup>('/addon-groups', {
+      method: 'POST',
+      body: JSON.stringify(rest),
+    });
   },
 
   update(id: string, data: object) {
@@ -304,4 +327,19 @@ function buildQs(params?: Record<string, string | number | boolean | undefined>)
   const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== '');
   if (!entries.length) return '';
   return '?' + entries.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&');
+}
+
+/**
+ * Drops `storeId` from a query/body. Used by entities that are business-scoped
+ * on the backend (categories, variation-groups, addon-groups) — passing
+ * `storeId` would trigger `property storeId should not exist` from
+ * class-validator's whitelist.
+ */
+function stripStoreScope<T extends Record<string, unknown> | undefined>(
+  params: T,
+): T {
+  if (!params) return params;
+  const { storeId: _ignored, ...rest } = params as Record<string, unknown>;
+  void _ignored;
+  return rest as T;
 }

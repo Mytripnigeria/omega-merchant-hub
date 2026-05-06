@@ -11,7 +11,6 @@ import {
   useUpdateVariationGroup,
   useDeleteVariationGroup,
 } from "@/hooks/api/use-stock";
-import { useStore } from "@/contexts/StoreContext";
 import type { VariationGroup } from "@/services/api/stock";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -133,13 +132,9 @@ function optionsToString(options: { name: string }[]): string {
 }
 
 export default function VariationsPage() {
-  const { currentStore } = useStore();
-  const storeId = currentStore?.id;
-
-  const { data: variationsData, isLoading } = useVariationGroups(
-    storeId ? { storeId } : undefined,
-  );
-  const { data: stats } = useVariationGroupStats(storeId);
+  // Variation groups are business-scoped on the backend.
+  const { data: variationsData, isLoading } = useVariationGroups();
+  const { data: stats } = useVariationGroupStats();
   const variations: VariationGroup[] = variationsData?.data ?? [];
 
   const createVariationGroup = useCreateVariationGroup();
@@ -197,10 +192,6 @@ export default function VariationsPage() {
   };
 
   const handleCreate = () => {
-    if (!storeId) {
-      toast.error("Select a store first");
-      return;
-    }
     if (!formName.trim()) {
       toast.error("Group name is required");
       return;
@@ -211,7 +202,7 @@ export default function VariationsPage() {
       return;
     }
     createVariationGroup.mutate(
-      { name: formName.trim(), storeId, isActive: formIsActive, options },
+      { name: formName.trim(), isActive: formIsActive, options },
       {
         onSuccess: () => {
           toast.success("Variation group created");
