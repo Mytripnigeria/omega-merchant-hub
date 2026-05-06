@@ -1,52 +1,86 @@
-// Bookings Types
+// Bookings Types — aligned with backend bookings module
+
+export type ReservationStatus =
+  | "pending"
+  | "confirmed"
+  | "seated"
+  | "completed"
+  | "cancelled"
+  | "no-show";
+
+export type EventType =
+  | "private"
+  | "corporate"
+  | "wedding"
+  | "birthday"
+  | "holiday"
+  | "other";
+
+export type EventStatus =
+  | "inquiry"
+  | "pending"
+  | "confirmed"
+  | "in-progress"
+  | "completed"
+  | "cancelled";
 
 export interface Reservation {
   id: string;
+  businessId: string;
   storeId: string;
-  customerId?: string;
+  customerId: string | null;
   customerName: string;
   customerPhone: string;
-  customerEmail?: string;
+  customerEmail: string | null;
   partySize: number;
   date: string;
   time: string;
-  duration: number; // in minutes
-  tableNumber?: string;
-  status: "pending" | "confirmed" | "seated" | "completed" | "cancelled" | "no-show";
-  notes?: string;
-  specialRequests?: string;
+  duration: number | null;
+  tableNumber: string | null;
+  status: ReservationStatus;
+  notes: string | null;
+  specialRequests: string | null;
+  seatedAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface Event {
   id: string;
+  businessId: string;
   storeId: string;
+  customerId: string | null;
   name: string;
-  description?: string;
-  type: "private" | "corporate" | "wedding" | "birthday" | "holiday" | "other";
+  description: string | null;
+  type: EventType;
   date: string;
   startTime: string;
   endTime: string;
   expectedGuests: number;
-  confirmedGuests?: number;
-  status: "inquiry" | "pending" | "confirmed" | "in-progress" | "completed" | "cancelled";
+  confirmedGuests: number | null;
+  status: EventStatus;
   contactName: string;
   contactPhone: string;
-  contactEmail?: string;
-  venueArea?: string;
-  deposit?: number;
+  contactEmail: string | null;
+  venueArea: string | null;
+  deposit: number | null;
   depositPaid: boolean;
-  totalAmount?: number;
-  notes?: string;
+  totalAmount: number | null;
+  paidAmount: number;
+  notes: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 // Filters
+
 export interface ReservationFilters {
   storeId?: string;
-  status?: Reservation["status"];
+  status?: ReservationStatus;
+  customerId?: string;
   date?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -57,8 +91,8 @@ export interface ReservationFilters {
 
 export interface EventFilters {
   storeId?: string;
-  status?: Event["status"];
-  type?: Event["type"];
+  status?: EventStatus;
+  type?: EventType;
   dateFrom?: string;
   dateTo?: string;
   search?: string;
@@ -67,6 +101,7 @@ export interface EventFilters {
 }
 
 // Request types
+
 export interface CreateReservationRequest {
   storeId: string;
   customerId?: string;
@@ -82,25 +117,17 @@ export interface CreateReservationRequest {
   specialRequests?: string;
 }
 
-export interface UpdateReservationRequest {
-  customerName?: string;
-  customerPhone?: string;
-  customerEmail?: string;
-  partySize?: number;
-  date?: string;
-  time?: string;
-  duration?: number;
-  tableNumber?: string;
-  status?: Reservation["status"];
-  notes?: string;
-  specialRequests?: string;
+export interface UpdateReservationRequest
+  extends Partial<Omit<CreateReservationRequest, "storeId">> {
+  status?: ReservationStatus;
 }
 
 export interface CreateEventRequest {
   storeId: string;
+  customerId?: string;
   name: string;
   description?: string;
-  type: Event["type"];
+  type: EventType;
   date: string;
   startTime: string;
   endTime: string;
@@ -114,33 +141,47 @@ export interface CreateEventRequest {
   notes?: string;
 }
 
-export interface UpdateEventRequest {
-  name?: string;
-  description?: string;
-  type?: Event["type"];
-  date?: string;
-  startTime?: string;
-  endTime?: string;
-  expectedGuests?: number;
+export interface UpdateEventRequest
+  extends Partial<Omit<CreateEventRequest, "storeId">> {
+  status?: EventStatus;
   confirmedGuests?: number;
-  status?: Event["status"];
-  contactName?: string;
-  contactPhone?: string;
-  contactEmail?: string;
-  venueArea?: string;
-  deposit?: number;
   depositPaid?: boolean;
-  totalAmount?: number;
-  notes?: string;
 }
 
 // Stats
-export interface BookingStats {
+
+export interface ReservationStats {
   totalReservations: number;
   todayReservations: number;
   upcomingReservations: number;
+  cancelledReservations: number;
+  noShowCount: number;
+  noShowRate: number;
+}
+
+export interface EventStats {
   totalEvents: number;
   upcomingEvents: number;
-  cancelledReservations: number;
-  noShowRate: number;
+  inProgressEvents: number;
+  expectedRevenue: number;
+  collectedRevenue: number;
+}
+
+export interface BookingStats extends ReservationStats, EventStats {}
+
+export interface CalendarFeedItem {
+  kind: "reservation" | "event";
+  id: string;
+  title: string;
+  date: string;
+  startTime: string;
+  endTime: string | null;
+  status: string;
+  guests: number;
+}
+
+export interface CalendarFeed {
+  reservations: Reservation[];
+  events: Event[];
+  feed: CalendarFeedItem[];
 }

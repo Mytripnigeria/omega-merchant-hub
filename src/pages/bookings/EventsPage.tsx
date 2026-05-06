@@ -1,12 +1,34 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMemo, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Calendar, PartyPopper, Users, MoreHorizontal, Phone, Mail, Edit, Trash2, CheckCircle, XCircle, Clock, DollarSign } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Search,
+  Plus,
+  Calendar as CalendarIcon,
+  PartyPopper,
+  Users,
+  Phone,
+  Mail,
+  Edit,
+  Trash2,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  DollarSign,
+  Play,
+} from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -16,538 +38,790 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { format } from "date-fns";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import type { Event as BookingEvent } from "@/types/bookings";
+  useEvents,
+  useEventStats,
+  useCreateEvent,
+  useUpdateEvent,
+  useDeleteEvent,
+  useConfirmEvent,
+  useStartEvent,
+  useCompleteEvent,
+  useCancelEvent,
+  useRecordEventPayment,
+} from "@/hooks/api/use-bookings";
+import { useStore } from "@/contexts/StoreContext";
+import type { Event, EventStatus, EventType } from "@/types/bookings";
 
-// UI Event type with computed display fields
-interface EventUI {
-  id: string;
-  storeId: string;
+const ALL = "__all__";
+
+const statusColor: Record<EventStatus, string> = {
+  inquiry: "bg-slate-100 text-slate-700 dark:bg-slate-800/50 dark:text-slate-300",
+  pending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+  confirmed: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  "in-progress":
+    "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+  completed: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+};
+
+interface EventForm {
   name: string;
-  description?: string;
-  type: BookingEvent["type"];
+  description: string;
+  type: EventType;
   date: string;
   startTime: string;
   endTime: string;
-  expectedGuests: number;
-  confirmedGuests?: number;
-  status: BookingEvent["status"];
+  expectedGuests: string;
   contactName: string;
   contactPhone: string;
-  contactEmail?: string;
-  venueArea?: string;
-  deposit?: number;
-  depositPaid: boolean;
-  totalAmount?: number;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-  // Computed UI fields
-  organizer: string;
-  phone?: string;
-  email?: string;
-  time: string;
-  guests: number;
-  displayType: string;
-  displayStatus: "confirmed" | "pending" | "cancelled";
-  total?: number;
-  menu?: string;
+  contactEmail: string;
+  venueArea: string;
+  deposit: string;
+  totalAmount: string;
+  notes: string;
 }
 
-// Transform API Event to UI format
-const transformEvent = (event: BookingEvent): EventUI => ({
-  ...event,
-  organizer: event.contactName,
-  phone: event.contactPhone,
-  email: event.contactEmail,
-  time: event.startTime,
-  guests: event.expectedGuests,
-  displayType: event.type.charAt(0).toUpperCase() + event.type.slice(1),
-  displayStatus: event.status === "inquiry" || event.status === "pending" ? "pending" : 
-                 event.status === "cancelled" ? "cancelled" : "confirmed",
-  total: event.totalAmount,
-  menu: undefined,
-});
+function emptyForm(): EventForm {
+  return {
+    name: "",
+    description: "",
+    type: "private",
+    date: new Date().toISOString().slice(0, 10),
+    startTime: "18:00",
+    endTime: "22:00",
+    expectedGuests: "20",
+    contactName: "",
+    contactPhone: "",
+    contactEmail: "",
+    venueArea: "",
+    deposit: "",
+    totalAmount: "",
+    notes: "",
+  };
+}
 
-const mockEvents: BookingEvent[] = [
-  { id: "1", storeId: "store-1", name: "Corporate Dinner", type: "corporate", description: "Full venue hire, custom menu required", date: "2026-01-25", startTime: "6:00 PM", endTime: "10:00 PM", expectedGuests: 50, confirmedGuests: 48, status: "confirmed", contactName: "Acme Corp", contactPhone: "+234 801 234 5678", contactEmail: "events@acme.com", deposit: 250000, depositPaid: true, totalAmount: 1500000, createdAt: "2026-01-10", updatedAt: "2026-01-10" },
-  { id: "2", storeId: "store-1", name: "Birthday Party", type: "birthday", date: "2026-01-28", startTime: "7:30 PM", endTime: "11:00 PM", expectedGuests: 25, status: "pending", contactName: "John Smith", contactPhone: "+234 802 345 6789", deposit: 100000, depositPaid: false, totalAmount: 500000, createdAt: "2026-01-15", updatedAt: "2026-01-15" },
-  { id: "3", storeId: "store-1", name: "Wine Tasting", type: "other", description: "Wine pairing menu", date: "2026-02-01", startTime: "5:00 PM", endTime: "8:00 PM", expectedGuests: 30, status: "confirmed", contactName: "Sommelier Club", contactPhone: "+234 803 456 7890", contactEmail: "club@sommelier.ng", deposit: 150000, depositPaid: true, totalAmount: 600000, createdAt: "2026-01-12", updatedAt: "2026-01-12" },
-  { id: "4", storeId: "store-1", name: "Anniversary Dinner", type: "private", notes: "10th anniversary, need cake", date: "2026-02-05", startTime: "8:00 PM", endTime: "11:00 PM", expectedGuests: 12, status: "confirmed", contactName: "Mike & Sarah", contactPhone: "+234 804 567 8901", deposit: 0, depositPaid: false, createdAt: "2026-01-18", updatedAt: "2026-01-18" },
-];
+function eventToForm(e: Event): EventForm {
+  return {
+    name: e.name,
+    description: e.description ?? "",
+    type: e.type,
+    date: e.date,
+    startTime: e.startTime,
+    endTime: e.endTime,
+    expectedGuests: String(e.expectedGuests),
+    contactName: e.contactName,
+    contactPhone: e.contactPhone,
+    contactEmail: e.contactEmail ?? "",
+    venueArea: e.venueArea ?? "",
+    deposit: e.deposit != null ? String(e.deposit) : "",
+    totalAmount: e.totalAmount != null ? String(e.totalAmount) : "",
+    notes: e.notes ?? "",
+  };
+}
 
-// Transform to UI format
-const eventsData: EventUI[] = mockEvents.map(transformEvent);
-
-const eventTypes = ["Private", "Celebration", "Corporate", "Special", "Wedding", "Other"];
+function ngn(n: number): string {
+  return `₦${n.toLocaleString()}`;
+}
 
 export default function EventsPage() {
+  const { currentStore } = useStore();
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [events] = useState(eventsData);
-  const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
-  const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<EventUI | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>(ALL);
+  const [typeFilter, setTypeFilter] = useState<string>(ALL);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetMode, setSheetMode] = useState<"view" | "create" | "edit">("create");
+  const [selected, setSelected] = useState<Event | null>(null);
+  const [form, setForm] = useState<EventForm>(emptyForm());
 
-  const stats = [
-    { label: "Upcoming", value: events.filter(e => e.status !== "cancelled").length.toString(), icon: Calendar },
-    { label: "This Month", value: "15", icon: PartyPopper },
-    { label: "Total Guests", value: events.reduce((sum, e) => sum + e.guests, 0).toString(), icon: Users },
-  ];
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentAsDeposit, setPaymentAsDeposit] = useState(false);
 
-  const statusColors: Record<string, string> = {
-    confirmed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-    pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-    cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  const eventsQuery = useEvents({
+    storeId: currentStore?.id,
+    status: statusFilter === ALL ? undefined : (statusFilter as EventStatus),
+    type: typeFilter === ALL ? undefined : (typeFilter as EventType),
+    search: search || undefined,
+    page,
+    limit: pageSize,
+  });
+  const statsQuery = useEventStats(currentStore?.id);
+
+  const createEvent = useCreateEvent();
+  const updateEvent = useUpdateEvent();
+  const deleteEvent = useDeleteEvent();
+  const confirmEvent = useConfirmEvent();
+  const startEvent = useStartEvent();
+  const completeEvent = useCompleteEvent();
+  const cancelEvent = useCancelEvent();
+  const recordPayment = useRecordEventPayment();
+
+  const events = eventsQuery.data?.data ?? [];
+  const total = eventsQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, total);
+
+  const stats = useMemo(() => {
+    const s = statsQuery.data;
+    return [
+      {
+        label: "Upcoming",
+        value: s ? String(s.upcomingEvents) : "—",
+        icon: CalendarIcon,
+      },
+      {
+        label: "In Progress",
+        value: s ? String(s.inProgressEvents) : "—",
+        icon: Clock,
+      },
+      {
+        label: "Expected Revenue",
+        value: s ? ngn(s.expectedRevenue) : "—",
+        icon: DollarSign,
+      },
+      {
+        label: "Collected",
+        value: s ? ngn(s.collectedRevenue) : "—",
+        icon: DollarSign,
+      },
+    ];
+  }, [statsQuery.data]);
+
+  const openCreate = () => {
+    setSelected(null);
+    setForm(emptyForm());
+    setSheetMode("create");
+    setSheetOpen(true);
+  };
+  const openView = (e: Event) => {
+    setSelected(e);
+    setForm(eventToForm(e));
+    setPaymentAmount("");
+    setPaymentAsDeposit(false);
+    setSheetMode("view");
+    setSheetOpen(true);
+  };
+  const openEdit = (e: Event) => {
+    setSelected(e);
+    setForm(eventToForm(e));
+    setSheetMode("edit");
+    setSheetOpen(true);
+  };
+  const close = () => {
+    setSheetOpen(false);
+    setSelected(null);
   };
 
-  const handleViewEvent = (event: EventUI) => {
-    setSelectedEvent(event);
-    setIsViewSheetOpen(true);
-  };
-
-  const filteredEvents = events.filter(e => {
-    const matchesSearch = e.name.toLowerCase().includes(search.toLowerCase()) ||
-                          e.organizer.toLowerCase().includes(search.toLowerCase());
-    const matchesType = typeFilter === "all" || e.type.toLowerCase() === typeFilter.toLowerCase();
-    return matchesSearch && matchesType;
+  const buildPayload = () => ({
+    name: form.name,
+    description: form.description || undefined,
+    type: form.type,
+    date: form.date,
+    startTime: form.startTime,
+    endTime: form.endTime,
+    expectedGuests: Number(form.expectedGuests) || 1,
+    contactName: form.contactName,
+    contactPhone: form.contactPhone,
+    contactEmail: form.contactEmail || undefined,
+    venueArea: form.venueArea || undefined,
+    deposit: form.deposit ? Number(form.deposit) : undefined,
+    totalAmount: form.totalAmount ? Number(form.totalAmount) : undefined,
+    notes: form.notes || undefined,
   });
 
+  const handleCreate = () => {
+    if (!currentStore) {
+      toast.error("Select a store first");
+      return;
+    }
+    if (!form.name.trim() || !form.contactName.trim() || !form.contactPhone.trim()) {
+      toast.error("Name, contact name and phone are required");
+      return;
+    }
+    createEvent.mutate(
+      { storeId: currentStore.id, ...buildPayload() },
+      {
+        onSuccess: () => {
+          toast.success("Event created");
+          close();
+        },
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't create"),
+      },
+    );
+  };
+
+  const handleUpdate = () => {
+    if (!selected) return;
+    updateEvent.mutate(
+      { id: selected.id, data: buildPayload() },
+      {
+        onSuccess: () => {
+          toast.success("Event updated");
+          close();
+        },
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't update"),
+      },
+    );
+  };
+
+  const handleDelete = (e: Event) => {
+    if (!confirm(`Delete event "${e.name}"?`)) return;
+    deleteEvent.mutate(e.id, {
+      onSuccess: () => {
+        toast.success("Event deleted");
+        if (selected?.id === e.id) close();
+      },
+      onError: (e: Error) => toast.error(e.message ?? "Couldn't delete"),
+    });
+  };
+
+  const transitionAction = (
+    fn: ReturnType<typeof useConfirmEvent>,
+    id: string,
+    successMsg: string,
+  ) => {
+    fn.mutate(id, {
+      onSuccess: (updated: Event) => {
+        toast.success(successMsg);
+        setSelected(updated);
+      },
+      onError: (e: Error) => toast.error(e.message ?? "Couldn't update"),
+    });
+  };
+
+  const handleRecordPayment = () => {
+    if (!selected) return;
+    const amount = Number(paymentAmount);
+    if (!amount || amount <= 0) {
+      toast.error("Amount must be positive");
+      return;
+    }
+    recordPayment.mutate(
+      { id: selected.id, amount, asDeposit: paymentAsDeposit },
+      {
+        onSuccess: (updated: Event) => {
+          toast.success("Payment recorded");
+          setSelected(updated);
+          setPaymentAmount("");
+          setPaymentAsDeposit(false);
+        },
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't record"),
+      },
+    );
+  };
+
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Events</h1>
-          <p className="text-sm text-muted-foreground">Manage special events and private bookings</p>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Events</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage private functions, corporate events, and parties
+          </p>
         </div>
-        <Button size="sm" onClick={() => setIsAddSheetOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />Create Event
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="mr-2 h-4 w-4" /> New Event
         </Button>
       </div>
 
-      {/* Two-column layout for desktop */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Stats */}
-          <div className="grid gap-3 grid-cols-3">
-            {stats.map((stat) => (
-              <Card key={stat.label} className="border-border/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                      <stat.icon className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                  <p className="text-2xl font-semibold">{stat.value}</p>
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat) => (
+          <Card key={stat.label} className="border-border/50">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-muted flex items-center justify-center">
+                  <stat.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+                </div>
+              </div>
+              <p className="text-xl sm:text-2xl font-semibold">{stat.value}</p>
+              <p className="text-xs text-muted-foreground">{stat.label}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-          {/* Filters */}
+      <Card className="border-border/50">
+        <CardContent className="p-4 space-y-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search events..." 
-                value={search} 
-                onChange={(e) => setSearch(e.target.value)} 
-                className="pl-9 h-9 bg-muted/50 border-0" 
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search events..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                className="pl-9 h-9 bg-muted/50 border-0"
               />
             </div>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-full sm:w-[130px] h-9 bg-muted/50 border-0">
-                <SelectValue placeholder="All Types" />
+            <Select
+              value={typeFilter}
+              onValueChange={(v) => {
+                setTypeFilter(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-36 h-9 bg-muted/50 border-0">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                {eventTypes.map(t => (
-                  <SelectItem key={t} value={t.toLowerCase()}>{t}</SelectItem>
-                ))}
+                <SelectItem value={ALL}>All Types</SelectItem>
+                <SelectItem value="private">Private</SelectItem>
+                <SelectItem value="corporate">Corporate</SelectItem>
+                <SelectItem value="wedding">Wedding</SelectItem>
+                <SelectItem value="birthday">Birthday</SelectItem>
+                <SelectItem value="holiday">Holiday</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-36 h-9 bg-muted/50 border-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All Status</SelectItem>
+                <SelectItem value="inquiry">Inquiry</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="confirmed">Confirmed</SelectItem>
+                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Mobile Card View */}
-          <div className="block sm:hidden space-y-3">
-            {filteredEvents.map((event) => (
-              <Card 
-                key={event.id} 
-                className="border-border/50 cursor-pointer hover:bg-muted/50"
-                onClick={() => handleViewEvent(event)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="font-medium">{event.name}</p>
-                      <p className="text-xs text-muted-foreground">{event.organizer}</p>
-                    </div>
-                    <Badge className={statusColors[event.status]} variant="secondary">
-                      {event.status}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                    <span>{event.date} at {event.time}</span>
-                    <span>•</span>
-                    <span>{event.guests} guests</span>
-                  </div>
-                  <Badge variant="outline" className="text-xs mt-2">{event.type}</Badge>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Desktop Table View */}
-          <Card className="border-border/50 hidden sm:block">
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border/50">
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Event</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Organizer</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Date & Time</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Guests</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Type</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
-                      <th className="w-10 p-4"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredEvents.map((event) => (
-                      <tr 
-                        key={event.id} 
-                        className="border-b border-border/50 last:border-0 group cursor-pointer hover:bg-muted/50"
-                        onClick={() => handleViewEvent(event)}
-                      >
-                        <td className="font-medium text-sm p-4">{event.name}</td>
-                        <td className="text-sm text-muted-foreground p-4">{event.organizer}</td>
-                        <td className="text-sm text-muted-foreground p-4">{event.date} at {event.time}</td>
-                        <td className="text-sm p-4">{event.guests}</td>
-                        <td className="p-4">
-                          <Badge variant="outline" className="text-xs font-normal">{event.type}</Badge>
-                        </td>
-                        <td className="p-4">
-                          <Badge className={statusColors[event.status]} variant="secondary">
-                            {event.status}
-                          </Badge>
-                        </td>
-                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleViewEvent(event)}>View Details</DropdownMenuItem>
-                              <DropdownMenuItem>Edit</DropdownMenuItem>
-                              {event.status === "pending" && (
-                                <DropdownMenuItem className="text-green-600">Confirm</DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem className="text-destructive">Cancel</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Next Event</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div 
-                className="text-center p-4 rounded-lg bg-primary/5 cursor-pointer hover:bg-primary/10"
-                onClick={() => handleViewEvent(events[0])}
-              >
-                <PartyPopper className="h-8 w-8 mx-auto text-primary mb-2" />
-                <p className="font-semibold">{events[0].name}</p>
-                <p className="text-sm text-muted-foreground">{events[0].date}</p>
-                <div className="flex justify-center gap-2 mt-2">
-                  <Badge variant="secondary">{events[0].guests} guests</Badge>
-                  <Badge variant="outline">{events[0].type}</Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setIsAddSheetOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Event
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Calendar className="mr-2 h-4 w-4" />
-                View Calendar
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Users className="mr-2 h-4 w-4" />
-                Guest Lists
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Event Types</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {eventTypes.slice(0, 4).map((type) => (
-                <div key={type} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 cursor-pointer">
-                  <span className="text-sm">{type}</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {events.filter(e => e.type === type).length}
-                  </Badge>
-                </div>
+          {eventsQuery.isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
               ))}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Add Event Sheet */}
-      <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Create Event</SheetTitle>
-            <SheetDescription>Plan a new special event or private booking</SheetDescription>
-          </SheetHeader>
-          <div className="grid gap-4 py-6">
+            </div>
+          ) : events.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <PartyPopper className="h-10 w-10 text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">No events</p>
+              <Button variant="outline" size="sm" className="mt-3" onClick={openCreate}>
+                Create your first event
+              </Button>
+            </div>
+          ) : (
             <div className="space-y-2">
-              <Label>Event Name</Label>
-              <Input placeholder="e.g., Corporate Dinner" />
-            </div>
-            <div className="space-y-2">
-              <Label>Organizer Name</Label>
-              <Input placeholder="e.g., Acme Corp" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input placeholder="+234 801 234 5678" />
-              </div>
-              <div className="space-y-2">
-                <Label>Email (Optional)</Label>
-                <Input type="email" placeholder="email@example.com" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Date</Label>
-                <Input type="date" />
-              </div>
-              <div className="space-y-2">
-                <Label>Event Type</Label>
-                <Select>
-                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                  <SelectContent>
-                    {eventTypes.map(t => (
-                      <SelectItem key={t} value={t.toLowerCase()}>{t}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Start Time</Label>
-                <Input type="time" />
-              </div>
-              <div className="space-y-2">
-                <Label>End Time</Label>
-                <Input type="time" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Number of Guests</Label>
-                <Input type="number" placeholder="50" min="1" />
-              </div>
-              <div className="space-y-2">
-                <Label>Deposit (₦)</Label>
-                <Input type="number" placeholder="0" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Notes (Optional)</Label>
-              <Textarea placeholder="Special requests, menu requirements, etc." rows={3} />
-            </div>
-          </div>
-          <SheetFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsAddSheetOpen(false)} className="w-full sm:w-auto">Cancel</Button>
-            <Button className="w-full sm:w-auto">Create Event</Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-
-      {/* View Event Sheet */}
-      <Sheet open={isViewSheetOpen} onOpenChange={setIsViewSheetOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <SheetTitle>{selectedEvent?.name}</SheetTitle>
-                <SheetDescription>by {selectedEvent?.organizer}</SheetDescription>
-              </div>
-              <Badge className={statusColors[selectedEvent?.status || "pending"]}>
-                {selectedEvent?.status}
-              </Badge>
-            </div>
-          </SheetHeader>
-          
-          <Tabs defaultValue="details" className="mt-6">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="contact">Contact</TabsTrigger>
-              <TabsTrigger value="payment">Payment</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="details" className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 border rounded-lg text-center">
-                  <Calendar className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
-                  <p className="text-xs text-muted-foreground">Date</p>
-                  <p className="font-medium text-sm">{selectedEvent?.date}</p>
-                </div>
-                <div className="p-4 border rounded-lg text-center">
-                  <Clock className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
-                  <p className="text-xs text-muted-foreground">Time</p>
-                  <p className="font-medium text-sm">{selectedEvent?.time} - {selectedEvent?.endTime}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 border rounded-lg text-center">
-                  <Users className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
-                  <p className="text-xs text-muted-foreground">Guests</p>
-                  <p className="font-semibold text-lg">{selectedEvent?.guests}</p>
-                </div>
-                <div className="p-4 border rounded-lg text-center">
-                  <PartyPopper className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
-                  <p className="text-xs text-muted-foreground">Type</p>
-                  <Badge variant="outline" className="mt-1">{selectedEvent?.type}</Badge>
-                </div>
-              </div>
-              {selectedEvent?.menu && (
-                <div className="p-4 border rounded-lg">
-                  <p className="text-sm text-muted-foreground mb-1">Menu</p>
-                  <p className="text-sm font-medium">{selectedEvent.menu}</p>
-                </div>
-              )}
-              {selectedEvent?.notes && (
-                <div className="p-4 border rounded-lg">
-                  <p className="text-sm text-muted-foreground mb-1">Notes</p>
-                  <p className="text-sm">{selectedEvent.notes}</p>
-                </div>
-              )}
-              <div className="text-xs text-muted-foreground">
-                Created: {selectedEvent?.createdAt}
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="contact" className="space-y-4 mt-4">
-              <div className="flex items-center gap-3 p-4 border rounded-lg">
-                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                  <Phone className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Phone</p>
-                  <p className="font-medium">{selectedEvent?.phone}</p>
-                </div>
-              </div>
-              {selectedEvent?.email && (
-                <div className="flex items-center gap-3 p-4 border rounded-lg">
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                    <Mail className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Email</p>
-                    <p className="font-medium">{selectedEvent.email}</p>
-                  </div>
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm">
-                  <Phone className="h-4 w-4 mr-2" />Call
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Mail className="h-4 w-4 mr-2" />Email
-                </Button>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="payment" className="space-y-4 mt-4">
-              {selectedEvent?.deposit && (
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <DollarSign className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Deposit Paid</p>
-                      <p className="font-medium">₦{selectedEvent.deposit.toLocaleString()}</p>
+              {events.map((e) => (
+                <div
+                  key={e.id}
+                  className="flex items-center justify-between p-4 border rounded-lg gap-3 hover:bg-muted/40 transition-colors cursor-pointer"
+                  onClick={() => openView(e)}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium truncate">{e.name}</p>
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {e.type}
+                      </Badge>
                     </div>
-                  </div>
-                  <Badge variant="outline" className="text-green-600">Received</Badge>
-                </div>
-              )}
-              {selectedEvent?.total && (
-                <>
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm text-muted-foreground">Total Amount</p>
-                    <p className="text-xl font-semibold">₦{selectedEvent.total.toLocaleString()}</p>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm text-muted-foreground">Balance Due</p>
-                    <p className="text-xl font-semibold text-orange-600">
-                      ₦{(selectedEvent.total - (selectedEvent.deposit || 0)).toLocaleString()}
+                    <p className="text-xs text-muted-foreground truncate">
+                      {format(new Date(`${e.date}T${e.startTime}`), "EEE, MMM d · p")}
+                      {" · "}
+                      {e.confirmedGuests ?? e.expectedGuests} guests
+                      {e.venueArea && ` · ${e.venueArea}`}
                     </p>
                   </div>
-                </>
-              )}
-            </TabsContent>
-          </Tabs>
-          
-          <SheetFooter className="flex-col sm:flex-row gap-2 mt-6">
-            {selectedEvent?.status === "pending" && (
-              <>
-                <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 w-full sm:w-auto">
-                  <XCircle className="h-4 w-4 mr-2" />Cancel
-                </Button>
-                <Button className="bg-green-600 hover:bg-green-700 w-full sm:w-auto">
-                  <CheckCircle className="h-4 w-4 mr-2" />Confirm
-                </Button>
-              </>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <Badge
+                      variant="secondary"
+                      className={cn("text-xs capitalize", statusColor[e.status])}
+                    >
+                      {e.status}
+                    </Badge>
+                    {e.totalAmount != null && (
+                      <span className="text-xs text-muted-foreground">
+                        {ngn(e.totalAmount)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {total > 0 && (
+        <TablePagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={total}
+          startIndex={startIndex + 1}
+          endIndex={endIndex}
+          pageSize={pageSize}
+          onPageChange={setPage}
+        />
+      )}
+
+      <Sheet open={sheetOpen} onOpenChange={(o) => (o ? setSheetOpen(true) : close())}>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>
+              {sheetMode === "create"
+                ? "New Event"
+                : sheetMode === "edit"
+                  ? `Edit ${selected?.name}`
+                  : selected?.name}
+            </SheetTitle>
+            {sheetMode === "view" && selected && (
+              <SheetDescription>
+                {format(new Date(`${selected.date}T${selected.startTime}`), "EEEE, MMMM d · p")}
+                {" – "}
+                {selected.endTime}
+              </SheetDescription>
             )}
-            {selectedEvent?.status === "confirmed" && (
-              <>
-                <Button variant="destructive" size="sm" className="w-full sm:w-auto">
-                  <Trash2 className="h-4 w-4 mr-2" />Cancel Event
+          </SheetHeader>
+
+          {sheetMode === "view" && selected ? (
+            <Tabs defaultValue="details" className="mt-4">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="payments">Payments</TabsTrigger>
+                <TabsTrigger value="actions">Actions</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="details" className="space-y-3 mt-4 text-sm">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Type</p>
+                    <p className="font-medium capitalize">{selected.type}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <Badge
+                      variant="secondary"
+                      className={cn("text-xs capitalize", statusColor[selected.status])}
+                    >
+                      {selected.status}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Expected guests</p>
+                    <p className="font-medium">{selected.expectedGuests}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Confirmed</p>
+                    <p className="font-medium">
+                      {selected.confirmedGuests ?? "—"}
+                    </p>
+                  </div>
+                  {selected.venueArea && (
+                    <div className="col-span-2">
+                      <p className="text-xs text-muted-foreground">Venue area</p>
+                      <p className="font-medium">{selected.venueArea}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2 pt-3 border-t">
+                  <p className="text-xs text-muted-foreground">Contact</p>
+                  <div className="space-y-1">
+                    <p className="font-medium">{selected.contactName}</p>
+                    <p className="flex items-center gap-2 text-sm">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      {selected.contactPhone}
+                    </p>
+                    {selected.contactEmail && (
+                      <p className="flex items-center gap-2 text-sm">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        {selected.contactEmail}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {selected.description && (
+                  <div className="pt-3 border-t">
+                    <p className="text-xs text-muted-foreground mb-1">Description</p>
+                    <p>{selected.description}</p>
+                  </div>
+                )}
+                {selected.notes && (
+                  <div className="pt-3 border-t">
+                    <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                    <p>{selected.notes}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-3 border-t">
+                  <Button variant="outline" className="flex-1" onClick={() => openEdit(selected)}>
+                    <Edit className="h-4 w-4 mr-2" /> Edit
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={() => handleDelete(selected)}
+                    disabled={deleteEvent.isPending}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="payments" className="space-y-3 mt-4">
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div className="p-3 border rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground">Total</p>
+                    <p className="font-semibold">
+                      {selected.totalAmount != null ? ngn(selected.totalAmount) : "—"}
+                    </p>
+                  </div>
+                  <div className="p-3 border rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground">Deposit</p>
+                    <p className="font-semibold">
+                      {selected.deposit != null ? ngn(selected.deposit) : "—"}
+                    </p>
+                    {selected.depositPaid && (
+                      <Badge variant="outline" className="mt-1 text-xs">
+                        Paid
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="p-3 border rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground">Collected</p>
+                    <p className="font-semibold">{ngn(selected.paidAmount)}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 border rounded-lg p-3">
+                  <Label>Record payment</Label>
+                  <Input
+                    type="number"
+                    placeholder="Amount (₦)"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                  />
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={paymentAsDeposit}
+                      onChange={(e) => setPaymentAsDeposit(e.target.checked)}
+                    />
+                    <span>Mark deposit as paid</span>
+                  </label>
+                  <Button
+                    onClick={handleRecordPayment}
+                    disabled={recordPayment.isPending}
+                    className="w-full"
+                  >
+                    <DollarSign className="h-4 w-4 mr-2" /> Record Payment
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="actions" className="space-y-2 mt-4">
+                <div className="grid grid-cols-2 gap-2">
+                  {(selected.status === "inquiry" || selected.status === "pending") && (
+                    <Button
+                      onClick={() => transitionAction(confirmEvent, selected.id, "Confirmed")}
+                      disabled={confirmEvent.isPending}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" /> Confirm
+                    </Button>
+                  )}
+                  {selected.status === "confirmed" && (
+                    <Button
+                      onClick={() => transitionAction(startEvent, selected.id, "Started")}
+                      disabled={startEvent.isPending}
+                    >
+                      <Play className="h-4 w-4 mr-2" /> Start
+                    </Button>
+                  )}
+                  {selected.status === "in-progress" && (
+                    <Button
+                      onClick={() => transitionAction(completeEvent, selected.id, "Completed")}
+                      disabled={completeEvent.isPending}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" /> Complete
+                    </Button>
+                  )}
+                  {(selected.status === "inquiry" ||
+                    selected.status === "pending" ||
+                    selected.status === "confirmed") && (
+                    <Button
+                      variant="destructive"
+                      onClick={() => transitionAction(cancelEvent, selected.id, "Cancelled")}
+                      disabled={cancelEvent.isPending}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" /> Cancel
+                    </Button>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <div className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Type</Label>
+                  <Select
+                    value={form.type}
+                    onValueChange={(v) => setForm({ ...form, type: v as EventType })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="private">Private</SelectItem>
+                      <SelectItem value="corporate">Corporate</SelectItem>
+                      <SelectItem value="wedding">Wedding</SelectItem>
+                      <SelectItem value="birthday">Birthday</SelectItem>
+                      <SelectItem value="holiday">Holiday</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Expected guests</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={form.expectedGuests}
+                    onChange={(e) =>
+                      setForm({ ...form, expectedGuests: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label>Date</Label>
+                  <Input
+                    type="date"
+                    value={form.date}
+                    onChange={(e) => setForm({ ...form, date: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Start</Label>
+                  <Input
+                    type="time"
+                    value={form.startTime}
+                    onChange={(e) => setForm({ ...form, startTime: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>End</Label>
+                  <Input
+                    type="time"
+                    value={form.endTime}
+                    onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Venue area</Label>
+                <Input
+                  placeholder="e.g. Main Hall, Private Dining"
+                  value={form.venueArea}
+                  onChange={(e) => setForm({ ...form, venueArea: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2 pt-3 border-t">
+                <Label>Contact name</Label>
+                <Input
+                  value={form.contactName}
+                  onChange={(e) => setForm({ ...form, contactName: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Phone</Label>
+                  <Input
+                    value={form.contactPhone}
+                    onChange={(e) =>
+                      setForm({ ...form, contactPhone: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    value={form.contactEmail}
+                    onChange={(e) =>
+                      setForm({ ...form, contactEmail: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t">
+                <div className="space-y-2">
+                  <Label>Deposit (₦)</Label>
+                  <Input
+                    type="number"
+                    value={form.deposit}
+                    onChange={(e) => setForm({ ...form, deposit: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Total amount (₦)</Label>
+                  <Input
+                    type="number"
+                    value={form.totalAmount}
+                    onChange={(e) =>
+                      setForm({ ...form, totalAmount: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea
+                  rows={2}
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Textarea
+                  rows={2}
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                />
+              </div>
+
+              <SheetFooter className="flex-col sm:flex-row gap-2 pt-4 border-t">
+                <Button variant="outline" className="w-full sm:w-auto" onClick={close}>
+                  Cancel
                 </Button>
-                <Button className="w-full sm:w-auto">
-                  <Edit className="h-4 w-4 mr-2" />Edit
+                <Button
+                  className="w-full sm:w-auto"
+                  onClick={sheetMode === "create" ? handleCreate : handleUpdate}
+                  disabled={createEvent.isPending || updateEvent.isPending}
+                >
+                  {sheetMode === "create" ? "Create Event" : "Save Changes"}
                 </Button>
-              </>
-            )}
-          </SheetFooter>
+              </SheetFooter>
+            </div>
+          )}
         </SheetContent>
       </Sheet>
     </div>

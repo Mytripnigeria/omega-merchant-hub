@@ -1,202 +1,283 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Plus, Calendar, Users, Clock } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Calendar as CalendarIcon,
+  Users,
+  Clock,
+  PartyPopper,
+} from "lucide-react";
+import {
+  addMonths,
+  endOfMonth,
+  format,
+  startOfMonth,
+  subMonths,
+} from "date-fns";
+import { useBookingsCalendar } from "@/hooks/api/use-bookings";
+import { useStore } from "@/contexts/StoreContext";
+import { cn } from "@/lib/utils";
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function CalendarPage() {
-  const [currentDate] = useState(new Date(2026, 0, 1));
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const currentMonth = currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const navigate = useNavigate();
+  const { currentStore } = useStore();
+  const [cursor, setCursor] = useState(new Date());
 
-  const bookings = [
-    { day: 5, count: 3, type: "table" },
-    { day: 12, count: 5, type: "event" },
-    { day: 15, count: 2, type: "table" },
-    { day: 20, count: 1, type: "event" },
-    { day: 25, count: 4, type: "table" },
-    { day: 28, count: 2, type: "table" },
-  ];
+  const startDate = useMemo(() => startOfMonth(cursor), [cursor]);
+  const endDate = useMemo(() => endOfMonth(cursor), [cursor]);
 
-  const stats = [
-    { label: "This Month", value: "48", icon: Calendar },
-    { label: "Total Guests", value: "320", icon: Users },
-    { label: "Events", value: "8", icon: Clock },
-  ];
+  const calendarQuery = useBookingsCalendar({
+    dateFrom: format(startDate, "yyyy-MM-dd"),
+    dateTo: format(endDate, "yyyy-MM-dd"),
+    storeId: currentStore?.id,
+  });
 
-  const getBookingForDay = (day: number) => bookings.find(b => b.day === day);
+  const monthLabel = format(cursor, "MMMM yyyy");
+  const today = format(new Date(), "yyyy-MM-dd");
+
+  // Build day grid
+  const days = useMemo(() => {
+    const start = startDate.getDay(); // 0 = Sun
+    const total = endDate.getDate();
+    const cells: Array<{ date: string; day: number } | null> = [];
+    for (let i = 0; i < start; i++) cells.push(null);
+    for (let d = 1; d <= total; d++) {
+      const dateStr = format(
+        new Date(cursor.getFullYear(), cursor.getMonth(), d),
+        "yyyy-MM-dd",
+      );
+      cells.push({ date: dateStr, day: d });
+    }
+    while (cells.length % 7 !== 0) cells.push(null);
+    return cells;
+  }, [startDate, endDate, cursor]);
+
+  const itemsByDate = useMemo(() => {
+    const map = new Map<
+      string,
+      { reservations: number; events: number; guests: number }
+    >();
+    const feed = calendarQuery.data?.feed ?? [];
+    for (const f of feed) {
+      const cur = map.get(f.date) ?? { reservations: 0, events: 0, guests: 0 };
+      if (f.kind === "reservation") cur.reservations++;
+      else cur.events++;
+      cur.guests += f.guests;
+      map.set(f.date, cur);
+    }
+    return map;
+  }, [calendarQuery.data]);
+
+  const monthStats = useMemo(() => {
+    const reservations = calendarQuery.data?.reservations.length ?? 0;
+    const events = calendarQuery.data?.events.length ?? 0;
+    const guests = (calendarQuery.data?.feed ?? []).reduce(
+      (sum, f) => sum + f.guests,
+      0,
+    );
+    return [
+      { label: "Reservations", value: String(reservations), icon: CalendarIcon },
+      { label: "Events", value: String(events), icon: PartyPopper },
+      { label: "Total Guests", value: String(guests), icon: Users },
+    ];
+  }, [calendarQuery.data]);
+
+  const todayItems = useMemo(() => {
+    return (calendarQuery.data?.feed ?? []).filter((f) => f.date === today);
+  }, [calendarQuery.data, today]);
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Calendar</h1>
-          <p className="text-sm text-muted-foreground">View all bookings and events</p>
+          <p className="text-sm text-muted-foreground">
+            Reservations and events at a glance
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="h-8 w-8">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setCursor(subMonths(cursor, 1))}
+          >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="font-medium min-w-28 text-center text-sm">{currentMonth}</span>
-          <Button variant="outline" size="icon" className="h-8 w-8">
+          <span className="text-sm font-medium px-2 min-w-32 text-center">
+            {monthLabel}
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setCursor(addMonths(cursor, 1))}
+          >
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button size="sm" className="ml-2">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Booking
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-2"
+            onClick={() => setCursor(new Date())}
+          >
+            Today
           </Button>
         </div>
       </div>
 
-      {/* Two-column layout for desktop */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Stats */}
-          <div className="grid gap-3 grid-cols-3">
-            {stats.map((stat) => (
-              <Card key={stat.label} className="border-border/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                      <stat.icon className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                  <p className="text-2xl font-semibold">{stat.value}</p>
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+      <div className="grid gap-3 grid-cols-3">
+        {monthStats.map((s) => (
+          <Card key={s.label} className="border-border/50">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-muted flex items-center justify-center">
+                  <s.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+                </div>
+              </div>
+              <p className="text-xl sm:text-2xl font-semibold">{s.value}</p>
+              <p className="text-xs text-muted-foreground">{s.label}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-          {/* Calendar */}
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
-                {days.map((day) => (
-                  <div key={day} className="bg-muted/50 text-center font-medium py-2 sm:py-3 text-xs text-muted-foreground">
-                    <span className="hidden sm:inline">{day}</span>
-                    <span className="sm:hidden">{day.slice(0, 1)}</span>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2 border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">{monthLabel}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {calendarQuery.isLoading ? (
+              <Skeleton className="h-80 w-full" />
+            ) : (
+              <div className="grid grid-cols-7 gap-1">
+                {WEEKDAYS.map((d) => (
+                  <div
+                    key={d}
+                    className="text-center text-xs font-medium text-muted-foreground py-2"
+                  >
+                    {d}
                   </div>
                 ))}
-                {Array.from({ length: 35 }, (_, i) => {
-                  const dayNum = i - 3;
-                  const isCurrentMonth = dayNum >= 0 && dayNum < 31;
-                  const booking = isCurrentMonth ? getBookingForDay(dayNum + 1) : null;
-                  const isToday = dayNum + 1 === 14;
-
+                {days.map((cell, i) => {
+                  if (!cell)
+                    return <div key={`empty-${i}`} className="min-h-[68px]" />;
+                  const counts = itemsByDate.get(cell.date);
+                  const isToday = cell.date === today;
                   return (
                     <div
-                      key={i}
-                      className={`bg-background min-h-16 sm:min-h-24 p-1 sm:p-2 transition-colors hover:bg-muted/50 cursor-pointer ${
-                        !isCurrentMonth ? "bg-muted/30" : ""
-                      }`}
+                      key={cell.date}
+                      className={cn(
+                        "min-h-[68px] border rounded p-1 text-center cursor-pointer hover:bg-muted/40 transition-colors",
+                        isToday ? "border-primary bg-primary/5" : "border-border/50",
+                      )}
+                      onClick={() => navigate("/bookings/reservations")}
                     >
-                      {isCurrentMonth && (
-                        <>
-                          <div className={`text-xs sm:text-sm font-medium mb-1 ${
-                            isToday 
-                              ? "bg-primary text-primary-foreground w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs" 
-                              : "text-foreground"
-                          }`}>
-                            {dayNum + 1}
-                          </div>
-                          {booking && (
-                            <Badge 
-                              variant={booking.type === "event" ? "default" : "secondary"} 
-                              className="text-[9px] sm:text-xs px-1 py-0"
+                      <p
+                        className={cn(
+                          "text-xs mb-1",
+                          isToday
+                            ? "text-primary font-medium"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        {cell.day}
+                      </p>
+                      {counts && (
+                        <div className="space-y-0.5">
+                          {counts.reservations > 0 && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] h-4 px-1 w-full"
                             >
-                              <span className="hidden sm:inline">{booking.count} {booking.type === "event" ? "events" : "tables"}</span>
-                              <span className="sm:hidden">{booking.count}</span>
+                              {counts.reservations} res
                             </Badge>
                           )}
-                        </>
+                          {counts.events > 0 && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] h-4 px-1 w-full"
+                            >
+                              {counts.events} evt
+                            </Badge>
+                          )}
+                        </div>
                       )}
                     </div>
                   );
                 })}
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </CardContent>
+        </Card>
 
-          {/* Legend */}
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">Tables</Badge>
-              <span className="text-xs">Table reservations</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="default" className="text-xs">Events</Badge>
-              <span className="text-xs">Special events</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Upcoming This Week</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {bookings.slice(0, 4).map((booking, i) => (
-                <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
-                  <div>
-                    <p className="text-sm font-medium">Jan {booking.day}</p>
-                    <p className="text-xs text-muted-foreground">{booking.count} {booking.type}s</p>
+        <Card className="border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Clock className="h-4 w-4" /> Today
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {calendarQuery.isLoading ? (
+              <Skeleton className="h-32 w-full" />
+            ) : todayItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                Nothing scheduled today
+              </p>
+            ) : (
+              todayItems.map((item) => (
+                <div
+                  key={`${item.kind}-${item.id}`}
+                  className="p-3 border rounded-lg cursor-pointer hover:bg-muted/40"
+                  onClick={() =>
+                    navigate(
+                      item.kind === "reservation"
+                        ? "/bookings/reservations"
+                        : "/bookings/events",
+                    )
+                  }
+                >
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <Badge variant="outline" className="text-xs capitalize">
+                      {item.kind}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {item.startTime}
+                      {item.endTime ? ` – ${item.endTime}` : ""}
+                    </span>
                   </div>
-                  <Badge variant={booking.type === "event" ? "default" : "secondary"} className="text-xs">
-                    {booking.type}
-                  </Badge>
+                  <p className="font-medium text-sm truncate">{item.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {item.guests} guest{item.guests === 1 ? "" : "s"} · {item.status}
+                  </p>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Plus className="mr-2 h-4 w-4" />
-                New Booking
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Calendar className="mr-2 h-4 w-4" />
-                View Day
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Users className="mr-2 h-4 w-4" />
-                All Reservations
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Monthly Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total Bookings</span>
-                <span className="font-medium">48</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Table Reservations</span>
-                <span className="font-medium">36</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Special Events</span>
-                <span className="font-medium">12</span>
-              </div>
-              <div className="flex justify-between text-sm pt-2 border-t">
-                <span className="text-muted-foreground">Expected Guests</span>
-                <span className="font-semibold">320</span>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="flex justify-end">
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/bookings/reservations")}
+          >
+            <Plus className="h-4 w-4 mr-2" /> Reservation
+          </Button>
+          <Button size="sm" onClick={() => navigate("/bookings/events")}>
+            <Plus className="h-4 w-4 mr-2" /> Event
+          </Button>
         </div>
       </div>
     </div>
