@@ -1,135 +1,65 @@
-// Transactions Types
+// Transactions Types — aligned to the backend financial-transactions ledger.
 
-export interface Transaction {
+export type TransactionType = "credit" | "debit";
+
+export type TransactionPurpose =
+  | "order_payment"
+  | "order_refund"
+  | "wallet_credit"
+  | "wallet_debit"
+  | "expense_payment"
+  | "payout"
+  | "manual_adjustment";
+
+export type TransactionMethod =
+  | "cash"
+  | "card"
+  | "wallet"
+  | "points"
+  | "paystack"
+  | "transfer"
+  | "other";
+
+export type TransactionLinkedType = "order" | "wallet_tx" | "expense" | null;
+
+export interface FinancialTransaction {
   id: string;
-  storeId: string;
-  type: "sale" | "refund" | "payout" | "expense" | "adjustment" | "tip";
-  orderId?: string;
-  orderNumber?: string;
-  payoutId?: string;
-  expenseId?: string;
+  businessId: string;
+  storeId: string | null;
+  type: TransactionType;
+  purpose: TransactionPurpose;
   amount: number;
+  method: TransactionMethod | null;
   currency: string;
-  paymentMethod: "cash" | "card" | "bank-transfer" | "mobile-money" | "wallet" | "credit" | "other";
-  paymentProvider?: string;
-  reference?: string;
-  status: "pending" | "completed" | "failed" | "refunded" | "cancelled";
-  customerId?: string;
-  customerName?: string;
-  staffId?: string;
-  staffName?: string;
-  description?: string;
-  metadata?: Record<string, unknown>;
+  reference: string | null;
+  description: string;
+  linkedType: TransactionLinkedType;
+  linkedId: string | null;
+  customerId: string | null;
+  customerName: string | null;
+  staffId: string | null;
+  staffName: string | null;
   createdAt: string;
-  updatedAt: string;
 }
 
-export interface AccountBalance {
-  id: string;
-  storeId: string;
-  date: string;
-  openingCash: number;
-  closingCash: number;
-  expectedCash: number;
-  actualCash: number;
-  variance: number;
-  cardTransactions: number;
-  cardTotal: number;
-  bankTransfers: number;
-  bankTotal: number;
-  mobilePayments: number;
-  mobileTotal: number;
-  totalSales: number;
-  totalRefunds: number;
-  totalExpenses: number;
-  netAmount: number;
-  status: "open" | "closed" | "balanced" | "discrepancy";
-  balancedBy?: string;
-  balancedByName?: string;
-  balancedAt?: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Filters
 export interface TransactionFilters {
   storeId?: string;
-  type?: Transaction["type"];
-  paymentMethod?: Transaction["paymentMethod"];
-  status?: Transaction["status"];
-  orderId?: string;
+  type?: TransactionType;
+  purpose?: string; // comma-separated
+  method?: string; // comma-separated
   customerId?: string;
-  staffId?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  amountMin?: number;
-  amountMax?: number;
+  linkedId?: string;
   search?: string;
-  page?: number;
-  limit?: number;
-}
-
-export interface AccountBalanceFilters {
-  storeId?: string;
-  status?: AccountBalance["status"];
   dateFrom?: string;
   dateTo?: string;
   page?: number;
   limit?: number;
 }
 
-// Request types
-export interface CreateTransactionRequest {
-  storeId: string;
-  type: Transaction["type"];
-  orderId?: string;
-  payoutId?: string;
-  expenseId?: string;
-  amount: number;
-  paymentMethod: Transaction["paymentMethod"];
-  paymentProvider?: string;
-  reference?: string;
-  customerId?: string;
-  description?: string;
-  metadata?: Record<string, unknown>;
-}
-
-export interface UpdateTransactionRequest {
-  status?: Transaction["status"];
-  reference?: string;
-  description?: string;
-  metadata?: Record<string, unknown>;
-}
-
-export interface CreateAccountBalanceRequest {
-  storeId: string;
-  date: string;
-  openingCash: number;
-}
-
-export interface UpdateAccountBalanceRequest {
-  closingCash?: number;
-  actualCash?: number;
-  status?: AccountBalance["status"];
-  notes?: string;
-}
-
-export interface CloseAccountBalanceRequest {
-  actualCash: number;
-  notes?: string;
-}
-
-// Stats
 export interface TransactionStats {
-  totalTransactions: number;
-  totalSales: number;
-  totalRefunds: number;
-  totalExpenses: number;
-  netRevenue: number;
-  cashTotal: number;
-  cardTotal: number;
-  otherPaymentsTotal: number;
-  pendingTransactions: number;
-  failedTransactions: number;
+  totalIn: number;
+  totalOut: number;
+  pending: number;
+  byMethod: Record<string, number>;
+  byPurpose: Record<string, number>;
 }

@@ -28,6 +28,14 @@ export interface OrderItem {
   updatedAt: string;
 }
 
+export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+export type PaymentChannel =
+  | "cash"
+  | "card"
+  | "wallet"
+  | "points"
+  | "paystack";
+
 export interface Order {
   id: string;
   orderNumber: number;
@@ -35,6 +43,7 @@ export interface Order {
   storeId: string;
   staffId: string | null;
   staffName: string | null;
+  customerId: string | null;
   customerName: string | null;
   customerPhone: string | null;
   tableNumber: string | null;
@@ -46,12 +55,34 @@ export interface Order {
   discountAmount: number;
   total: number;
   paidAmount: number;
+  refundedAmount: number;
   paymentMethodId: string | null;
+  paymentStatus: PaymentStatus | null;
+  paymentChannel: PaymentChannel | null;
+  paymentReference: string | null;
   paidAt: string | null;
+  deliveryFee: number;
+  tipAmount: number;
+  couponCode: string | null;
+  couponDiscount: number;
+  deliveryAddressId: string | null;
+  deliveryAddress: Record<string, unknown> | null;
+  scheduledFor: string | null;
   notes: string | null;
   items: OrderItem[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface OrderStatusEvent {
+  id: string;
+  orderId: string;
+  fromStatus: OrderStatus | null;
+  toStatus: OrderStatus;
+  actorId: string | null;
+  actorType: "admin" | "staff" | "user" | "system" | null;
+  reason: string | null;
+  createdAt: string;
 }
 
 export interface PaginatedOrders {
@@ -107,5 +138,29 @@ export const ordersService = {
     apiRequest<Order>(`/orders/${id}/cancel`, {
       method: "POST",
       body: JSON.stringify({ reason }),
+    }),
+
+  refund: (id: string, payload: { amount: number; reason?: string }): Promise<Order> =>
+    apiRequest<Order>(`/orders/${id}/refund`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  events: (id: string): Promise<OrderStatusEvent[]> =>
+    apiRequest<OrderStatusEvent[]>(`/orders/${id}/events`),
+
+  recordPayment: (
+    id: string,
+    payload: { amount?: number; paymentMethodId?: string },
+  ): Promise<Order> =>
+    apiRequest<Order>(`/orders/${id}/payment`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  updateStatus: (id: string, status: OrderStatus): Promise<Order> =>
+    apiRequest<Order>(`/orders/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
     }),
 };

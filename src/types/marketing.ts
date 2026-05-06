@@ -1,201 +1,207 @@
-// Marketing Types
+// Marketing Types — aligned with backend coupons + loyalty + referrals modules.
+
+// ─── Coupons (Discount Codes) ───────────────────────────────────────
+
+export type CouponType = "percentage" | "fixed";
+export type CouponApplicableTo =
+  | "all"
+  | "specific_products"
+  | "specific_categories";
 
 export interface DiscountCode {
   id: string;
-  storeId: string;
+  businessId: string;
   code: string;
-  name: string;
-  description?: string;
-  type: "percentage" | "fixed" | "free-shipping" | "buy-x-get-y";
+  description: string | null;
+  type: CouponType;
   value: number;
-  minOrderAmount?: number;
-  maxDiscountAmount?: number;
-  applicableTo: "all" | "specific-products" | "specific-categories";
-  productIds?: string[];
-  categoryIds?: string[];
-  usageLimit?: number;
+  minOrderAmount: number | null;
+  maxDiscount: number | null;
+  usageLimit: number | null;
   usageCount: number;
-  usageLimitPerCustomer?: number;
-  validFrom: string;
-  validTo: string;
-  status: "active" | "inactive" | "expired" | "exhausted";
+  perCustomerLimit: number | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  isActive: boolean;
+  applicableTo: CouponApplicableTo;
+  productIds: string[];
+  categoryIds: string[];
   createdAt: string;
   updatedAt: string;
 }
 
+export interface DiscountCodeFilters {
+  search?: string;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface CreateDiscountCodeRequest {
+  code: string;
+  description?: string;
+  type: CouponType;
+  value: number;
+  minOrderAmount?: number;
+  maxDiscount?: number;
+  usageLimit?: number;
+  perCustomerLimit?: number;
+  startsAt?: string;
+  endsAt?: string;
+  isActive?: boolean;
+  applicableTo?: CouponApplicableTo;
+  productIds?: string[];
+  categoryIds?: string[];
+}
+
+export type UpdateDiscountCodeRequest = Partial<CreateDiscountCodeRequest>;
+
+// ─── Loyalty ────────────────────────────────────────────────────────
+
+export type LoyaltyBenefitType =
+  | "discount"
+  | "free_shipping"
+  | "free_item"
+  | "points_multiplier"
+  | "exclusive_access";
+
+export interface LoyaltyBenefit {
+  id: string;
+  type: LoyaltyBenefitType;
+  value: number;
+  description: string;
+}
+
 export interface LoyaltyTier {
   id: string;
-  storeId: string;
+  businessId: string;
   name: string;
-  description?: string;
+  description: string | null;
   minPoints: number;
-  maxPoints?: number;
-  color?: string;
+  color: string | null;
   benefits: LoyaltyBenefit[];
+  isActive: boolean;
   memberCount: number;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface LoyaltyBenefit {
-  id: string;
-  type: "discount" | "free-item" | "points-multiplier" | "free-shipping" | "exclusive-access";
-  value: number;
-  description: string;
-}
-
-export interface LoyaltySettings {
-  id: string;
-  storeId: string;
-  pointsPerNaira: number;
-  nairaPerPoint: number;
-  welcomePoints: number;
-  birthdayPoints: number;
-  referralPoints: number;
-  expiryDays?: number;
-  isActive: boolean;
-}
-
-export interface Referral {
-  id: string;
-  storeId: string;
-  referrerId: string;
-  referrerName: string;
-  referredId?: string;
-  referredName?: string;
-  referredEmail: string;
-  referredPhone?: string;
-  referralCode: string;
-  status: "pending" | "signed-up" | "first-purchase" | "rewarded" | "expired";
-  referrerReward?: number;
-  referredReward?: number;
-  rewardType: "points" | "credit" | "discount";
-  expiresAt?: string;
-  convertedAt?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Filters
-export interface DiscountCodeFilters {
-  storeId?: string;
-  status?: DiscountCode["status"];
-  type?: DiscountCode["type"];
-  search?: string;
-  page?: number;
-  limit?: number;
-}
-
 export interface LoyaltyTierFilters {
-  storeId?: string;
   search?: string;
+  isActive?: boolean;
   page?: number;
   limit?: number;
-}
-
-export interface ReferralFilters {
-  storeId?: string;
-  referrerId?: string;
-  status?: Referral["status"];
-  dateFrom?: string;
-  dateTo?: string;
-  search?: string;
-  page?: number;
-  limit?: number;
-}
-
-// Request types
-export interface CreateDiscountCodeRequest {
-  storeId: string;
-  code: string;
-  name: string;
-  description?: string;
-  type: DiscountCode["type"];
-  value: number;
-  minOrderAmount?: number;
-  maxDiscountAmount?: number;
-  applicableTo: DiscountCode["applicableTo"];
-  productIds?: string[];
-  categoryIds?: string[];
-  usageLimit?: number;
-  usageLimitPerCustomer?: number;
-  validFrom: string;
-  validTo: string;
-}
-
-export interface UpdateDiscountCodeRequest {
-  code?: string;
-  name?: string;
-  description?: string;
-  type?: DiscountCode["type"];
-  value?: number;
-  minOrderAmount?: number;
-  maxDiscountAmount?: number;
-  applicableTo?: DiscountCode["applicableTo"];
-  productIds?: string[];
-  categoryIds?: string[];
-  usageLimit?: number;
-  usageLimitPerCustomer?: number;
-  validFrom?: string;
-  validTo?: string;
-  status?: DiscountCode["status"];
 }
 
 export interface CreateLoyaltyTierRequest {
-  storeId: string;
   name: string;
   description?: string;
   minPoints: number;
-  maxPoints?: number;
-  color?: string;
-  benefits: Omit<LoyaltyBenefit, 'id'>[];
-}
-
-export interface UpdateLoyaltyTierRequest {
-  name?: string;
-  description?: string;
-  minPoints?: number;
-  maxPoints?: number;
   color?: string;
   benefits?: LoyaltyBenefit[];
+  isActive?: boolean;
+}
+
+export type UpdateLoyaltyTierRequest = Partial<CreateLoyaltyTierRequest>;
+
+export interface LoyaltySettings {
+  id: string;
+  businessId: string;
+  pointsPerNaira: number;
+  nairaPerPoint: number;
+  minPointsToRedeem: number;
+  pointsExpiryDays: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface UpdateLoyaltySettingsRequest {
   pointsPerNaira?: number;
   nairaPerPoint?: number;
-  welcomePoints?: number;
-  birthdayPoints?: number;
-  referralPoints?: number;
+  minPointsToRedeem?: number;
+  pointsExpiryDays?: number;
+  isActive?: boolean;
+}
+
+export interface LoyaltyStats {
+  totalMembers: number;
+  totalPointsIssued: number;
+  totalPointsRedeemed: number;
+  totalPointsBalance: number;
+  rewardsRedeemed: number;
+}
+
+// ─── Referrals ──────────────────────────────────────────────────────
+
+export type ReferralStatus =
+  | "pending"
+  | "signed_up"
+  | "first_purchase"
+  | "rewarded"
+  | "expired";
+
+export type ReferralRewardType = "wallet_credit" | "points";
+
+export interface Referral {
+  id: string;
+  businessId: string;
+  referrerCustomerId: string;
+  referredCustomerId: string;
+  referralCode: string;
+  status: ReferralStatus;
+  referrerReward: number;
+  referredReward: number;
+  rewardType: ReferralRewardType;
+  firstOrderId: string | null;
+  signedUpAt: string | null;
+  firstPurchaseAt: string | null;
+  rewardedAt: string | null;
+  expiresAt: string | null;
+  referrerName: string | null;
+  referredName: string | null;
+  referredEmail: string | null;
+  referredPhone: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReferralFilters {
+  search?: string;
+  status?: ReferralStatus;
+  referrerCustomerId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface ReferralSettings {
+  id: string;
+  businessId: string;
+  referrerReward: number;
+  referredReward: number;
+  rewardType: ReferralRewardType;
+  expiryDays: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateReferralSettingsRequest {
+  referrerReward?: number;
+  referredReward?: number;
+  rewardType?: ReferralRewardType;
   expiryDays?: number;
   isActive?: boolean;
 }
 
-export interface CreateReferralRequest {
-  storeId: string;
-  referrerId: string;
-  referredEmail: string;
-  referredPhone?: string;
-  rewardType: Referral["rewardType"];
-  referrerReward?: number;
-  referredReward?: number;
-}
-
-export interface UpdateReferralRequest {
-  referredId?: string;
-  referredName?: string;
-  status?: Referral["status"];
-  convertedAt?: string;
-}
-
-// Stats
-export interface MarketingStats {
-  activeDiscounts: number;
-  totalDiscountUsage: number;
-  totalDiscountValue: number;
-  loyaltyMembers: number;
-  pointsIssued: number;
-  pointsRedeemed: number;
+export interface ReferralStats {
   totalReferrals: number;
-  successfulReferrals: number;
-  referralConversionRate: number;
+  pending: number;
+  signedUp: number;
+  rewarded: number;
+  expired: number;
+  totalRewardsPaid: number;
+  totalPendingRewards: number;
 }

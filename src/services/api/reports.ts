@@ -5,6 +5,7 @@ export interface SalesReportBucket {
   orders: number;
   items: number;
   revenue: number;
+  byChannel: Record<string, number>;
 }
 
 export interface SalesReport {
@@ -13,6 +14,7 @@ export interface SalesReport {
   totalRevenue: number;
   averageOrderValue: number;
   buckets: SalesReportBucket[];
+  byChannel: Record<string, number>;
 }
 
 export interface StaffPerformanceRow {
@@ -52,11 +54,33 @@ export interface DeliveryStats {
 export interface DashboardSummary {
   todayOrders: number;
   todayRevenue: number;
+  yesterdayRevenue: number;
   openOrders: number;
   activeShifts: number;
   lowStockCount: number;
   pendingExpenses: number;
   deliveriesInTransit: number;
+  newCustomersToday: number;
+  totalCustomers: number;
+  loyaltyMembers: number;
+  openCashSessions: number;
+}
+
+export interface TopProductRow {
+  productId: string;
+  name: string;
+  categoryId: string | null;
+  unitsSold: number;
+  ordersCount: number;
+  revenue: number;
+}
+
+export interface TopProductsReport {
+  rows: TopProductRow[];
+}
+
+export interface TopProductsFilter extends ReportsRange {
+  limit?: number;
 }
 
 export interface ReportsRange {
@@ -99,5 +123,11 @@ export const reportsService = {
   dashboard: (storeId?: string): Promise<DashboardSummary> => {
     const qs = storeId ? `?storeId=${encodeURIComponent(storeId)}` : "";
     return apiRequest<DashboardSummary>(`/reports/dashboard${qs}`);
+  },
+  topProducts: (filter: TopProductsFilter = {}): Promise<TopProductsReport> => {
+    const qs = buildQuery(filter as Record<string, unknown>);
+    return apiRequest<TopProductsReport>(
+      `/reports/top-products${qs ? `?${qs}` : ""}`,
+    );
   },
 };

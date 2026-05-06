@@ -1,9 +1,8 @@
-import { Link, useLocation } from "react-router-dom";
-import { 
-  Bell, 
-  Search, 
-  User, 
-  Settings, 
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  Bell,
+  Search,
+  Settings,
   LogOut,
   HelpCircle,
   ChevronDown,
@@ -24,9 +23,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
 import { useFullscreen } from "@/hooks/use-fullscreen";
+import { useAuth } from "@/contexts/AuthContext";
+import { useBusiness } from "@/hooks/api/use-settings";
+import { toast } from "sonner";
 
 const mainNavItems = [
   { title: "Overview", href: "/dashboard" },
@@ -37,14 +40,36 @@ const mainNavItems = [
   { title: "Settings", href: "/settings" },
 ];
 
+function initialsOf(name: string | undefined | null, fallback = "??"): string {
+  if (!name) return fallback;
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return fallback;
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 export function Header() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { isFullscreen, toggleFullscreen } = useFullscreen();
+  const { admin, isLoading: adminLoading, logout } = useAuth();
+  const { data: business } = useBusiness();
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return location.pathname === "/dashboard";
     return location.pathname.startsWith(href);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success("Signed out");
+    } catch (e) {
+      toast.error((e as Error).message ?? "Couldn't sign out");
+    } finally {
+      navigate("/auth/login", { replace: true });
+    }
   };
 
   return (
@@ -61,7 +86,9 @@ export function Header() {
           <span className="text-muted-foreground hidden sm:inline">/</span>
           <div className="flex items-center gap-2 min-w-0">
             <div className="h-5 w-5 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex-shrink-0" />
-            <span className="text-sm font-medium truncate max-w-[140px] sm:max-w-none">omega-restaurant</span>
+            <span className="text-sm font-medium truncate max-w-[140px] sm:max-w-none">
+              {business?.name ?? "—"}
+            </span>
             <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
           </div>
         </div>
@@ -140,29 +167,39 @@ export function Header() {
               <Button variant="ghost" size="icon" className="h-9 w-9">
                 <Avatar className="h-7 w-7">
                   <AvatarFallback className="bg-gradient-to-br from-orange-400 to-red-500 text-[10px] text-white">
-                    AO
+                    {initialsOf(admin?.fullName)}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
-                <div className="flex flex-col">
-                  <span className="font-medium">Adaeze Okonkwo</span>
-                  <span className="text-xs text-muted-foreground">admin@omega.com</span>
-                </div>
+                {adminLoading && !admin ? (
+                  <div className="flex flex-col gap-1">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-3 w-36" />
+                  </div>
+                ) : (
+                  <div className="flex flex-col">
+                    <span className="font-medium">
+                      {admin?.fullName ?? "Signed in"}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {admin?.email ?? ""}
+                    </span>
+                  </div>
+                )}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate("/settings")}>
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuItem
+                onSelect={handleLogout}
+                className="text-destructive focus:text-destructive"
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 Log out
               </DropdownMenuItem>

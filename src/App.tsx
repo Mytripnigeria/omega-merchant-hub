@@ -5,14 +5,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { StoreProvider } from "@/contexts/StoreContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-
-// Page loading fallback
-const PageLoader = () => (
-  <div className="flex h-screen w-full items-center justify-center">
-    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-  </div>
-);
+import { PageLoader } from "@/components/ui/page-loader";
+import {
+  GuestRoute,
+  ProtectedRoute,
+} from "@/components/auth/RouteGuards";
 
 // Lazy load pages for better initial bundle size
 const Index = lazy(() => import("./pages/Index"));
@@ -123,18 +122,28 @@ const queryClient = new QueryClient({
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <StoreProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth/login" element={<Login />} />
-              <Route path="/auth/onboarding" element={<Onboarding />} />
-              <Route path="/auth/forgot-password" element={<ForgotPassword />} />
-              
-              <Route element={<DashboardLayout />}>
+      <BrowserRouter>
+        <AuthProvider>
+          <StoreProvider>
+            <Toaster />
+            <Sonner />
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/" element={<Index />} />
+
+                {/* Auth screens — redirect to /dashboard if already signed in. */}
+                <Route element={<GuestRoute />}>
+                  <Route path="/auth/login" element={<Login />} />
+                  <Route path="/auth/onboarding" element={<Onboarding />} />
+                  <Route
+                    path="/auth/forgot-password"
+                    element={<ForgotPassword />}
+                  />
+                </Route>
+
+                {/* Everything inside DashboardLayout requires auth. */}
+                <Route element={<ProtectedRoute />}>
+                  <Route element={<DashboardLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 
                 {/* Orders */}
@@ -222,13 +231,15 @@ const App = () => (
                 
                 {/* Settings */}
                 <Route path="/settings" element={<SettingsPage />} />
-              </Route>
-              
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-      </StoreProvider>
+                  </Route>
+                </Route>
+
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </StoreProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );

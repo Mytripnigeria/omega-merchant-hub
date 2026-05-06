@@ -1,424 +1,669 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Star, Users, Gift, TrendingUp, Plus, Settings, Edit, Eye } from "lucide-react";
-import { LoyaltyTier as APILoyaltyTier } from "@/types/marketing";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Edit, Gift, Plus, Star, Trash2, Users } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import {
+  useCreateLoyaltyTier,
+  useDeleteLoyaltyTier,
+  useLoyaltySettings,
+  useLoyaltyStats,
+  useLoyaltyTiers,
+  useUpdateLoyaltySettings,
+  useUpdateLoyaltyTier,
+} from "@/hooks/api/use-marketing";
+import type {
+  CreateLoyaltyTierRequest,
+  LoyaltyBenefit,
+  LoyaltyBenefitType,
+  LoyaltyTier,
+} from "@/types/marketing";
 
-// UI-specific interface with computed fields for display
-interface LoyaltyTierUI extends APILoyaltyTier {
-  discount: { name: string; type: string; value: number } | null;
-  delivery: { name: string; value: number } | null;
-  pointsPerN: number;
-  valuePer100Points: number;
-  minToRedeem: number;
-  members: number; // Alias for memberCount
-  status: "active" | "inactive";
-}
+type SheetMode = "view" | "create" | "edit";
 
-const transformTier = (tier: APILoyaltyTier): LoyaltyTierUI => {
-  const discountBenefit = tier.benefits.find(b => b.type === "discount");
-  const freeShippingBenefit = tier.benefits.find(b => b.type === "free-shipping");
-  
-  return {
-    ...tier,
-    discount: discountBenefit ? { name: `${tier.name} Discount`, type: "percentage", value: discountBenefit.value } : null,
-    delivery: freeShippingBenefit ? { name: "Free Delivery", value: 0 } : null,
-    pointsPerN: 10 + (tier.minPoints / 500) * 5,
-    valuePer100Points: 100 + (tier.minPoints / 500) * 50,
-    minToRedeem: tier.minPoints >= 1500 ? 50 : 100,
-    members: tier.memberCount,
-    status: "active",
-  };
+const benefitLabel: Record<LoyaltyBenefitType, string> = {
+  discount: "% Discount",
+  free_shipping: "Free shipping",
+  free_item: "Free item",
+  points_multiplier: "Points multiplier",
+  exclusive_access: "Exclusive access",
 };
 
-// Mock data aligned with API types
-const mockTiers: APILoyaltyTier[] = [
-  { id: "1", storeId: "store-1", name: "Bronze", description: "Entry level tier for new members", minPoints: 0, color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400", benefits: [{ id: "1", type: "discount", value: 5, description: "5% off orders" }], memberCount: 456, createdAt: "2026-01-01", updatedAt: "2026-01-15" },
-  { id: "2", storeId: "store-1", name: "Silver", description: "For regular customers", minPoints: 500, color: "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300", benefits: [{ id: "2", type: "discount", value: 10, description: "10% off orders" }, { id: "3", type: "free-shipping", value: 0, description: "Free delivery" }], memberCount: 234, createdAt: "2026-01-01", updatedAt: "2026-01-15" },
-  { id: "3", storeId: "store-1", name: "Gold", description: "Premium member benefits", minPoints: 1500, color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400", benefits: [{ id: "4", type: "discount", value: 15, description: "15% off orders" }, { id: "5", type: "free-shipping", value: 0, description: "Free delivery" }], memberCount: 89, createdAt: "2026-01-01", updatedAt: "2026-01-15" },
-  { id: "4", storeId: "store-1", name: "Platinum", description: "Exclusive VIP benefits", minPoints: 5000, color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400", benefits: [{ id: "6", type: "discount", value: 20, description: "20% off orders" }, { id: "7", type: "free-shipping", value: 0, description: "Priority delivery" }], memberCount: 23, createdAt: "2026-01-01", updatedAt: "2026-01-15" },
+const tierColors: string[] = [
+  "bg-orange-100 text-orange-800",
+  "bg-gray-100 text-gray-800",
+  "bg-yellow-100 text-yellow-800",
+  "bg-purple-100 text-purple-800",
 ];
 
-const tiersData: LoyaltyTierUI[] = mockTiers.map(transformTier);
+const newBenefit = (): LoyaltyBenefit => ({
+  id: crypto.randomUUID(),
+  type: "discount",
+  value: 5,
+  description: "5% discount",
+});
 
-const tierMembers = [
-  { id: "1", name: "John Doe", email: "john@example.com", points: 5200, joinDate: "2025-06-15" },
-  { id: "2", name: "Sarah Smith", email: "sarah@example.com", points: 4800, joinDate: "2025-07-20" },
-  { id: "3", name: "Mike Johnson", email: "mike@example.com", points: 3200, joinDate: "2025-08-10" },
-  { id: "4", name: "Lisa Brown", email: "lisa@example.com", points: 2900, joinDate: "2025-09-05" },
-];
+interface TierFormState {
+  name: string;
+  description: string;
+  minPoints: string;
+  color: string;
+  benefits: LoyaltyBenefit[];
+  isActive: boolean;
+}
+
+const blankTierForm: TierFormState = {
+  name: "",
+  description: "",
+  minPoints: "0",
+  color: tierColors[0],
+  benefits: [],
+  isActive: true,
+};
+
+const tierToForm = (t: LoyaltyTier): TierFormState => ({
+  name: t.name,
+  description: t.description ?? "",
+  minPoints: String(t.minPoints),
+  color: t.color ?? tierColors[0],
+  benefits: t.benefits ?? [],
+  isActive: t.isActive,
+});
+
+const formToPayload = (f: TierFormState): CreateLoyaltyTierRequest => ({
+  name: f.name.trim(),
+  description: f.description.trim() || undefined,
+  minPoints: Number(f.minPoints) || 0,
+  color: f.color || undefined,
+  benefits: f.benefits,
+  isActive: f.isActive,
+});
 
 export default function LoyaltyPage() {
-  const [selectedTier, setSelectedTier] = useState<LoyaltyTierUI | null>(null);
-  const [sheetMode, setSheetMode] = useState<"view" | "add" | "edit">("view");
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [sheetMode, setSheetMode] = useState<SheetMode>("create");
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [selected, setSelected] = useState<LoyaltyTier | null>(null);
+  const [form, setForm] = useState<TierFormState>(blankTierForm);
 
-  const stats = [
-    { label: "Members", value: "802", icon: Users },
-    { label: "Points Issued", value: "125K", icon: Star },
-    { label: "Rewards", value: "1,234", icon: Gift },
-    { label: "Retention", value: "78%", icon: TrendingUp },
-  ];
+  const tiersQuery = useLoyaltyTiers();
+  const statsQuery = useLoyaltyStats();
+  const settingsQuery = useLoyaltySettings();
+  const createMutation = useCreateLoyaltyTier();
+  const updateMutation = useUpdateLoyaltyTier();
+  const deleteMutation = useDeleteLoyaltyTier();
+  const updateSettings = useUpdateLoyaltySettings();
 
-  const openSheet = (mode: "view" | "add" | "edit", tier?: LoyaltyTierUI) => {
-    setSheetMode(mode);
-    setSelectedTier(tier || null);
-    setIsSheetOpen(true);
+  const [pointsPerNaira, setPointsPerNaira] = useState("");
+  const [nairaPerPoint, setNairaPerPoint] = useState("");
+  const [minPointsToRedeem, setMinPointsToRedeem] = useState("");
+  const [pointsExpiryDays, setPointsExpiryDays] = useState("");
+  const [settingsActive, setSettingsActive] = useState(true);
+
+  useEffect(() => {
+    if (!settingsQuery.data) return;
+    setPointsPerNaira(String(settingsQuery.data.pointsPerNaira));
+    setNairaPerPoint(String(settingsQuery.data.nairaPerPoint));
+    setMinPointsToRedeem(String(settingsQuery.data.minPointsToRedeem));
+    setPointsExpiryDays(String(settingsQuery.data.pointsExpiryDays));
+    setSettingsActive(settingsQuery.data.isActive);
+  }, [settingsQuery.data]);
+
+  const tiers = tiersQuery.data?.data ?? [];
+  const stats = statsQuery.data;
+
+  const openCreate = () => {
+    setSelected(null);
+    setForm(blankTierForm);
+    setSheetMode("create");
+    setSheetOpen(true);
   };
 
-  return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Loyalty Program</h1>
-          <p className="text-sm text-muted-foreground">Manage tiers, points, and rewards</p>
+  const openView = (t: LoyaltyTier) => {
+    setSelected(t);
+    setForm(tierToForm(t));
+    setSheetMode("view");
+    setSheetOpen(true);
+  };
+
+  const openEdit = (t: LoyaltyTier) => {
+    setSelected(t);
+    setForm(tierToForm(t));
+    setSheetMode("edit");
+    setSheetOpen(true);
+  };
+
+  const closeSheet = () => setSheetOpen(false);
+
+  const handleSubmit = async () => {
+    if (!form.name.trim()) {
+      toast.error("Tier name is required");
+      return;
+    }
+    try {
+      if (sheetMode === "create") {
+        await createMutation.mutateAsync(formToPayload(form));
+        toast.success("Tier created");
+      } else if (sheetMode === "edit" && selected) {
+        await updateMutation.mutateAsync({
+          id: selected.id,
+          data: formToPayload(form),
+        });
+        toast.success("Tier updated");
+      }
+      closeSheet();
+    } catch (e) {
+      toast.error((e as Error).message ?? "Save failed");
+    }
+  };
+
+  const handleDelete = async (t: LoyaltyTier) => {
+    if (!confirm(`Delete tier ${t.name}?`)) return;
+    try {
+      await deleteMutation.mutateAsync(t.id);
+      toast.success("Tier deleted");
+      if (selected?.id === t.id) closeSheet();
+    } catch (e) {
+      toast.error((e as Error).message ?? "Delete failed");
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      await updateSettings.mutateAsync({
+        pointsPerNaira: Number(pointsPerNaira),
+        nairaPerPoint: Number(nairaPerPoint),
+        minPointsToRedeem: Number(minPointsToRedeem),
+        pointsExpiryDays: Number(pointsExpiryDays),
+        isActive: settingsActive,
+      });
+      toast.success("Loyalty settings saved");
+    } catch (e) {
+      toast.error((e as Error).message ?? "Save failed");
+    }
+  };
+
+  const benefitsEditor = useMemo(
+    () => (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label>Benefits</Label>
+          {sheetMode !== "view" && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() =>
+                setForm({
+                  ...form,
+                  benefits: [...form.benefits, newBenefit()],
+                })
+              }
+            >
+              <Plus className="h-3 w-3 mr-1" /> Add benefit
+            </Button>
+          )}
         </div>
-        <Button size="sm" onClick={() => openSheet("add")}>
-          <Plus className="h-4 w-4 mr-2" />Add Tier
+        {form.benefits.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No benefits yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {form.benefits.map((b, idx) => (
+              <div
+                key={b.id}
+                className="border rounded-lg p-3 space-y-2 bg-muted/30"
+              >
+                <div className="grid grid-cols-2 gap-2">
+                  <Select
+                    value={b.type}
+                    onValueChange={(v) => {
+                      const benefits = [...form.benefits];
+                      benefits[idx] = {
+                        ...b,
+                        type: v as LoyaltyBenefitType,
+                      };
+                      setForm({ ...form, benefits });
+                    }}
+                    disabled={sheetMode === "view"}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(
+                        Object.keys(benefitLabel) as LoyaltyBenefitType[]
+                      ).map((k) => (
+                        <SelectItem key={k} value={k}>
+                          {benefitLabel[k]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    value={b.value}
+                    onChange={(e) => {
+                      const benefits = [...form.benefits];
+                      benefits[idx] = {
+                        ...b,
+                        value: Number(e.target.value),
+                      };
+                      setForm({ ...form, benefits });
+                    }}
+                    disabled={sheetMode === "view"}
+                    placeholder="Value"
+                  />
+                </div>
+                <Input
+                  value={b.description}
+                  onChange={(e) => {
+                    const benefits = [...form.benefits];
+                    benefits[idx] = {
+                      ...b,
+                      description: e.target.value,
+                    };
+                    setForm({ ...form, benefits });
+                  }}
+                  disabled={sheetMode === "view"}
+                  placeholder="Description"
+                />
+                {sheetMode !== "view" && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        benefits: form.benefits.filter(
+                          (_, i) => i !== idx,
+                        ),
+                      })
+                    }
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    ),
+    [form, sheetMode],
+  );
+
+  return (
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
+            Loyalty
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Define tiers + benefits and control how points are earned and
+            redeemed.
+          </p>
+        </div>
+        <Button onClick={openCreate} size="sm">
+          <Plus className="h-4 w-4 mr-2" /> New Tier
         </Button>
       </div>
 
-      {/* Two-column layout for desktop */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Stats */}
-          <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-            {stats.map((stat) => (
-              <Card key={stat.label} className="border-border/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                      <stat.icon className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                  <p className="text-2xl font-semibold">{stat.value}</p>
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Loyalty Tiers */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            {tiersData.map((tier) => (
-              <Card 
-                key={tier.name} 
-                className="border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => openSheet("view", tier)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <Badge className={`${tier.color} text-xs font-medium`}>{tier.name}</Badge>
-                    <span className="text-xs text-muted-foreground">{tier.members} members</span>
-                  </div>
-                  <p className="text-lg font-semibold mb-1">{tier.minPoints.toLocaleString()}+ pts</p>
-                  <p className="text-sm text-muted-foreground mb-3">{tier.discount?.value}% discount</p>
-                  <ul className="space-y-1.5 mb-4">
-                    {tier.discount && (
-                      <li className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Star className="h-3 w-3 text-primary" />
-                        {tier.discount.value}% off orders
-                      </li>
-                    )}
-                    {tier.delivery && (
-                      <li className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Star className="h-3 w-3 text-primary" />
-                        {tier.delivery.name}
-                      </li>
-                    )}
-                  </ul>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full text-xs"
-                    onClick={(e) => { e.stopPropagation(); openSheet("edit", tier); }}
-                  >
-                    Edit Tier
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <Settings className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-sm font-medium">Point Settings</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Points per ₦1</Label>
-                <Input type="number" defaultValue="10" className="h-9 bg-muted/50 border-0" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Value per 100 pts (₦)</Label>
-                <Input type="number" defaultValue="100" className="h-9 bg-muted/50 border-0" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Min. to redeem</Label>
-                <Input type="number" defaultValue="100" className="h-9 bg-muted/50 border-0" />
-              </div>
-              <Button size="sm" className="w-full">Save Settings</Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => openSheet("add")}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add New Tier
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Gift className="mr-2 h-4 w-4" />
-                Create Reward
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Users className="mr-2 h-4 w-4" />
-                View Members
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Top Members</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {["John Doe", "Sarah Smith", "Mike Johnson"].map((name, i) => (
-                <div key={name} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
-                  <div className="flex items-center gap-2">
-                    <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
-                      {name.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <span className="text-sm">{name}</span>
-                  </div>
-                  <Badge variant="secondary" className="text-xs">{(5000 - i * 1200).toLocaleString()} pts</Badge>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+        <Card>
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground">Members</p>
+              <p className="text-2xl font-semibold">
+                {stats?.totalMembers ?? 0}
+              </p>
+            </div>
+            <Users className="h-6 w-6 text-muted-foreground" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground">Points issued</p>
+              <p className="text-2xl font-semibold">
+                {(stats?.totalPointsIssued ?? 0).toLocaleString()}
+              </p>
+            </div>
+            <Star className="h-6 w-6 text-muted-foreground" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground">Redemptions</p>
+              <p className="text-2xl font-semibold">
+                {stats?.rewardsRedeemed ?? 0}
+              </p>
+            </div>
+            <Gift className="h-6 w-6 text-muted-foreground" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground">In circulation</p>
+              <p className="text-2xl font-semibold">
+                {(stats?.totalPointsBalance ?? 0).toLocaleString()}
+              </p>
+            </div>
+            <Star className="h-6 w-6 text-muted-foreground" />
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Action Sheet */}
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader className="space-y-1 pb-4 border-b">
-            <div className="flex items-center justify-between">
-              <SheetTitle>
-                {sheetMode === "add" ? "Add Loyalty Tier" : sheetMode === "edit" ? "Edit Tier" : selectedTier?.name}
-              </SheetTitle>
-              {sheetMode === "view" && selectedTier && (
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSheetMode("edit")}>
-                  <Edit className="h-4 w-4" />
-                </Button>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-3">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Tiers</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {tiersQuery.isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))
+              ) : tiers.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">
+                  No tiers yet — create one to start rewarding repeat
+                  customers.
+                </p>
+              ) : (
+                tiers.map((t) => (
+                  <div
+                    key={t.id}
+                    onClick={() => openView(t)}
+                    className="border rounded-xl p-4 cursor-pointer hover:bg-muted/40 transition-colors"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge
+                            className={cn(
+                              "text-xs",
+                              t.color ?? tierColors[0],
+                            )}
+                          >
+                            {t.name}
+                          </Badge>
+                          {!t.isActive && (
+                            <Badge variant="outline" className="text-xs">
+                              Inactive
+                            </Badge>
+                          )}
+                        </div>
+                        {t.description && (
+                          <p className="text-sm text-muted-foreground">
+                            {t.description}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          From {t.minPoints.toLocaleString()} pts ·{" "}
+                          {t.benefits.length} benefit
+                          {t.benefits.length === 1 ? "" : "s"} ·{" "}
+                          {t.memberCount} member
+                          {t.memberCount === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEdit(t);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(t);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
               )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Point settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="ppn">Points per ₦1 spent</Label>
+              <Input
+                id="ppn"
+                type="number"
+                step="0.01"
+                value={pointsPerNaira}
+                onChange={(e) => setPointsPerNaira(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                e.g. 0.1 means 1 point for every ₦10 spent.
+              </p>
             </div>
-            {sheetMode === "view" && selectedTier && (
-              <SheetDescription>{selectedTier.members} members in this tier</SheetDescription>
-            )}
+            <div className="space-y-1">
+              <Label htmlFor="npp">Naira per point</Label>
+              <Input
+                id="npp"
+                type="number"
+                step="0.01"
+                value={nairaPerPoint}
+                onChange={(e) => setNairaPerPoint(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Discount value when customer redeems 1 point at checkout.
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="minPts">Min to redeem</Label>
+              <Input
+                id="minPts"
+                type="number"
+                value={minPointsToRedeem}
+                onChange={(e) => setMinPointsToRedeem(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="exp">Expiry (days)</Label>
+              <Input
+                id="exp"
+                type="number"
+                value={pointsExpiryDays}
+                onChange={(e) => setPointsExpiryDays(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                0 = points never expire.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <Switch
+                checked={settingsActive}
+                onCheckedChange={setSettingsActive}
+                id="loyaltyActive"
+              />
+              <Label htmlFor="loyaltyActive" className="text-sm">
+                Loyalty program active
+              </Label>
+            </div>
+            <Button
+              onClick={handleSaveSettings}
+              disabled={updateSettings.isPending}
+              className="w-full"
+            >
+              {updateSettings.isPending ? "Saving…" : "Save settings"}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>
+              {sheetMode === "create"
+                ? "New tier"
+                : sheetMode === "edit"
+                  ? "Edit tier"
+                  : selected?.name}
+            </SheetTitle>
+            <SheetDescription>
+              {sheetMode === "view"
+                ? selected?.description ?? "Tier details"
+                : "Tier customers join automatically once they cross the points threshold."}
+            </SheetDescription>
           </SheetHeader>
 
-          {sheetMode === "view" && selectedTier ? (
-            <Tabs defaultValue="details" className="mt-4">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="details">Tier Details</TabsTrigger>
-                <TabsTrigger value="members">Members History</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="details" className="space-y-6 mt-4">
-                {/* Details Section */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-medium text-muted-foreground">Details</h4>
-                  <div className="grid gap-3">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Name</span>
-                      <span className="text-sm font-medium">{selectedTier.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Description</span>
-                      <span className="text-sm font-medium text-right max-w-[200px]">{selectedTier.description}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Expected Accumulation</span>
-                      <span className="text-sm font-medium">{selectedTier.minPoints.toLocaleString()} pts</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Discount Section */}
-                {selectedTier.discount && (
-                  <div className="space-y-4 pt-4 border-t">
-                    <h4 className="text-sm font-medium text-muted-foreground">Discount</h4>
-                    <div className="grid gap-3">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Discount Name</span>
-                        <span className="text-sm font-medium">{selectedTier.discount.name}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Type</span>
-                        <span className="text-sm font-medium capitalize">{selectedTier.discount.type}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Value</span>
-                        <span className="text-sm font-medium">{selectedTier.discount.value}%</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Delivery Section */}
-                {selectedTier.delivery && (
-                  <div className="space-y-4 pt-4 border-t">
-                    <h4 className="text-sm font-medium text-muted-foreground">Delivery</h4>
-                    <div className="grid gap-3">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Delivery Name</span>
-                        <span className="text-sm font-medium">{selectedTier.delivery.name}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Discount Value</span>
-                        <span className="text-sm font-medium">₦{selectedTier.delivery.value}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Point Settings Section */}
-                <div className="space-y-4 pt-4 border-t">
-                  <h4 className="text-sm font-medium text-muted-foreground">Point Settings</h4>
-                  <div className="grid gap-3">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Points per ₦</span>
-                      <span className="text-sm font-medium">{selectedTier.pointsPerN}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Value per 100 points</span>
-                      <span className="text-sm font-medium">₦{selectedTier.valuePer100Points}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Minimum to Redeem</span>
-                      <span className="text-sm font-medium">{selectedTier.minToRedeem} pts</span>
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="members" className="mt-4">
-                <div className="space-y-3">
-                  {tierMembers.map((member) => (
-                    <div key={member.id} className="p-3 border rounded-lg space-y-2">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="text-xs">
-                            {member.name.split(' ').map(n => n[0]).join('')}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{member.name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{member.email}</p>
-                        </div>
-                        <Badge variant="secondary" className="text-xs shrink-0">
-                          {member.points.toLocaleString()} pts
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Member since {member.joinDate}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </TabsContent>
-            </Tabs>
-          ) : (
-            /* Add/Edit Form */
-            <div className="space-y-6 mt-4">
-              <div className="space-y-4">
-                <h4 className="text-sm font-medium">Tier Details</h4>
-                <div className="space-y-2">
-                  <Label>Name</Label>
-                  <Input placeholder="e.g., Gold" defaultValue={selectedTier?.name} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Input placeholder="Brief description" defaultValue={selectedTier?.description} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Expected Accumulation (points)</Label>
-                  <Input type="number" placeholder="1500" defaultValue={selectedTier?.minPoints} />
-                </div>
+          <div className="mt-4 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={form.name}
+                  onChange={(e) =>
+                    setForm({ ...form, name: e.target.value })
+                  }
+                  disabled={sheetMode === "view"}
+                />
               </div>
-
-              <div className="space-y-4 pt-4 border-t">
-                <h4 className="text-sm font-medium">Discount</h4>
-                <div className="space-y-2">
-                  <Label>Select Discount Option</Label>
-                  <Select defaultValue={selectedTier?.discount?.name}>
-                    <SelectTrigger><SelectValue placeholder="Select discount" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Bronze Discount">Bronze Discount</SelectItem>
-                      <SelectItem value="Silver Discount">Silver Discount</SelectItem>
-                      <SelectItem value="Gold Discount">Gold Discount</SelectItem>
-                      <SelectItem value="Platinum Discount">Platinum Discount</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-4 pt-4 border-t">
-                <h4 className="text-sm font-medium">Delivery</h4>
-                <div className="space-y-2">
-                  <Label>Select Delivery Option</Label>
-                  <Select defaultValue={selectedTier?.delivery?.name}>
-                    <SelectTrigger><SelectValue placeholder="Select delivery" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Free Delivery">Free Delivery</SelectItem>
-                      <SelectItem value="Priority Delivery">Priority Delivery</SelectItem>
-                      <SelectItem value="Express Delivery">Express Delivery</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-4 pt-4 border-t">
-                <h4 className="text-sm font-medium">Point Settings</h4>
-                <div className="space-y-2">
-                  <Label>Points per ₦</Label>
-                  <Input type="number" placeholder="10" defaultValue={selectedTier?.pointsPerN} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Value per 100 points (₦)</Label>
-                  <Input type="number" placeholder="100" defaultValue={selectedTier?.valuePer100Points} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Minimum to Redeem</Label>
-                  <Input type="number" placeholder="100" defaultValue={selectedTier?.minToRedeem} />
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4 border-t">
-                <Button variant="outline" className="flex-1" onClick={() => setIsSheetOpen(false)}>Cancel</Button>
-                <Button className="flex-1">{sheetMode === "add" ? "Add Tier" : "Save Changes"}</Button>
+              <div className="space-y-2">
+                <Label htmlFor="threshold">Min points</Label>
+                <Input
+                  id="threshold"
+                  type="number"
+                  min={0}
+                  value={form.minPoints}
+                  onChange={(e) =>
+                    setForm({ ...form, minPoints: e.target.value })
+                  }
+                  disabled={sheetMode === "view"}
+                />
               </div>
             </div>
-          )}
+            <div className="space-y-2">
+              <Label htmlFor="tierDesc">Description</Label>
+              <Textarea
+                id="tierDesc"
+                value={form.description}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
+                disabled={sheetMode === "view"}
+                rows={2}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Color</Label>
+              <div className="flex gap-2">
+                {tierColors.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() =>
+                      sheetMode !== "view" && setForm({ ...form, color: c })
+                    }
+                    className={cn(
+                      "px-3 py-1.5 rounded-full text-xs font-medium",
+                      c,
+                      form.color === c
+                        ? "ring-2 ring-offset-2 ring-foreground"
+                        : "",
+                    )}
+                  >
+                    Aa
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {benefitsEditor}
+
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={form.isActive}
+                onCheckedChange={(v) => setForm({ ...form, isActive: v })}
+                disabled={sheetMode === "view"}
+                id="tierActive"
+              />
+              <Label htmlFor="tierActive" className="text-sm">
+                Active
+              </Label>
+            </div>
+
+            {sheetMode === "view" && selected && (
+              <div className="bg-secondary/50 rounded-lg p-3 text-sm space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Members</span>
+                  <span className="font-medium">{selected.memberCount}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <SheetFooter className="mt-6 gap-2">
+            <Button variant="outline" onClick={closeSheet}>
+              Cancel
+            </Button>
+            {sheetMode === "view" ? (
+              <Button onClick={() => selected && openEdit(selected)}>
+                Edit
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSubmit}
+                disabled={
+                  createMutation.isPending || updateMutation.isPending
+                }
+              >
+                {createMutation.isPending || updateMutation.isPending
+                  ? "Saving…"
+                  : sheetMode === "create"
+                    ? "Create tier"
+                    : "Save changes"}
+              </Button>
+            )}
+          </SheetFooter>
         </SheetContent>
       </Sheet>
     </div>

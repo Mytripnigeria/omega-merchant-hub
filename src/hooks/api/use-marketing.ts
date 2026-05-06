@@ -1,29 +1,28 @@
-// Marketing API Hooks
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { marketingService } from "@/services/mock/marketing";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  discountCodesApi,
+  loyaltyApi,
+  referralsApi,
+} from "@/services/api/marketing";
 import type {
-  DiscountCode,
-  LoyaltyTier,
-  LoyaltySettings,
-  Referral,
+  CreateDiscountCodeRequest,
+  CreateLoyaltyTierRequest,
   DiscountCodeFilters,
   LoyaltyTierFilters,
   ReferralFilters,
-  CreateDiscountCodeRequest,
   UpdateDiscountCodeRequest,
-  CreateLoyaltyTierRequest,
-  UpdateLoyaltyTierRequest,
   UpdateLoyaltySettingsRequest,
-  CreateReferralRequest,
-  UpdateReferralRequest,
+  UpdateLoyaltyTierRequest,
+  UpdateReferralSettingsRequest,
 } from "@/types/marketing";
 
-// ============= Discount Codes =============
+// ─── Discount codes ─────────────────────────────────────────────────
 
 export const discountCodeKeys = {
   all: ["discountCodes"] as const,
   lists: () => [...discountCodeKeys.all, "list"] as const,
-  list: (filters?: DiscountCodeFilters) => [...discountCodeKeys.lists(), filters] as const,
+  list: (filters?: DiscountCodeFilters) =>
+    [...discountCodeKeys.lists(), filters] as const,
   details: () => [...discountCodeKeys.all, "detail"] as const,
   detail: (id: string) => [...discountCodeKeys.details(), id] as const,
 };
@@ -31,205 +30,192 @@ export const discountCodeKeys = {
 export function useDiscountCodes(filters?: DiscountCodeFilters) {
   return useQuery({
     queryKey: discountCodeKeys.list(filters),
-    queryFn: () => marketingService.getDiscountCodes(filters),
+    queryFn: () => discountCodesApi.list(filters),
+    staleTime: 10 * 1000,
   });
 }
 
 export function useDiscountCode(id: string) {
   return useQuery({
     queryKey: discountCodeKeys.detail(id),
-    queryFn: () => marketingService.getDiscountCode(id),
+    queryFn: () => discountCodesApi.get(id),
     enabled: !!id,
   });
 }
 
 export function useCreateDiscountCode() {
-  const queryClient = useQueryClient();
-  
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateDiscountCodeRequest) => marketingService.createDiscountCode(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: discountCodeKeys.lists() });
-    },
+    mutationFn: (data: CreateDiscountCodeRequest) =>
+      discountCodesApi.create(data),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: discountCodeKeys.all }),
   });
 }
 
 export function useUpdateDiscountCode() {
-  const queryClient = useQueryClient();
-  
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateDiscountCodeRequest }) =>
-      marketingService.updateDiscountCode(id, data),
-    onSuccess: (updatedCode) => {
-      if (updatedCode) {
-        queryClient.setQueryData(discountCodeKeys.detail(updatedCode.id), updatedCode);
-      }
-      queryClient.invalidateQueries({ queryKey: discountCodeKeys.lists() });
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: UpdateDiscountCodeRequest;
+    }) => discountCodesApi.update(id, data),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: discountCodeKeys.lists() });
+      qc.invalidateQueries({ queryKey: discountCodeKeys.detail(vars.id) });
     },
   });
 }
 
 export function useDeleteDiscountCode() {
-  const queryClient = useQueryClient();
-  
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => marketingService.deleteDiscountCode(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: discountCodeKeys.lists() });
-    },
+    mutationFn: (id: string) => discountCodesApi.remove(id),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: discountCodeKeys.all }),
   });
 }
 
-// ============= Loyalty Tiers =============
+// ─── Loyalty ────────────────────────────────────────────────────────
 
 export const loyaltyTierKeys = {
   all: ["loyaltyTiers"] as const,
   lists: () => [...loyaltyTierKeys.all, "list"] as const,
-  list: (filters?: LoyaltyTierFilters) => [...loyaltyTierKeys.lists(), filters] as const,
+  list: (filters?: LoyaltyTierFilters) =>
+    [...loyaltyTierKeys.lists(), filters] as const,
   details: () => [...loyaltyTierKeys.all, "detail"] as const,
   detail: (id: string) => [...loyaltyTierKeys.details(), id] as const,
+  settings: () => ["loyaltySettings"] as const,
+  stats: () => ["loyaltyStats"] as const,
 };
 
 export function useLoyaltyTiers(filters?: LoyaltyTierFilters) {
   return useQuery({
     queryKey: loyaltyTierKeys.list(filters),
-    queryFn: () => marketingService.getLoyaltyTiers(filters),
+    queryFn: () => loyaltyApi.listTiers(filters),
+    staleTime: 10 * 1000,
   });
 }
 
 export function useLoyaltyTier(id: string) {
   return useQuery({
     queryKey: loyaltyTierKeys.detail(id),
-    queryFn: () => marketingService.getLoyaltyTier(id),
+    queryFn: () => loyaltyApi.getTier(id),
     enabled: !!id,
   });
 }
 
 export function useCreateLoyaltyTier() {
-  const queryClient = useQueryClient();
-  
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateLoyaltyTierRequest) => marketingService.createLoyaltyTier(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: loyaltyTierKeys.lists() });
-    },
+    mutationFn: (data: CreateLoyaltyTierRequest) => loyaltyApi.createTier(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: loyaltyTierKeys.all }),
   });
 }
 
 export function useUpdateLoyaltyTier() {
-  const queryClient = useQueryClient();
-  
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateLoyaltyTierRequest }) =>
-      marketingService.updateLoyaltyTier(id, data),
-    onSuccess: (updatedTier) => {
-      if (updatedTier) {
-        queryClient.setQueryData(loyaltyTierKeys.detail(updatedTier.id), updatedTier);
-      }
-      queryClient.invalidateQueries({ queryKey: loyaltyTierKeys.lists() });
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: UpdateLoyaltyTierRequest;
+    }) => loyaltyApi.updateTier(id, data),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: loyaltyTierKeys.lists() });
+      qc.invalidateQueries({ queryKey: loyaltyTierKeys.detail(vars.id) });
     },
   });
 }
 
 export function useDeleteLoyaltyTier() {
-  const queryClient = useQueryClient();
-  
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => marketingService.deleteLoyaltyTier(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: loyaltyTierKeys.lists() });
-    },
+    mutationFn: (id: string) => loyaltyApi.removeTier(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: loyaltyTierKeys.all }),
   });
 }
 
-// ============= Loyalty Settings =============
-
-export const loyaltySettingsKeys = {
-  all: ["loyaltySettings"] as const,
-  detail: (storeId: string) => [...loyaltySettingsKeys.all, storeId] as const,
-};
-
-export function useLoyaltySettings(storeId: string) {
+export function useLoyaltySettings() {
   return useQuery({
-    queryKey: loyaltySettingsKeys.detail(storeId),
-    queryFn: () => marketingService.getLoyaltySettings(storeId),
-    enabled: !!storeId,
+    queryKey: loyaltyTierKeys.settings(),
+    queryFn: () => loyaltyApi.getSettings(),
   });
 }
 
 export function useUpdateLoyaltySettings() {
-  const queryClient = useQueryClient();
-  
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ storeId, data }: { storeId: string; data: UpdateLoyaltySettingsRequest }) =>
-      marketingService.updateLoyaltySettings(storeId, data),
-    onSuccess: (_, { storeId }) => {
-      queryClient.invalidateQueries({ queryKey: loyaltySettingsKeys.detail(storeId) });
-    },
+    mutationFn: (data: UpdateLoyaltySettingsRequest) =>
+      loyaltyApi.updateSettings(data),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: loyaltyTierKeys.settings() }),
   });
 }
 
-// ============= Referrals =============
+export function useLoyaltyStats() {
+  return useQuery({
+    queryKey: loyaltyTierKeys.stats(),
+    queryFn: () => loyaltyApi.getStats(),
+    staleTime: 30 * 1000,
+  });
+}
+
+// ─── Referrals ──────────────────────────────────────────────────────
 
 export const referralKeys = {
   all: ["referrals"] as const,
   lists: () => [...referralKeys.all, "list"] as const,
-  list: (filters?: ReferralFilters) => [...referralKeys.lists(), filters] as const,
+  list: (filters?: ReferralFilters) =>
+    [...referralKeys.lists(), filters] as const,
   details: () => [...referralKeys.all, "detail"] as const,
   detail: (id: string) => [...referralKeys.details(), id] as const,
+  settings: () => ["referralSettings"] as const,
+  stats: () => ["referralStats"] as const,
 };
 
 export function useReferrals(filters?: ReferralFilters) {
   return useQuery({
     queryKey: referralKeys.list(filters),
-    queryFn: () => marketingService.getReferrals(filters),
+    queryFn: () => referralsApi.list(filters),
+    staleTime: 10 * 1000,
   });
 }
 
 export function useReferral(id: string) {
   return useQuery({
     queryKey: referralKeys.detail(id),
-    queryFn: () => marketingService.getReferral(id),
+    queryFn: () => referralsApi.get(id),
     enabled: !!id,
   });
 }
 
-export function useCreateReferral() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: (data: CreateReferralRequest) => marketingService.createReferral(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: referralKeys.lists() });
-    },
-  });
-}
-
-export function useUpdateReferral() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateReferralRequest }) =>
-      marketingService.updateReferral(id, data),
-    onSuccess: (updatedReferral) => {
-      if (updatedReferral) {
-        queryClient.setQueryData(referralKeys.detail(updatedReferral.id), updatedReferral);
-      }
-      queryClient.invalidateQueries({ queryKey: referralKeys.lists() });
-    },
-  });
-}
-
-// ============= Marketing Stats =============
-
-export const marketingStatsKeys = {
-  all: ["marketingStats"] as const,
-  detail: (storeId?: string) => [...marketingStatsKeys.all, storeId] as const,
-};
-
-export function useMarketingStats(storeId?: string) {
+export function useReferralStats() {
   return useQuery({
-    queryKey: marketingStatsKeys.detail(storeId),
-    queryFn: () => marketingService.getStats(storeId),
+    queryKey: referralKeys.stats(),
+    queryFn: () => referralsApi.getStats(),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useReferralSettings() {
+  return useQuery({
+    queryKey: referralKeys.settings(),
+    queryFn: () => referralsApi.getSettings(),
+  });
+}
+
+export function useUpdateReferralSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: UpdateReferralSettingsRequest) =>
+      referralsApi.updateSettings(data),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: referralKeys.settings() }),
   });
 }

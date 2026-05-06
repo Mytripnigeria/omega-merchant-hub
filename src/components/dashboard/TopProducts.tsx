@@ -1,46 +1,95 @@
-import { Progress } from "@/components/ui/progress";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Package } from "lucide-react";
+import { formatPrice } from "@/lib/utils";
+import { useTopProducts } from "@/hooks/api/use-reports";
+import { useStore } from "@/contexts/StoreContext";
 
-interface Product {
-  name: string;
-  sales: number;
-  revenue: string;
-  percentage: number;
+interface TopProductsProps {
+  dateFrom: string;
+  dateTo: string;
 }
 
-const products: Product[] = [
-  { name: "Signature Jollof Rice", sales: 145, revenue: "₦507,500", percentage: 100 },
-  { name: "Peppered Chicken", sales: 128, revenue: "₦358,400", percentage: 88 },
-  { name: "Suya Platter", sales: 97, revenue: "₦436,500", percentage: 67 },
-  { name: "Egusi Soup Combo", sales: 85, revenue: "₦467,500", percentage: 59 },
-  { name: "Small Chops Platter", sales: 72, revenue: "₦252,000", percentage: 50 },
-];
+export const TopProducts = ({ dateFrom, dateTo }: TopProductsProps) => {
+  const { currentStore, isAllStoresMode } = useStore();
+  const { data, isLoading, error } = useTopProducts({
+    storeId: !isAllStoresMode && currentStore ? currentStore.id : undefined,
+    dateFrom,
+    dateTo,
+    limit: 5,
+  });
 
-export function TopProducts() {
+  const rows = data?.rows ?? [];
+  const maxRevenue = rows.reduce(
+    (m, r) => (r.revenue > m ? r.revenue : m),
+    0,
+  );
+
   return (
-    <div className="rounded-xl border border-border bg-card p-6 shadow-card">
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-foreground">Top Products</h3>
-        <p className="text-sm text-muted-foreground">Best sellers this week</p>
+    <Card>
+      <div className="px-4 sm:px-6 py-4 border-b border-border">
+        <h3 className="text-base font-semibold">Top products</h3>
+        <p className="text-xs text-muted-foreground">
+          Best sellers by revenue in the selected period.
+        </p>
       </div>
-      <div className="space-y-5">
-        {products.map((product, index) => (
-          <div key={product.name} className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-                  {index + 1}
-                </span>
-                <span className="text-sm font-medium text-foreground">{product.name}</span>
+      <CardContent className="p-4 sm:p-6 space-y-3">
+        {isLoading ? (
+          <>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="flex justify-between">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+                <Skeleton className="h-1.5 w-full" />
               </div>
-              <div className="text-right">
-                <p className="text-sm font-medium text-foreground">{product.revenue}</p>
-                <p className="text-xs text-muted-foreground">{product.sales} orders</p>
+            ))}
+          </>
+        ) : error ? (
+          <div className="text-sm text-muted-foreground text-center py-6">
+            Couldn't load top products.
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="text-sm text-muted-foreground text-center py-6 flex flex-col items-center gap-2">
+            <Package className="h-6 w-6 opacity-50" />
+            No product sales in this period yet.
+          </div>
+        ) : (
+          rows.map((row, idx) => (
+            <div key={row.productId} className="space-y-1.5">
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="min-w-0 flex items-baseline gap-2">
+                  <span className="text-xs font-mono text-muted-foreground w-4 flex-shrink-0">
+                    {idx + 1}.
+                  </span>
+                  <span className="text-sm font-medium truncate">
+                    {row.name}
+                  </span>
+                </div>
+                <span className="text-sm font-semibold whitespace-nowrap">
+                  {formatPrice(row.revenue)}
+                </span>
+              </div>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all"
+                  style={{
+                    width: `${
+                      maxRevenue > 0 ? (row.revenue / maxRevenue) * 100 : 0
+                    }%`,
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span>{row.unitsSold} units</span>
+                <span>·</span>
+                <span>{row.ordersCount} orders</span>
               </div>
             </div>
-            <Progress value={product.percentage} className="h-2" />
-          </div>
-        ))}
-      </div>
-    </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
   );
-}
+};

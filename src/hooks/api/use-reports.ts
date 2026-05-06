@@ -3,6 +3,7 @@ import {
   reportsService,
   type ReportsRange,
   type SalesReportFilter,
+  type TopProductsFilter,
 } from "@/services/api/reports";
 
 export const reportsKeys = {
@@ -12,6 +13,8 @@ export const reportsKeys = {
   kitchen: (filter?: ReportsRange) => [...reportsKeys.all, "kitchen", filter] as const,
   delivery: (filter?: ReportsRange) => [...reportsKeys.all, "delivery", filter] as const,
   dashboard: (storeId?: string) => [...reportsKeys.all, "dashboard", storeId] as const,
+  topProducts: (filter?: TopProductsFilter) =>
+    [...reportsKeys.all, "topProducts", filter] as const,
 };
 
 export function useSalesReport(filter: SalesReportFilter = {}) {
@@ -52,5 +55,13 @@ export function useDashboardSummary(storeId?: string) {
     queryFn: () => reportsService.dashboard(storeId),
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
+  });
+}
+
+export function useTopProducts(filter: TopProductsFilter = {}) {
+  return useQuery({
+    queryKey: reportsKeys.topProducts(filter),
+    queryFn: () => reportsService.topProducts(filter),
+    staleTime: 60 * 1000,
   });
 }

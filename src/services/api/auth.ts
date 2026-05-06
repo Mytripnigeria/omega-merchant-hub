@@ -35,6 +35,10 @@ export const authService = {
     tokenStorage.clear();
   },
 
+  me(): Promise<AdminUser> {
+    return apiRequest<AdminUser>('/auth/admin/me');
+  },
+
   isAuthenticated(): boolean {
     return !!tokenStorage.getToken();
   },

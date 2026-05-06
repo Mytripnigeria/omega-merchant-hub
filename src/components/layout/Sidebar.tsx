@@ -34,6 +34,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { StoreSelector } from "@/components/store/StoreSelector";
+import { useBusiness } from "@/hooks/api/use-settings";
 import {
   Tooltip,
   TooltipContent,
@@ -314,6 +315,7 @@ function NavMenuItem({ item, onNavigate, expandedItem, onExpand, collapsed }: Na
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileOpenChange }: SidebarProps) {
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const { data: business } = useBusiness();
   
   const handleNavigate = () => {
     onMobileOpenChange?.(false);
@@ -404,7 +406,9 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileOpenChange }:
                 <div className="flex h-6 w-6 items-center justify-center rounded bg-foreground">
                   <span className="text-xs font-bold text-background">Ω</span>
                 </div>
-                <span className="text-sm font-medium">omega-restaurant</span>
+                <span className="text-sm font-medium truncate">
+                  {business?.name ?? "—"}
+                </span>
               </div>
               <Button
                 variant="ghost"

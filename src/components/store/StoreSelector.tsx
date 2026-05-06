@@ -1,4 +1,5 @@
 import { Check, ChevronDown, MapPin, Plus, Store, Building2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,6 +17,7 @@ interface StoreSelectorProps {
 }
 
 export function StoreSelector({ collapsed = false }: StoreSelectorProps) {
+  const navigate = useNavigate();
   const { stores, currentStore, setCurrentStore, isAllStoresMode, setAllStoresMode } = useStore();
 
   const handleSelectStore = (store: typeof stores[0]) => {
@@ -25,6 +27,10 @@ export function StoreSelector({ collapsed = false }: StoreSelectorProps) {
 
   const handleSelectAllStores = () => {
     setAllStoresMode?.(true);
+  };
+
+  const handleAddStore = () => {
+    navigate("/settings?tab=stores");
   };
 
   if (collapsed) {
@@ -75,7 +81,7 @@ export function StoreSelector({ collapsed = false }: StoreSelectorProps) {
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-primary">
+          <DropdownMenuItem onSelect={handleAddStore} className="text-primary">
             <Plus className="mr-2 h-4 w-4" />
             Add New Store
           </DropdownMenuItem>
@@ -154,7 +160,7 @@ export function StoreSelector({ collapsed = false }: StoreSelectorProps) {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="gap-2 text-primary">
+        <DropdownMenuItem onSelect={handleAddStore} className="gap-2 text-primary">
           <Plus className="h-4 w-4" />
           Add New Store
         </DropdownMenuItem>

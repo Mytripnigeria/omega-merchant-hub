@@ -24,6 +24,8 @@ import { useState, useMemo } from "react";
 import { useStore } from "@/contexts/StoreContext";
 import { useDashboardSummary, useSalesReport } from "@/hooks/api/use-reports";
 import { RecentOrders } from "@/components/dashboard/RecentOrders";
+import { TopProducts } from "@/components/dashboard/TopProducts";
+import { LiveActivity } from "@/components/dashboard/LiveActivity";
 
 type Period = "24h" | "7d" | "30d" | "90d";
 
@@ -118,55 +120,6 @@ function ChartSkeleton() {
   );
 }
 
-function OrdersSkeleton() {
-  return (
-    <>
-      {/* Mobile skeleton */}
-      <div className="block sm:hidden divide-y divide-border">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-5 w-16 rounded-full" />
-            </div>
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-4 w-16" />
-            </div>
-            <Skeleton className="h-3 w-12" />
-          </div>
-        ))}
-      </div>
-
-      {/* Desktop skeleton */}
-      <div className="hidden sm:block">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border">
-              {["Order ID", "Customer", "Status", "Total", "Time"].map((header) => (
-                <th key={header} className="text-left p-4 first:pl-6 last:pr-6">
-                  <Skeleton className="h-3 w-16" />
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: 4 }).map((_, i) => (
-              <tr key={i} className="border-b border-border last:border-0">
-                <td className="p-4 pl-6"><Skeleton className="h-4 w-20" /></td>
-                <td className="p-4"><Skeleton className="h-4 w-32" /></td>
-                <td className="p-4"><Skeleton className="h-5 w-16 rounded-full" /></td>
-                <td className="p-4"><Skeleton className="h-4 w-16" /></td>
-                <td className="p-4 pr-6"><Skeleton className="h-4 w-12" /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}
-
 export default function Dashboard() {
   const { isAllStoresMode, currentStore } = useStore();
   const [period, setPeriod] = useState<Period>("7d");
@@ -199,6 +152,22 @@ export default function Dashboard() {
     n >= 1_000_000
       ? `₦${(n / 1_000_000).toFixed(2)}M`
       : `₦${Math.round(n).toLocaleString()}`;
+
+  // Day-over-day revenue delta vs the same window yesterday.
+  const todayRevenue = summary?.todayRevenue ?? 0;
+  const yesterdayRevenue = summary?.yesterdayRevenue ?? 0;
+  const revenueDeltaPct =
+    yesterdayRevenue > 0
+      ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100
+      : todayRevenue > 0
+        ? 100
+        : 0;
+  const revenueDeltaTrend: "up" | "down" =
+    revenueDeltaPct >= 0 ? "up" : "down";
+  const revenueDeltaLabel =
+    yesterdayRevenue === 0 && todayRevenue === 0
+      ? `Today ${formatRevenue(0)}`
+      : `${revenueDeltaPct >= 0 ? "+" : ""}${revenueDeltaPct.toFixed(1)}% vs yesterday`;
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-fade-in">
@@ -241,15 +210,15 @@ export default function Dashboard() {
       {/* Stats Grid - 2 cols on mobile, 4 on desktop */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
-          title="Revenue"
+          title="Revenue (period)"
           value={formatRevenue(totalRevenue)}
-          change={`Today ${formatRevenue(summary?.todayRevenue ?? 0)}`}
-          trend="up"
+          change={revenueDeltaLabel}
+          trend={revenueDeltaTrend}
           icon={<DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
           isLoading={isLoading}
         />
         <StatCard
-          title="Orders"
+          title="Orders (period)"
           value={`${totalOrders}`}
           change={`Today ${summary?.todayOrders ?? 0}`}
           trend="up"
@@ -257,9 +226,9 @@ export default function Dashboard() {
           isLoading={isLoading}
         />
         <StatCard
-          title="Open orders"
+          title="Open queue"
           value={`${summary?.openOrders ?? 0}`}
-          change={`${summary?.deliveriesInTransit ?? 0} delivering`}
+          change={`${summary?.deliveriesInTransit ?? 0} delivering · ${summary?.activeShifts ?? 0} on shift`}
           trend="up"
           icon={<Users className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
           isLoading={isLoading}
@@ -267,7 +236,7 @@ export default function Dashboard() {
         <StatCard
           title="Avg order"
           value={formatRevenue(Math.round(aov))}
-          change={`${summary?.activeShifts ?? 0} active shifts`}
+          change={`${summary?.newCustomersToday ?? 0} new customers today`}
           trend={aov > 0 ? "up" : "down"}
           icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
           isLoading={isLoading}
@@ -398,8 +367,16 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Recent Orders */}
-      <RecentOrders />
+      {/* Recent orders + Top products row */}
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <RecentOrders />
+        </div>
+        <TopProducts dateFrom={range.dateFrom} dateTo={range.dateTo} />
+      </div>
+
+      {/* Live activity */}
+      <LiveActivity />
     </div>
   );
 }
