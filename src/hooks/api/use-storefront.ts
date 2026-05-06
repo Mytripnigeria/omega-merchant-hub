@@ -1,80 +1,232 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { storefrontService } from '@/services/mock/storefront';
-import type { 
-  FeatureBannerFilters, 
-  CreateFeatureBannerRequest, 
-  UpdateFeatureBannerRequest 
-} from '@/types/storefront';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  storefrontConfigApi,
+  storefrontStatsApi,
+  storefrontThemesApi,
+  storefrontPagesApi,
+  storefrontBannersApi,
+} from "@/services/api/storefront";
+import type {
+  CreateFeatureBannerRequest,
+  CreateStorefrontPageRequest,
+  CreateThemePresetRequest,
+  FeatureBanner,
+  FeatureBannerFilters,
+  ReorderItem,
+  StorefrontConfig,
+  StorefrontPage,
+  StorefrontPageFilters,
+  UpdateFeatureBannerRequest,
+  UpdateStorefrontConfigRequest,
+  UpdateStorefrontPageRequest,
+} from "@/types/storefront";
 
-// Query Keys
-export const featureBannerKeys = {
-  all: ['feature-banners'] as const,
-  lists: () => [...featureBannerKeys.all, 'list'] as const,
-  list: (filters?: FeatureBannerFilters) => [...featureBannerKeys.lists(), filters] as const,
-  details: () => [...featureBannerKeys.all, 'detail'] as const,
-  detail: (id: string) => [...featureBannerKeys.details(), id] as const,
+export const storefrontKeys = {
+  all: ["storefront"] as const,
+  config: () => [...storefrontKeys.all, "config"] as const,
+  stats: () => [...storefrontKeys.all, "stats"] as const,
+  themes: () => [...storefrontKeys.all, "themes"] as const,
+  pages: () => [...storefrontKeys.all, "pages"] as const,
+  pageList: (filters?: StorefrontPageFilters) =>
+    [...storefrontKeys.pages(), "list", filters] as const,
+  page: (id: string) => [...storefrontKeys.pages(), "detail", id] as const,
+  banners: () => [...storefrontKeys.all, "banners"] as const,
+  bannerList: (filters?: FeatureBannerFilters) =>
+    [...storefrontKeys.banners(), "list", filters] as const,
+  banner: (id: string) => [...storefrontKeys.banners(), "detail", id] as const,
 };
 
-// Hooks
+// Aliased to keep existing import surface compatible
+export const featureBannerKeys = {
+  all: storefrontKeys.banners(),
+  lists: () => [...storefrontKeys.banners(), "list"] as const,
+  list: (filters?: FeatureBannerFilters) =>
+    storefrontKeys.bannerList(filters),
+  details: () => [...storefrontKeys.banners(), "detail"] as const,
+  detail: (id: string) => storefrontKeys.banner(id),
+};
+
+// ─── Config ───────────────────────────────────────────────────────────
+
+export function useStorefrontConfig() {
+  return useQuery({
+    queryKey: storefrontKeys.config(),
+    queryFn: () => storefrontConfigApi.get(),
+  });
+}
+
+export function useUpdateStorefrontConfig() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: UpdateStorefrontConfigRequest) =>
+      storefrontConfigApi.update(data),
+    onSuccess: (updated: StorefrontConfig) => {
+      qc.setQueryData(storefrontKeys.config(), updated);
+      qc.invalidateQueries({ queryKey: storefrontKeys.config() });
+    },
+  });
+}
+
+export function useStorefrontStats() {
+  return useQuery({
+    queryKey: storefrontKeys.stats(),
+    queryFn: () => storefrontStatsApi.get(),
+  });
+}
+
+// ─── Themes ───────────────────────────────────────────────────────────
+
+export function useStorefrontThemes() {
+  return useQuery({
+    queryKey: storefrontKeys.themes(),
+    queryFn: () => storefrontThemesApi.list(),
+  });
+}
+
+export function useCreateStorefrontTheme() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateThemePresetRequest) =>
+      storefrontThemesApi.create(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: storefrontKeys.themes() }),
+  });
+}
+
+export function useDeleteStorefrontTheme() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => storefrontThemesApi.remove(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: storefrontKeys.themes() });
+      qc.invalidateQueries({ queryKey: storefrontKeys.config() });
+    },
+  });
+}
+
+// ─── Pages ────────────────────────────────────────────────────────────
+
+export function useStorefrontPages(filters?: StorefrontPageFilters) {
+  return useQuery({
+    queryKey: storefrontKeys.pageList(filters),
+    queryFn: () => storefrontPagesApi.list(filters),
+  });
+}
+
+export function useStorefrontPage(id: string) {
+  return useQuery({
+    queryKey: storefrontKeys.page(id),
+    queryFn: () => storefrontPagesApi.get(id),
+    enabled: !!id,
+  });
+}
+
+function invalidatePages(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: storefrontKeys.pages() });
+  qc.invalidateQueries({ queryKey: storefrontKeys.stats() });
+}
+
+export function useCreateStorefrontPage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateStorefrontPageRequest) =>
+      storefrontPagesApi.create(data),
+    onSuccess: () => invalidatePages(qc),
+  });
+}
+
+export function useUpdateStorefrontPage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: UpdateStorefrontPageRequest;
+    }) => storefrontPagesApi.update(id, data),
+    onSuccess: (updated: StorefrontPage) => {
+      qc.setQueryData(storefrontKeys.page(updated.id), updated);
+      invalidatePages(qc);
+    },
+  });
+}
+
+export function useDeleteStorefrontPage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => storefrontPagesApi.remove(id),
+    onSuccess: () => invalidatePages(qc),
+  });
+}
+
+export function useReorderStorefrontPages() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (items: ReorderItem[]) => storefrontPagesApi.reorder(items),
+    onSuccess: () => invalidatePages(qc),
+  });
+}
+
+// ─── Banners ──────────────────────────────────────────────────────────
+
 export function useFeatureBanners(filters?: FeatureBannerFilters) {
   return useQuery({
-    queryKey: featureBannerKeys.list(filters),
-    queryFn: () => storefrontService.getFeatureBanners(filters),
+    queryKey: storefrontKeys.bannerList(filters),
+    queryFn: () => storefrontBannersApi.list(filters),
   });
 }
 
 export function useFeatureBanner(id: string) {
   return useQuery({
-    queryKey: featureBannerKeys.detail(id),
-    queryFn: () => storefrontService.getFeatureBanner(id),
+    queryKey: storefrontKeys.banner(id),
+    queryFn: () => storefrontBannersApi.get(id),
     enabled: !!id,
   });
 }
 
+function invalidateBanners(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: storefrontKeys.banners() });
+  qc.invalidateQueries({ queryKey: storefrontKeys.stats() });
+}
+
 export function useCreateFeatureBanner() {
-  const queryClient = useQueryClient();
-  
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateFeatureBannerRequest) => storefrontService.createFeatureBanner(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: featureBannerKeys.lists() });
-    },
+    mutationFn: (data: CreateFeatureBannerRequest) =>
+      storefrontBannersApi.create(data),
+    onSuccess: () => invalidateBanners(qc),
   });
 }
 
 export function useUpdateFeatureBanner() {
-  const queryClient = useQueryClient();
-  
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateFeatureBannerRequest }) => 
-      storefrontService.updateFeatureBanner(id, data),
-    onSuccess: (updatedBanner) => {
-      queryClient.invalidateQueries({ queryKey: featureBannerKeys.lists() });
-      if (updatedBanner) {
-        queryClient.setQueryData(featureBannerKeys.detail(updatedBanner.id), updatedBanner);
-      }
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: UpdateFeatureBannerRequest;
+    }) => storefrontBannersApi.update(id, data),
+    onSuccess: (updated: FeatureBanner) => {
+      qc.setQueryData(storefrontKeys.banner(updated.id), updated);
+      invalidateBanners(qc);
     },
   });
 }
 
 export function useDeleteFeatureBanner() {
-  const queryClient = useQueryClient();
-  
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => storefrontService.deleteFeatureBanner(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: featureBannerKeys.lists() });
-    },
+    mutationFn: (id: string) => storefrontBannersApi.remove(id),
+    onSuccess: () => invalidateBanners(qc),
   });
 }
 
 export function useReorderFeatureBanners() {
-  const queryClient = useQueryClient();
-  
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (orderedIds: string[]) => storefrontService.reorderFeatureBanners(orderedIds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: featureBannerKeys.lists() });
-    },
+    mutationFn: (items: ReorderItem[]) => storefrontBannersApi.reorder(items),
+    onSuccess: () => invalidateBanners(qc),
   });
 }

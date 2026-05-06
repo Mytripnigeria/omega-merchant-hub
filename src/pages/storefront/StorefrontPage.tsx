@@ -1,5 +1,11 @@
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,129 +13,204 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Globe, Smartphone, Palette, Image, Link2, Share2, 
-  ExternalLink, Eye, Settings, Layout, Type 
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Globe,
+  Palette,
+  Share2,
+  ExternalLink,
+  Eye,
+  Settings,
+  Layout,
+  Save,
 } from "lucide-react";
-import { useStore } from "@/contexts/StoreContext";
+import { toast } from "sonner";
+import {
+  useStorefrontConfig,
+  useUpdateStorefrontConfig,
+} from "@/hooks/api/use-storefront";
+import type {
+  MenuLayout,
+  StorefrontConfig,
+  UpdateStorefrontConfigRequest,
+} from "@/types/storefront";
+
+const STATUS_BADGE: Record<StorefrontConfig["storeStatus"], string> = {
+  live: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  offline: "bg-gray-200 text-gray-700 dark:bg-gray-800/50 dark:text-gray-300",
+  maintenance: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+};
+
+const PUBLIC_STOREFRONT_URL =
+  (import.meta.env.VITE_STOREFRONT_URL as string | undefined) ?? "";
 
 export default function StorefrontPage() {
-  const { currentStore } = useStore();
-  const [isLive, setIsLive] = useState(true);
+  const configQuery = useStorefrontConfig();
+  const updateConfig = useUpdateStorefrontConfig();
+  const [form, setForm] = useState<StorefrontConfig | null>(null);
+
+  useEffect(() => {
+    if (configQuery.data && !form) setForm(configQuery.data);
+  }, [configQuery.data, form]);
+
+  if (configQuery.isLoading || !form) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Storefront</h1>
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
+
+  const set = <K extends keyof StorefrontConfig>(
+    key: K,
+    value: StorefrontConfig[K],
+  ) => setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
+
+  const save = (fields: (keyof StorefrontConfig)[]) => {
+    if (!form) return;
+    const payload: UpdateStorefrontConfigRequest = {};
+    for (const f of fields) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (payload as any)[f] = form[f];
+    }
+    updateConfig.mutate(payload, {
+      onSuccess: (next) => {
+        setForm(next);
+        toast.success("Saved");
+      },
+      onError: (e: Error) => toast.error(e.message ?? "Couldn't save"),
+    });
+  };
+
+  const isLive = form.storeStatus === "live";
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Storefront</h1>
-          <p className="text-muted-foreground">Customize your online presence</p>
+          <p className="text-muted-foreground">Customise your online presence</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Store Status:</span>
-            <Switch checked={isLive} onCheckedChange={setIsLive} />
-            <Badge variant={isLive ? "default" : "secondary"}>{isLive ? "Live" : "Offline"}</Badge>
+            <span className="text-sm text-muted-foreground">Status:</span>
+            <Switch
+              checked={isLive}
+              onCheckedChange={(v) => {
+                set("storeStatus", v ? "live" : "offline");
+                updateConfig.mutate(
+                  { storeStatus: v ? "live" : "offline" },
+                  {
+                    onError: (e: Error) =>
+                      toast.error(e.message ?? "Couldn't update"),
+                  },
+                );
+              }}
+            />
+            <Badge
+              variant="secondary"
+              className={STATUS_BADGE[form.storeStatus]}
+            >
+              {form.storeStatus}
+            </Badge>
           </div>
-          <Button variant="outline">
-            <Eye className="h-4 w-4 mr-2" />
-            Preview
-          </Button>
-          <Button>
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Visit Store
-          </Button>
+          {PUBLIC_STOREFRONT_URL && (
+            <Button variant="outline" asChild>
+              <a href={PUBLIC_STOREFRONT_URL} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Visit Storefront
+              </a>
+            </Button>
+          )}
         </div>
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 h-auto gap-2">
           <TabsTrigger value="general" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            General
+            <Settings className="h-4 w-4" /> General
           </TabsTrigger>
           <TabsTrigger value="design" className="flex items-center gap-2">
-            <Palette className="h-4 w-4" />
-            Design
+            <Palette className="h-4 w-4" /> Design
           </TabsTrigger>
           <TabsTrigger value="menu" className="flex items-center gap-2">
-            <Layout className="h-4 w-4" />
-            Menu Display
+            <Layout className="h-4 w-4" /> Menu
           </TabsTrigger>
           <TabsTrigger value="seo" className="flex items-center gap-2">
-            <Globe className="h-4 w-4" />
-            SEO
+            <Globe className="h-4 w-4" /> SEO
           </TabsTrigger>
           <TabsTrigger value="social" className="flex items-center gap-2">
-            <Share2 className="h-4 w-4" />
-            Social
+            <Share2 className="h-4 w-4" /> Social
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Store URL</CardTitle>
-              <CardDescription>Your store's web address</CardDescription>
+              <CardTitle>Domain</CardTitle>
+              <CardDescription>Your storefront's web address</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Input value={`${currentStore?.name?.toLowerCase().replace(/\s+/g, "-")}.omegaos.com`} readOnly />
-                <Button variant="outline" size="icon">
-                  <Link2 className="h-4 w-4" />
-                </Button>
-              </div>
               <div className="space-y-2">
                 <Label>Custom Domain</Label>
-                <div className="flex gap-2">
-                  <Input placeholder="www.yourdomain.com" />
-                  <Button>Connect</Button>
-                </div>
+                <Input
+                  placeholder="www.yourdomain.com"
+                  value={form.customDomain ?? ""}
+                  onChange={(e) =>
+                    set("customDomain", e.target.value || null)
+                  }
+                />
               </div>
+              <Button
+                onClick={() => save(["customDomain"])}
+                disabled={updateConfig.isPending}
+              >
+                <Save className="h-4 w-4 mr-2" /> Save
+              </Button>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Store Information</CardTitle>
-              <CardDescription>Details shown to customers</CardDescription>
+              <CardTitle>Store Identity</CardTitle>
+              <CardDescription>Public-facing store details</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Store Name</Label>
-                <Input defaultValue={currentStore?.name || "My Store"} />
+                <Input
+                  value={form.storeName}
+                  onChange={(e) => set("storeName", e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Tagline</Label>
-                <Input placeholder="Fresh food, fast delivery" />
+                <Input
+                  value={form.tagline ?? ""}
+                  onChange={(e) => set("tagline", e.target.value || null)}
+                />
               </div>
               <div className="space-y-2">
-                <Label>Description</Label>
-                <Textarea placeholder="Tell customers about your store..." rows={4} />
+                <Label>Logo URL</Label>
+                <Input
+                  value={form.logoUrl ?? ""}
+                  onChange={(e) => set("logoUrl", e.target.value || null)}
+                />
               </div>
-              <Button>Save Changes</Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Ordering Options</CardTitle>
-              <CardDescription>Configure how customers can order</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {[
-                { name: "Pickup Orders", description: "Allow customers to order for pickup", enabled: true },
-                { name: "Delivery Orders", description: "Enable delivery to customers", enabled: true },
-                { name: "Dine-In Orders", description: "Table ordering for in-store customers", enabled: false },
-                { name: "Scheduled Orders", description: "Allow advance ordering", enabled: true },
-              ].map((option) => (
-                <div key={option.name} className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{option.name}</p>
-                    <p className="text-sm text-muted-foreground">{option.description}</p>
-                  </div>
-                  <Switch defaultChecked={option.enabled} />
-                </div>
-              ))}
+              <Button
+                onClick={() => save(["storeName", "tagline", "logoUrl"])}
+                disabled={updateConfig.isPending}
+              >
+                <Save className="h-4 w-4 mr-2" /> Save
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -137,80 +218,51 @@ export default function StorefrontPage() {
         <TabsContent value="design" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Image className="h-5 w-5" />
-                Branding
-              </CardTitle>
-              <CardDescription>Upload your store's logo and banner</CardDescription>
+              <CardTitle>Design Tokens</CardTitle>
+              <CardDescription>
+                Theme colors. For full customisation, see <a href="/storefront/theme" className="underline">Theme</a>.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Logo</Label>
-                  <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
-                    <Image className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Drop logo here or click to upload</p>
-                    <Button variant="outline" size="sm" className="mt-2">Choose File</Button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Banner Image</Label>
-                  <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
-                    <Image className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">1200x400px recommended</p>
-                    <Button variant="outline" size="sm" className="mt-2">Choose File</Button>
-                  </div>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Primary Color</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    value={form.primaryColor}
+                    onChange={(e) => set("primaryColor", e.target.value)}
+                    className="w-12 h-10 p-1"
+                  />
+                  <Input
+                    value={form.primaryColor}
+                    onChange={(e) => set("primaryColor", e.target.value)}
+                    className="flex-1 font-mono"
+                  />
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Palette className="h-5 w-5" />
-                Colors
-              </CardTitle>
-              <CardDescription>Customize your store's color scheme</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Primary Color</Label>
-                  <div className="flex gap-2">
-                    <Input type="color" defaultValue="#3B82F6" className="w-12 h-10 p-1" />
-                    <Input defaultValue="#3B82F6" className="flex-1" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Secondary Color</Label>
-                  <div className="flex gap-2">
-                    <Input type="color" defaultValue="#10B981" className="w-12 h-10 p-1" />
-                    <Input defaultValue="#10B981" className="flex-1" />
-                  </div>
+              <div className="space-y-2">
+                <Label>Background</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    value={form.backgroundColor}
+                    onChange={(e) => set("backgroundColor", e.target.value)}
+                    className="w-12 h-10 p-1"
+                  />
+                  <Input
+                    value={form.backgroundColor}
+                    onChange={(e) => set("backgroundColor", e.target.value)}
+                    className="flex-1 font-mono"
+                  />
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Type className="h-5 w-5" />
-                Typography
-              </CardTitle>
-              <CardDescription>Choose fonts for your storefront</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Heading Font</Label>
-                  <Input defaultValue="Inter" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Body Font</Label>
-                  <Input defaultValue="Inter" />
-                </div>
+              <div className="md:col-span-2">
+                <Button
+                  onClick={() => save(["primaryColor", "backgroundColor"])}
+                  disabled={updateConfig.isPending}
+                >
+                  <Save className="h-4 w-4 mr-2" /> Save
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -219,45 +271,60 @@ export default function StorefrontPage() {
         <TabsContent value="menu" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Menu Layout</CardTitle>
-              <CardDescription>How products are displayed to customers</CardDescription>
+              <CardTitle>Menu Display</CardTitle>
+              <CardDescription>How menu items appear on the storefront</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Layout Style</Label>
-                <div className="grid grid-cols-3 gap-4">
-                  {["Grid", "List", "Cards"].map((layout) => (
-                    <button
-                      key={layout}
-                      className={`p-4 border rounded-lg text-center hover:border-primary transition-colors ${layout === "Grid" ? "border-primary bg-primary/5" : ""}`}
-                    >
-                      <Layout className="h-6 w-6 mx-auto mb-2" />
-                      <span className="text-sm">{layout}</span>
-                    </button>
-                  ))}
-                </div>
+                <Label>Layout</Label>
+                <Select
+                  value={form.menuLayout}
+                  onValueChange={(v) => set("menuLayout", v as MenuLayout)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="grouped">Grouped by category</SelectItem>
+                    <SelectItem value="grid">Grid</SelectItem>
+                    <SelectItem value="list">List</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Show Product Images</p>
-                  <p className="text-sm text-muted-foreground">Display images in menu</p>
-                </div>
-                <Switch defaultChecked />
+                <p className="font-medium">Show Images</p>
+                <Switch
+                  checked={form.menuShowImages}
+                  onCheckedChange={(v) => set("menuShowImages", v)}
+                />
               </div>
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Show Product Descriptions</p>
-                  <p className="text-sm text-muted-foreground">Display descriptions below names</p>
-                </div>
-                <Switch defaultChecked />
+                <p className="font-medium">Show Calories</p>
+                <Switch
+                  checked={form.menuShowCalories}
+                  onCheckedChange={(v) => set("menuShowCalories", v)}
+                />
               </div>
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Show Calories</p>
-                  <p className="text-sm text-muted-foreground">Display nutritional info</p>
-                </div>
-                <Switch />
+                <p className="font-medium">Show Prep Time</p>
+                <Switch
+                  checked={form.menuShowPrepTime}
+                  onCheckedChange={(v) => set("menuShowPrepTime", v)}
+                />
               </div>
+              <Button
+                onClick={() =>
+                  save([
+                    "menuLayout",
+                    "menuShowImages",
+                    "menuShowCalories",
+                    "menuShowPrepTime",
+                  ])
+                }
+                disabled={updateConfig.isPending}
+              >
+                <Save className="h-4 w-4 mr-2" /> Save
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -265,25 +332,62 @@ export default function StorefrontPage() {
         <TabsContent value="seo" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Search Engine Optimization</CardTitle>
-              <CardDescription>Improve your store's visibility on search engines</CardDescription>
+              <CardTitle>SEO Defaults</CardTitle>
+              <CardDescription>How your storefront appears in search</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Meta Title</Label>
-                <Input placeholder="Store Name | Best Food in Town" />
-                <p className="text-xs text-muted-foreground">Recommended: 50-60 characters</p>
+                <Label>Title</Label>
+                <Input
+                  value={form.seoTitle ?? ""}
+                  onChange={(e) => set("seoTitle", e.target.value || null)}
+                />
               </div>
               <div className="space-y-2">
-                <Label>Meta Description</Label>
-                <Textarea placeholder="Describe your store for search results..." rows={3} />
-                <p className="text-xs text-muted-foreground">Recommended: 150-160 characters</p>
+                <Label>Description</Label>
+                <Textarea
+                  rows={3}
+                  value={form.seoDescription ?? ""}
+                  onChange={(e) =>
+                    set("seoDescription", e.target.value || null)
+                  }
+                />
               </div>
               <div className="space-y-2">
-                <Label>Keywords</Label>
-                <Input placeholder="food, restaurant, delivery, pizza" />
+                <Label>Keywords (comma-separated)</Label>
+                <Input
+                  value={(form.seoKeywords ?? []).join(", ")}
+                  onChange={(e) =>
+                    set(
+                      "seoKeywords",
+                      e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    )
+                  }
+                />
               </div>
-              <Button>Save SEO Settings</Button>
+              <div className="space-y-2">
+                <Label>Open Graph Image URL</Label>
+                <Input
+                  value={form.seoOgImageUrl ?? ""}
+                  onChange={(e) => set("seoOgImageUrl", e.target.value || null)}
+                />
+              </div>
+              <Button
+                onClick={() =>
+                  save([
+                    "seoTitle",
+                    "seoDescription",
+                    "seoKeywords",
+                    "seoOgImageUrl",
+                  ])
+                }
+                disabled={updateConfig.isPending}
+              >
+                <Save className="h-4 w-4 mr-2" /> Save
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -291,38 +395,44 @@ export default function StorefrontPage() {
         <TabsContent value="social" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Social Media Links</CardTitle>
-              <CardDescription>Connect your social profiles</CardDescription>
+              <CardTitle>Social Profiles</CardTitle>
+              <CardDescription>Links shown on the storefront footer</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {[
-                { name: "Facebook", placeholder: "https://facebook.com/yourstore" },
-                { name: "Instagram", placeholder: "https://instagram.com/yourstore" },
-                { name: "Twitter", placeholder: "https://twitter.com/yourstore" },
-                { name: "TikTok", placeholder: "https://tiktok.com/@yourstore" },
-              ].map((social) => (
-                <div key={social.name} className="space-y-2">
-                  <Label>{social.name}</Label>
-                  <Input placeholder={social.placeholder} />
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              {(
+                [
+                  ["socialInstagram", "Instagram"],
+                  ["socialFacebook", "Facebook"],
+                  ["socialTwitter", "Twitter / X"],
+                  ["socialTiktok", "TikTok"],
+                  ["socialYoutube", "YouTube"],
+                  ["socialWhatsapp", "WhatsApp"],
+                ] as const
+              ).map(([key, label]) => (
+                <div key={key} className="space-y-2">
+                  <Label>{label}</Label>
+                  <Input
+                    value={(form[key] as string | null) ?? ""}
+                    onChange={(e) => set(key, (e.target.value || null) as never)}
+                  />
                 </div>
               ))}
-              <Button>Save Social Links</Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Smartphone className="h-5 w-5" />
-                Social Sharing
-              </CardTitle>
-              <CardDescription>Default image when your store is shared</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
-                <Image className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">1200x630px for best results</p>
-                <Button variant="outline" size="sm" className="mt-2">Upload OG Image</Button>
+              <div className="md:col-span-2">
+                <Button
+                  onClick={() =>
+                    save([
+                      "socialInstagram",
+                      "socialFacebook",
+                      "socialTwitter",
+                      "socialTiktok",
+                      "socialYoutube",
+                      "socialWhatsapp",
+                    ])
+                  }
+                  disabled={updateConfig.isPending}
+                >
+                  <Save className="h-4 w-4 mr-2" /> Save
+                </Button>
               </div>
             </CardContent>
           </Card>

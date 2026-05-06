@@ -353,7 +353,9 @@ export default function FeatureBannersPage() {
       const newOrder = arrayMove(banners, oldIndex, newIndex);
       
       try {
-        await reorderMutation.mutateAsync(newOrder.map(b => b.id));
+        await reorderMutation.mutateAsync(
+          newOrder.map((b, idx) => ({ id: b.id, position: idx })),
+        );
         toast.success("Banners reordered");
       } catch {
         toast.error("Failed to reorder banners");
