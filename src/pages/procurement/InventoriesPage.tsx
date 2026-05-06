@@ -1,532 +1,519 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMemo, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLoading } from "@/hooks/use-loading";
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetFooter,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Search, Plus, Package, AlertTriangle, DollarSign, MapPin, MoreHorizontal, Eye, Edit, Trash2, History } from "lucide-react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TablePagination } from "@/components/ui/table-pagination";
-import { SortableHeader } from "@/components/ui/sortable-header";
-import { useTableControls } from "@/hooks/use-table-controls";
-import { Inventory as APIInventory } from "@/types/procurement";
+import {
+  Search,
+  Plus,
+  Package,
+  AlertTriangle,
+  Edit,
+  Trash2,
+  PackagePlus,
+  PackageMinus,
+} from "lucide-react";
+import { toast } from "sonner";
+import {
+  useIngredients,
+  useIngredientStats,
+  useCreateIngredient,
+  useUpdateIngredient,
+  useDeleteIngredient,
+  useAdjustStock,
+} from "@/hooks/api/use-stock";
+import { useStore } from "@/contexts/StoreContext";
+import type { Ingredient } from "@/types/products";
 
-// UI-specific interface with computed fields for display
-interface InventoryItemUI extends APIInventory {
-  reorderLevel: number; // Alias for reorderPoint
-  value: number; // Alias for totalValue
-  location: string; // Alias for locationName
-  isIngredient: boolean;
-  history: { date: string; action: string; quantity: number; by: string; location: string }[];
+interface IngredientForm {
+  name: string;
+  unit: string;
+  currentStock: string;
+  minStock: string;
+  costPerUnit: string;
+  sku: string;
+  supplierId: string;
 }
 
-const transformInventory = (item: APIInventory): InventoryItemUI => ({
-  ...item,
-  reorderLevel: item.reorderPoint,
-  value: item.totalValue,
-  location: item.locationName,
-  isIngredient: item.ingredientMappings ? item.ingredientMappings.length > 0 : false,
-  history: [],
-});
+function emptyForm(): IngredientForm {
+  return {
+    name: "",
+    unit: "kg",
+    currentStock: "0",
+    minStock: "0",
+    costPerUnit: "0",
+    sku: "",
+    supplierId: "",
+  };
+}
 
-// Mock data aligned with API types
-const mockInventories: APIInventory[] = [
-  { id: "1", storeId: "store-1", locationId: "loc-1", locationName: "Main Kitchen", sku: "ING-001", name: "Flour", unit: "kg", quantity: 50, minQuantity: 20, reorderPoint: 20, unitCost: 1500, totalValue: 75000, status: "in-stock", createdAt: "2026-01-01", updatedAt: "2026-01-15" },
-  { id: "2", storeId: "store-1", locationId: "loc-1", locationName: "Main Kitchen", sku: "ING-002", name: "Olive Oil", unit: "L", quantity: 8, minQuantity: 10, reorderPoint: 10, unitCost: 6000, totalValue: 48000, status: "low-stock", createdAt: "2026-01-01", updatedAt: "2026-01-15" },
-  { id: "3", storeId: "store-1", locationId: "loc-2", locationName: "Cold Storage", sku: "ING-003", name: "Cheese", unit: "kg", quantity: 25, minQuantity: 15, reorderPoint: 15, unitCost: 7500, totalValue: 187500, status: "in-stock", createdAt: "2026-01-01", updatedAt: "2026-01-15" },
-  { id: "4", storeId: "store-1", locationId: "loc-2", locationName: "Cold Storage", sku: "ING-004", name: "Tomatoes", unit: "kg", quantity: 5, minQuantity: 10, reorderPoint: 10, unitCost: 2500, totalValue: 12500, status: "out-of-stock", createdAt: "2026-01-01", updatedAt: "2026-01-15" },
-  { id: "5", storeId: "store-1", locationId: "loc-2", locationName: "Cold Storage", sku: "ING-005", name: "Chicken", unit: "kg", quantity: 30, minQuantity: 20, reorderPoint: 20, unitCost: 7500, totalValue: 225000, status: "in-stock", createdAt: "2026-01-01", updatedAt: "2026-01-15" },
-];
+function ingredientToForm(i: Ingredient): IngredientForm {
+  return {
+    name: i.name,
+    unit: i.unit,
+    currentStock: String(i.currentStock),
+    minStock: String(i.minStock),
+    costPerUnit: String(i.costPerUnit),
+    sku: i.sku ?? "",
+    supplierId: i.supplierId ?? "",
+  };
+}
 
-const inventories: InventoryItemUI[] = mockInventories.map(transformInventory);
-
-const locations = ["Main Kitchen", "Cold Storage", "Warehouse", "VI Branch"];
-
-function StatsSkeleton() {
-  return (
-    <div className="grid gap-3 grid-cols-3">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <Card key={i} className="border-border/50">
-          <CardContent className="p-3 sm:p-4">
-            <Skeleton className="h-8 w-8 rounded-lg mb-2" />
-            <Skeleton className="h-7 w-16 mb-1" />
-            <Skeleton className="h-3 w-20" />
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
+function ngn(n: number): string {
+  return `₦${n.toLocaleString()}`;
 }
 
 export default function InventoriesPage() {
+  const { currentStore } = useStore();
   const [search, setSearch] = useState("");
-  const [locationFilter, setLocationFilter] = useState("all");
-  const isLoading = useLoading(1000);
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetMode, setSheetMode] = useState<"create" | "edit" | "adjust">("create");
+  const [selected, setSelected] = useState<Ingredient | null>(null);
+  const [form, setForm] = useState<IngredientForm>(emptyForm());
+  const [adjustment, setAdjustment] = useState("");
+  const [adjustReason, setAdjustReason] = useState("");
 
-  // Pre-filter by location before passing to useTableControls
-  const preFilteredInventories = inventories.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) || 
-                          item.sku.toLowerCase().includes(search.toLowerCase());
-    const matchesLocation = locationFilter === "all" || item.location === locationFilter;
-    return matchesSearch && matchesLocation;
+  const ingredientsQuery = useIngredients({
+    storeId: currentStore?.id,
+    search: search || undefined,
+    page,
+    limit: pageSize,
   });
+  const statsQuery = useIngredientStats(currentStore?.id);
 
-  // Table controls
-  const {
-    data: paginatedInventories,
-    currentPage,
-    pageSize,
-    totalPages,
-    totalItems,
-    sortConfig,
-    handleSort,
-    goToPage,
-    setPageSize,
-    startIndex,
-    endIndex,
-  } = useTableControls<InventoryItemUI>({ 
-    data: preFilteredInventories,
-    initialPageSize: 10 
-  });
+  const createIngredient = useCreateIngredient();
+  const updateIngredient = useUpdateIngredient();
+  const deleteIngredient = useDeleteIngredient();
+  const adjustStock = useAdjustStock();
 
-  // Sheet states
-  const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
-  const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<InventoryItemUI | null>(null);
+  const ingredients: Ingredient[] = ingredientsQuery.data?.data ?? [];
+  const total = ingredientsQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, total);
 
-  const formatPrice = (amount: number) => {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-      minimumFractionDigits: 0,
-    }).format(amount);
+  const stats = useMemo(() => {
+    const s = statsQuery.data;
+    return [
+      { label: "Total Items", value: s ? String(s.total) : "—", icon: Package },
+      { label: "Low Stock", value: s ? String(s.lowStock) : "—", icon: AlertTriangle },
+      {
+        label: "Inventory Value",
+        value: s ? ngn(s.totalValue) : "—",
+        icon: Package,
+      },
+    ];
+  }, [statsQuery.data]);
+
+  const openCreate = () => {
+    setSelected(null);
+    setForm(emptyForm());
+    setSheetMode("create");
+    setSheetOpen(true);
+  };
+  const openEdit = (i: Ingredient) => {
+    setSelected(i);
+    setForm(ingredientToForm(i));
+    setSheetMode("edit");
+    setSheetOpen(true);
+  };
+  const openAdjust = (i: Ingredient) => {
+    setSelected(i);
+    setAdjustment("");
+    setAdjustReason("");
+    setSheetMode("adjust");
+    setSheetOpen(true);
+  };
+  const close = () => {
+    setSheetOpen(false);
+    setSelected(null);
   };
 
-  const stats = [
-    { label: "Total Items", value: "156", icon: Package },
-    { label: "Low Stock", value: "12", icon: AlertTriangle, color: "text-yellow-600" },
-    { label: "Total Value", value: formatPrice(548000), icon: DollarSign },
-  ];
-
-  const handleViewItem = (item: InventoryItemUI) => {
-    setSelectedItem(item);
-    setIsViewSheetOpen(true);
+  const handleCreate = () => {
+    if (!currentStore) {
+      toast.error("Select a store first");
+      return;
+    }
+    if (!form.name.trim()) {
+      toast.error("Name is required");
+      return;
+    }
+    createIngredient.mutate(
+      {
+        storeId: currentStore.id,
+        name: form.name,
+        unit: form.unit,
+        currentStock: Number(form.currentStock) || 0,
+        minStock: Number(form.minStock) || 0,
+        costPerUnit: Number(form.costPerUnit) || 0,
+        sku: form.sku || undefined,
+        supplierId: form.supplierId || undefined,
+      } as Partial<Ingredient> & { storeId: string },
+      {
+        onSuccess: () => {
+          toast.success("Ingredient added");
+          close();
+        },
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't create"),
+      },
+    );
   };
 
-  const handleEditItem = (item: InventoryItemUI) => {
-    setSelectedItem(item);
-    setIsAddSheetOpen(true);
+  const handleUpdate = () => {
+    if (!selected) return;
+    updateIngredient.mutate(
+      {
+        id: selected.id,
+        data: {
+          name: form.name,
+          unit: form.unit,
+          minStock: Number(form.minStock) || 0,
+          costPerUnit: Number(form.costPerUnit) || 0,
+          sku: form.sku || undefined,
+          supplierId: form.supplierId || undefined,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Ingredient updated");
+          close();
+        },
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't update"),
+      },
+    );
   };
 
-  const handleAddNew = () => {
-    setSelectedItem(null);
-    setIsAddSheetOpen(true);
+  const handleAdjust = () => {
+    if (!selected) return;
+    const amount = Number(adjustment);
+    if (!amount) {
+      toast.error("Adjustment must be a non-zero number");
+      return;
+    }
+    adjustStock.mutate(
+      {
+        id: selected.id,
+        adjustment: amount,
+        reason: adjustReason || undefined,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Stock adjusted");
+          close();
+        },
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't adjust"),
+      },
+    );
+  };
+
+  const handleDelete = (i: Ingredient) => {
+    if (!confirm(`Delete ${i.name}?`)) return;
+    deleteIngredient.mutate(i.id, {
+      onSuccess: () => toast.success("Ingredient deleted"),
+      onError: (e: Error) => toast.error(e.message ?? "Couldn't delete"),
+    });
   };
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Inventories</h1>
-          <p className="text-sm text-muted-foreground">Manage stock levels across locations</p>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
+            Inventory
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Track ingredient stock levels for {currentStore?.name ?? "your store"}
+          </p>
         </div>
-        <Button size="sm" onClick={handleAddNew}><Plus className="h-4 w-4 mr-2" />Add Item</Button>
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="mr-2 h-4 w-4" /> Add Ingredient
+        </Button>
       </div>
 
-      {/* Two-column layout for desktop */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main content */}
-        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-          {/* Stats */}
-          {isLoading ? (
-            <StatsSkeleton />
-          ) : (
-            <div className="grid gap-3 grid-cols-3">
-              {stats.map((stat) => (
-                <Card key={stat.label} className="border-border/50">
-                  <CardContent className="p-3 sm:p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-muted flex items-center justify-center">
-                        <stat.icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${stat.color || "text-muted-foreground"}`} />
-                      </div>
-                    </div>
-                    <p className="text-xl sm:text-2xl font-semibold">{stat.value}</p>
-                    <p className="text-xs text-muted-foreground">{stat.label}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+      <div className="grid gap-3 grid-cols-3">
+        {stats.map((s) => (
+          <Card key={s.label} className="border-border/50">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-muted flex items-center justify-center">
+                  <s.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+                </div>
+              </div>
+              <p className="text-xl sm:text-2xl font-semibold">{s.value}</p>
+              <p className="text-xs text-muted-foreground">{s.label}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search inventory..." 
-                value={search} 
-                onChange={(e) => setSearch(e.target.value)} 
-                className="pl-9 h-9 bg-muted/50 border-0" 
-              />
-            </div>
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger className="w-full sm:w-[160px] h-9 bg-muted/50 border-0">
-                <MapPin className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locations.map((loc) => (
-                  <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <Card className="border-border/50">
+        <CardContent className="p-4 space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search ingredients..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="pl-9 h-9 bg-muted/50 border-0"
+            />
           </div>
 
-          {/* Inventory List */}
-          <Card className="border-border/50">
-            <CardContent className="p-0">
-              {/* Mobile Card View */}
-              <div className="block sm:hidden divide-y divide-border">
-                {paginatedInventories.map((item) => (
-                  <div key={item.id} className="p-4 space-y-3 cursor-pointer" onClick={() => handleViewItem(item)}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-medium">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">{item.sku}</p>
-                      </div>
-                      <Badge 
-                        variant={item.status === "in-stock" ? "default" : item.status === "low-stock" ? "secondary" : "destructive"}
-                        className="text-xs shrink-0"
-                      >
-                        {item.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{item.quantity} {item.unit}</span>
-                      <span className="text-muted-foreground">{formatPrice(item.value)}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <MapPin className="h-3 w-3" />
-                      <span>{item.location}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Desktop Table View */}
-              <div className="hidden sm:block overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left p-4">
-                        <SortableHeader label="Item" field="name" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
-                      </th>
-                      <th className="text-left p-4">
-                        <SortableHeader label="SKU" field="sku" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
-                      </th>
-                      <th className="text-left p-4">
-                        <SortableHeader label="Qty" field="quantity" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
-                      </th>
-                      <th className="text-left p-4">
-                        <SortableHeader label="Location" field="location" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
-                      </th>
-                      <th className="text-left p-4">
-                        <SortableHeader label="Value" field="value" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
-                      </th>
-                      <th className="text-left p-4">
-                        <SortableHeader label="Status" field="status" currentSortField={sortConfig.field as string | null} currentSortDirection={sortConfig.direction} onSort={handleSort as (field: string) => void} />
-                      </th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4 w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedInventories.map((item) => (
-                      <tr key={item.id} className="border-b border-border last:border-0 group cursor-pointer hover:bg-muted/50" onClick={() => handleViewItem(item)}>
-                        <td className="p-4 font-medium text-sm">{item.name}</td>
-                        <td className="p-4 text-sm text-muted-foreground">{item.sku}</td>
-                        <td className="p-4 text-sm">{item.quantity} {item.unit}</td>
-                        <td className="p-4 text-sm text-muted-foreground">{item.location}</td>
-                        <td className="p-4 text-sm">{formatPrice(item.value)}</td>
-                        <td className="p-4">
-                          <Badge 
-                            variant={item.status === "in-stock" ? "default" : item.status === "low-stock" ? "secondary" : "destructive"}
-                            className="text-xs"
-                          >
-                            {item.status}
-                          </Badge>
+          {ingredientsQuery.isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : ingredients.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Package className="h-10 w-10 text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">No ingredients yet</p>
+              <Button variant="outline" size="sm" className="mt-3" onClick={openCreate}>
+                Add your first ingredient
+              </Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left text-xs font-medium text-muted-foreground p-3">Name</th>
+                    <th className="text-right text-xs font-medium text-muted-foreground p-3">Stock</th>
+                    <th className="text-right text-xs font-medium text-muted-foreground p-3">Min</th>
+                    <th className="text-right text-xs font-medium text-muted-foreground p-3">Cost</th>
+                    <th className="text-right text-xs font-medium text-muted-foreground p-3">Value</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground p-3">Status</th>
+                    <th className="text-right text-xs font-medium text-muted-foreground p-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ingredients.map((i) => {
+                    const value = Number(i.currentStock) * Number(i.costPerUnit);
+                    const lowStock = Number(i.currentStock) <= Number(i.minStock);
+                    const outOfStock = Number(i.currentStock) <= 0;
+                    return (
+                      <tr key={i.id} className="border-b border-border last:border-0">
+                        <td className="p-3">
+                          <p className="font-medium">{i.name}</p>
+                          {i.sku && (
+                            <p className="text-xs text-muted-foreground font-mono">{i.sku}</p>
+                          )}
                         </td>
-                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleViewItem(item)}>
-                                <Eye className="mr-2 h-4 w-4" />View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEditItem(item)}>
-                                <Edit className="mr-2 h-4 w-4" />Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">
-                                <Trash2 className="mr-2 h-4 w-4" />Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                        <td className="p-3 text-right">
+                          {Number(i.currentStock)} {i.unit}
+                        </td>
+                        <td className="p-3 text-right">
+                          {Number(i.minStock)} {i.unit}
+                        </td>
+                        <td className="p-3 text-right">{ngn(Number(i.costPerUnit))}</td>
+                        <td className="p-3 text-right font-medium">{ngn(value)}</td>
+                        <td className="p-3">
+                          {outOfStock ? (
+                            <Badge variant="destructive" className="text-xs">Out of stock</Badge>
+                          ) : lowStock ? (
+                            <Badge variant="outline" className="text-xs text-yellow-700">
+                              Low stock
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">In stock</Badge>
+                          )}
+                        </td>
+                        <td className="p-3 text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openAdjust(i)}
+                              title="Adjust stock"
+                            >
+                              <PackagePlus className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEdit(i)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(i)}
+                              disabled={deleteIngredient.isPending}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Pagination */}
-          <TablePagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            startIndex={startIndex}
-            endIndex={endIndex}
-            pageSize={pageSize}
-            onPageChange={goToPage}
-            onPageSizeChange={setPageSize}
-          />
-        </div>
-
-        {/* Sidebar - Hidden on mobile */}
-        <div className="hidden lg:block space-y-6">
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Low Stock Alerts</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {inventories.filter(i => i.status !== "in-stock").map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50 cursor-pointer" onClick={() => handleViewItem(item)}>
-                  <div>
-                    <p className="text-sm font-medium">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">{item.quantity} {item.unit} remaining</p>
-                  </div>
-                  <Badge variant={item.status === "low-stock" ? "secondary" : "destructive"} className="text-xs">
-                    {item.status}
-                  </Badge>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Locations</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {locations.map((loc) => (
-                <div key={loc} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 cursor-pointer" onClick={() => setLocationFilter(loc)}>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{loc}</span>
-                  </div>
-                  <Badge variant="secondary" className="text-xs">
-                    {inventories.filter(i => i.location === loc).length} items
-                  </Badge>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start" onClick={handleAddNew}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add New Item
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Package className="mr-2 h-4 w-4" />
-                Stock Count
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <AlertTriangle className="mr-2 h-4 w-4" />
-                Reorder Report
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Add/Edit Sheet */}
-      <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{selectedItem ? "Edit Inventory Item" : "Add Inventory Item"}</SheetTitle>
-            <SheetDescription>
-              {selectedItem ? "Update item details" : "Add a new item to inventory"}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="grid gap-6 py-6">
-            {/* Item Details */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground">Item Details</h3>
-              <div className="space-y-2">
-                <Label>Item Name</Label>
-                <Input placeholder="Enter item name" defaultValue={selectedItem?.name} />
-              </div>
-              <div className="space-y-2">
-                <Label>SKU</Label>
-                <Input placeholder="e.g., ING-001" defaultValue={selectedItem?.sku} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Quantity</Label>
-                  <Input type="number" defaultValue={selectedItem?.quantity} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Measurement Unit</Label>
-                  <Input placeholder="kg, L, pcs" defaultValue={selectedItem?.unit} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Inventory Location</Label>
-                <Select defaultValue={selectedItem?.location}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((loc) => (
-                      <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-
-            {/* Mark as Ingredient */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground">Mark as Ingredient</h3>
-              <div className="flex items-center justify-between p-3 border rounded-lg">
-                <div>
-                  <p className="text-sm font-medium">Use as Ingredient</p>
-                  <p className="text-xs text-muted-foreground">Enable to link to products</p>
-                </div>
-                <Switch defaultChecked={selectedItem?.isIngredient} />
-              </div>
-            </div>
-          </div>
-          <SheetFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsAddSheetOpen(false)} className="w-full sm:w-auto">Cancel</Button>
-            <Button className="w-full sm:w-auto">{selectedItem ? "Update Item" : "Add Item"}</Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-
-      {/* View Details Sheet */}
-      <Sheet open={isViewSheetOpen} onOpenChange={setIsViewSheetOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{selectedItem?.name}</SheetTitle>
-            <SheetDescription>Inventory item details and history</SheetDescription>
-          </SheetHeader>
-          {selectedItem && (
-            <Tabs defaultValue="details" className="mt-6">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="history">History</TabsTrigger>
-              </TabsList>
-              <TabsContent value="details" className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground">SKU</p>
-                    <p className="font-medium">{selectedItem.sku}</p>
-                  </div>
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground">Quantity</p>
-                    <p className="font-medium">{selectedItem.quantity} {selectedItem.unit}</p>
-                  </div>
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground">Location</p>
-                    <p className="font-medium">{selectedItem.location}</p>
-                  </div>
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground">Reorder Level</p>
-                    <p className="font-medium">{selectedItem.reorderLevel} {selectedItem.unit}</p>
-                  </div>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg">
-                  <p className="text-xs text-muted-foreground">Total Value</p>
-                  <p className="text-xl font-bold">{formatPrice(selectedItem.value)}</p>
-                </div>
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <span className="text-sm">Status</span>
-                  <Badge variant={selectedItem.status === "in-stock" ? "default" : selectedItem.status === "low-stock" ? "secondary" : "destructive"}>
-                    {selectedItem.status}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <span className="text-sm">Is Ingredient</span>
-                  <Badge variant={selectedItem.isIngredient ? "default" : "secondary"}>
-                    {selectedItem.isIngredient ? "Yes" : "No"}
-                  </Badge>
-                </div>
-              </TabsContent>
-              <TabsContent value="history" className="space-y-4 mt-4">
-                <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <History className="h-4 w-4" />
-                  Inventory History
-                </h3>
-                {selectedItem.history.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-muted-foreground border rounded-lg">
-                    No history available
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {selectedItem.history.map((entry, index) => (
-                      <div key={index} className="p-3 border rounded-lg space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Badge variant={entry.action.includes("In") ? "default" : "secondary"}>
-                            {entry.action}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">{entry.date}</span>
-                        </div>
-                        <div className="text-sm">
-                          <span className="font-medium">{entry.quantity} {selectedItem.unit}</span>
-                          <span className="text-muted-foreground"> at {entry.location}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">By: {entry.by}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
           )}
-          <SheetFooter className="flex-col sm:flex-row gap-2 mt-6">
-            <Button variant="outline" onClick={() => setIsViewSheetOpen(false)} className="w-full sm:w-auto">Close</Button>
-            <Button onClick={() => { setIsViewSheetOpen(false); handleEditItem(selectedItem!); }} className="w-full sm:w-auto">Edit Item</Button>
-          </SheetFooter>
+        </CardContent>
+      </Card>
+
+      {total > 0 && (
+        <TablePagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={total}
+          startIndex={startIndex + 1}
+          endIndex={endIndex}
+          pageSize={pageSize}
+          onPageChange={setPage}
+        />
+      )}
+
+      <Sheet open={sheetOpen} onOpenChange={(o) => (o ? setSheetOpen(true) : close())}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>
+              {sheetMode === "create"
+                ? "Add Ingredient"
+                : sheetMode === "edit"
+                  ? `Edit ${selected?.name}`
+                  : `Adjust Stock — ${selected?.name}`}
+            </SheetTitle>
+          </SheetHeader>
+
+          {sheetMode === "adjust" && selected ? (
+            <div className="space-y-4 mt-4">
+              <div className="p-3 border rounded-lg">
+                <p className="text-sm text-muted-foreground">Current stock</p>
+                <p className="text-2xl font-semibold">
+                  {Number(selected.currentStock)} {selected.unit}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Adjustment ({selected.unit})</Label>
+                <Input
+                  type="number"
+                  placeholder="e.g. +10 or -5"
+                  value={adjustment}
+                  onChange={(e) => setAdjustment(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use a positive number to receive stock; negative to write off.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Reason</Label>
+                <Input
+                  placeholder="e.g. New shipment, spoilage..."
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1" onClick={close}>
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleAdjust}
+                  disabled={adjustStock.isPending}
+                >
+                  <PackageMinus className="h-4 w-4 mr-2" />
+                  Adjust Stock
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Unit</Label>
+                  <Input
+                    value={form.unit}
+                    onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>SKU</Label>
+                  <Input
+                    value={form.sku}
+                    onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Current Stock</Label>
+                  <Input
+                    type="number"
+                    value={form.currentStock}
+                    onChange={(e) =>
+                      setForm({ ...form, currentStock: e.target.value })
+                    }
+                    disabled={sheetMode === "edit"}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Min Stock</Label>
+                  <Input
+                    type="number"
+                    value={form.minStock}
+                    onChange={(e) => setForm({ ...form, minStock: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Cost per Unit (₦)</Label>
+                <Input
+                  type="number"
+                  value={form.costPerUnit}
+                  onChange={(e) => setForm({ ...form, costPerUnit: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+
+          {sheetMode !== "adjust" && (
+            <SheetFooter className="mt-4 pt-4 border-t flex-col sm:flex-row gap-2">
+              <Button variant="outline" className="w-full sm:w-auto" onClick={close}>
+                Cancel
+              </Button>
+              <Button
+                className="w-full sm:w-auto"
+                onClick={sheetMode === "create" ? handleCreate : handleUpdate}
+                disabled={createIngredient.isPending || updateIngredient.isPending}
+              >
+                {sheetMode === "create" ? "Add Ingredient" : "Save Changes"}
+              </Button>
+            </SheetFooter>
+          )}
         </SheetContent>
       </Sheet>
     </div>

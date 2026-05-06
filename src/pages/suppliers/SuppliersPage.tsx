@@ -1,11 +1,19 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLoading } from "@/hooks/use-loading";
+import { Textarea } from "@/components/ui/textarea";
+import { TablePagination } from "@/components/ui/table-pagination";
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
@@ -13,551 +21,575 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, MoreHorizontal, Filter, Phone, Mail, Eye, Edit, Trash2 } from "lucide-react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Search,
+  Plus,
+  Truck,
+  Mail,
+  Phone,
+  MapPin,
+  Star,
+  Edit,
+  Trash2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Supplier, PurchaseOrder } from "@/types/suppliers";
+import { toast } from "sonner";
+import {
+  useSuppliers,
+  useSupplierStats,
+  useSupplierIngredients,
+  useCreateSupplier,
+  useUpdateSupplier,
+  useDeleteSupplier,
+} from "@/hooks/api/use-suppliers";
+import type {
+  Supplier,
+  SupplierStatus,
+  CreateSupplierRequest,
+} from "@/services/api/suppliers";
 
-// Extended Supplier type for UI with computed fields
-interface SupplierWithUI extends Supplier {
-  businessName: string;
-  sellerName: string;
-  outstanding: number;
-  purchases: PurchaseHistory[];
-}
+const ALL = "__all__";
 
-interface PurchaseHistory {
-  id: string;
-  date: string;
-  items: string;
-  quantity: string;
-  unit: string;
-  location: string;
-  totalPrice: number;
-  paidAmount: number;
-  outstanding: number;
-}
-
-// Transform API Supplier to UI format
-const transformSupplier = (supplier: Supplier): SupplierWithUI => ({
-  ...supplier,
-  businessName: supplier.name,
-  sellerName: supplier.contactName || supplier.name,
-  outstanding: supplier.totalSpent * 0.1, // Example: 10% outstanding
-  purchases: [], // Will be populated from purchase orders
-});
-
-// Map API category to display category
-const categoryMap: Record<string, string> = {
-  food: "Produce",
-  beverages: "Beverages",
-  equipment: "Equipment",
-  packaging: "Packaging",
-  cleaning: "Cleaning",
-  other: "Other",
-};
-
-const mockSuppliers: Supplier[] = [
-  { 
-    id: "1", 
-    storeId: "store-1",
-    name: "Fresh Farms Ltd", 
-    contactName: "John Adams", 
-    email: "john@freshfarms.com", 
-    phone: "+234 801 234 5678", 
-    category: "food",
-    status: "active",
-    totalOrders: 24,
-    totalSpent: 1250000,
-    createdAt: "2025-06-01",
-    updatedAt: "2026-01-15",
-  },
-  { 
-    id: "2", 
-    storeId: "store-1",
-    name: "Metro Beverages", 
-    contactName: "Sarah Lee", 
-    email: "sarah@metro.com", 
-    phone: "+234 802 345 6789", 
-    category: "beverages",
-    status: "active",
-    totalOrders: 18,
-    totalSpent: 850000,
-    createdAt: "2025-07-01",
-    updatedAt: "2026-01-10",
-  },
-  { 
-    id: "3", 
-    storeId: "store-1",
-    name: "Quality Meats", 
-    contactName: "Mike Brown", 
-    email: "mike@qualitymeats.com", 
-    phone: "+234 803 456 7890", 
-    category: "food",
-    status: "active",
-    totalOrders: 32,
-    totalSpent: 3400000,
-    createdAt: "2025-05-15",
-    updatedAt: "2026-01-14",
-  },
-  { 
-    id: "4", 
-    storeId: "store-1",
-    name: "Bakery Supplies Co", 
-    contactName: "Lisa White", 
-    email: "lisa@bakerysupplies.com", 
-    phone: "+234 804 567 8901", 
-    category: "food",
-    status: "inactive",
-    totalOrders: 8,
-    totalSpent: 800000,
-    createdAt: "2025-08-01",
-    updatedAt: "2025-12-01",
-  },
-  { 
-    id: "5", 
-    storeId: "store-1",
-    name: "Seafood Direct", 
-    contactName: "David Chen", 
-    email: "david@seafood.com", 
-    phone: "+234 805 678 9012", 
-    category: "food",
-    status: "active",
-    totalOrders: 15,
-    totalSpent: 2150000,
-    createdAt: "2025-06-15",
-    updatedAt: "2026-01-12",
-  },
-];
-
-// Transform to UI format
-const suppliers: SupplierWithUI[] = mockSuppliers.map(transformSupplier);
-
-const categories = ["Produce", "Beverages", "Meat", "Baking", "Seafood", "Packaging", "Equipment"];
-
-const statusColors: Record<string, string> = {
+const statusColor: Record<SupplierStatus, string> = {
   active: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
   inactive: "bg-gray-100 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400",
-  blacklisted: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
-  // Legacy UI status names
-  Active: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  Inactive: "bg-gray-100 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400",
+  suspended: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
-function StatsSkeleton() {
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <Card key={i}>
-          <CardContent className="p-3 sm:p-4">
-            <Skeleton className="h-4 w-24 mb-2" />
-            <Skeleton className="h-7 w-16" />
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
+interface SupplierForm {
+  name: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  address: string;
+  paymentTerms: string;
+  category: string;
+  status: SupplierStatus;
+  rating: string;
+  notes: string;
+}
+
+function emptyForm(): SupplierForm {
+  return {
+    name: "",
+    contactPerson: "",
+    email: "",
+    phone: "",
+    address: "",
+    paymentTerms: "",
+    category: "",
+    status: "active",
+    rating: "",
+    notes: "",
+  };
+}
+
+function supplierToForm(s: Supplier): SupplierForm {
+  return {
+    name: s.name,
+    contactPerson: s.contactPerson ?? "",
+    email: s.email ?? "",
+    phone: s.phone ?? "",
+    address: s.address ?? "",
+    paymentTerms: s.paymentTerms ?? "",
+    category: s.category ?? "",
+    status: s.status,
+    rating: s.rating != null ? String(s.rating) : "",
+    notes: s.notes ?? "",
+  };
 }
 
 export default function SuppliersPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const isLoading = useLoading(1000);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>(ALL);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetMode, setSheetMode] = useState<"view" | "create" | "edit">("create");
+  const [selected, setSelected] = useState<Supplier | null>(null);
+  const [form, setForm] = useState<SupplierForm>(emptyForm());
 
-  // Sheet states
-  const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
-  const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
-  const [selectedSupplier, setSelectedSupplier] = useState<SupplierWithUI | null>(null);
+  const suppliersQuery = useSuppliers({
+    search: search || undefined,
+    status: statusFilter === ALL ? undefined : (statusFilter as SupplierStatus),
+    page,
+    limit: pageSize,
+  });
+  const statsQuery = useSupplierStats();
+  const ingredientsQuery = useSupplierIngredients(selected?.id ?? "");
 
-  const formatPrice = (amount: number) => {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  const createSupplier = useCreateSupplier();
+  const updateSupplier = useUpdateSupplier();
+  const deleteSupplier = useDeleteSupplier();
 
-  const totalOutstanding = suppliers.reduce((acc, s) => acc + s.outstanding, 0);
+  const suppliers = suppliersQuery.data?.data ?? [];
+  const total = suppliersQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, total);
 
-  const handleViewSupplier = (supplier: SupplierWithUI) => {
-    setSelectedSupplier(supplier);
-    setIsViewSheetOpen(true);
-  };
-
-  const handleEditSupplier = (supplier: SupplierWithUI) => {
-    setSelectedSupplier(supplier);
-    setIsAddSheetOpen(true);
-  };
-
-  const handleAddNew = () => {
-    setSelectedSupplier(null);
-    setIsAddSheetOpen(true);
-  };
-
-  const filteredSuppliers = suppliers.filter(s => 
-    s.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.sellerName.toLowerCase().includes(searchQuery.toLowerCase())
+  const stats = useMemo(
+    () => [
+      {
+        label: "Total Suppliers",
+        value: statsQuery.data ? String(statsQuery.data.total) : "—",
+      },
+      {
+        label: "Active",
+        value: statsQuery.data ? String(statsQuery.data.active) : "—",
+      },
+      {
+        label: "Categories",
+        value: String(new Set(suppliers.map((s) => s.category).filter(Boolean)).size),
+      },
+    ],
+    [suppliers, statsQuery.data],
   );
+
+  const openCreate = () => {
+    setSelected(null);
+    setForm(emptyForm());
+    setSheetMode("create");
+    setSheetOpen(true);
+  };
+  const openView = (s: Supplier) => {
+    setSelected(s);
+    setForm(supplierToForm(s));
+    setSheetMode("view");
+    setSheetOpen(true);
+  };
+  const openEdit = (s: Supplier) => {
+    setSelected(s);
+    setForm(supplierToForm(s));
+    setSheetMode("edit");
+    setSheetOpen(true);
+  };
+  const close = () => {
+    setSheetOpen(false);
+    setSelected(null);
+  };
+
+  const buildPayload = (): CreateSupplierRequest => ({
+    name: form.name,
+    contactPerson: form.contactPerson || undefined,
+    email: form.email || undefined,
+    phone: form.phone || undefined,
+    address: form.address || undefined,
+    paymentTerms: form.paymentTerms || undefined,
+    category: form.category || undefined,
+    status: form.status,
+    rating: form.rating ? Number(form.rating) : undefined,
+    notes: form.notes || undefined,
+  });
+
+  const handleCreate = () => {
+    if (!form.name.trim()) {
+      toast.error("Name is required");
+      return;
+    }
+    createSupplier.mutate(buildPayload(), {
+      onSuccess: () => {
+        toast.success("Supplier added");
+        close();
+      },
+      onError: (e: Error) => toast.error(e.message ?? "Couldn't create"),
+    });
+  };
+
+  const handleUpdate = () => {
+    if (!selected) return;
+    updateSupplier.mutate(
+      { id: selected.id, data: buildPayload() },
+      {
+        onSuccess: () => {
+          toast.success("Supplier updated");
+          close();
+        },
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't update"),
+      },
+    );
+  };
+
+  const handleDelete = () => {
+    if (!selected) return;
+    if (!confirm(`Delete ${selected.name}?`)) return;
+    deleteSupplier.mutate(selected.id, {
+      onSuccess: () => {
+        toast.success("Supplier deleted");
+        close();
+      },
+      onError: (e: Error) => toast.error(e.message ?? "Couldn't delete"),
+    });
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
-      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Suppliers</h1>
           <p className="text-sm text-muted-foreground">
-            Manage supplier relationships and orders
+            Manage your vendors and supply chain partners
           </p>
         </div>
-        <Button size="sm" onClick={handleAddNew}>
-          <Plus className="mr-2 h-4 w-4" />
-          <span className="hidden xs:inline">Add Supplier</span>
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="mr-2 h-4 w-4" /> Add Supplier
         </Button>
       </div>
 
-      {/* Stats */}
-      {isLoading ? (
-        <StatsSkeleton />
-      ) : (
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-          <Card>
+      <div className="grid gap-3 grid-cols-3">
+        {stats.map((s) => (
+          <Card key={s.label} className="border-border/50">
             <CardContent className="p-3 sm:p-4">
-              <p className="text-xs sm:text-sm text-muted-foreground">Total Suppliers</p>
-              <p className="text-xl sm:text-2xl font-semibold">{suppliers.length}</p>
+              <p className="text-2xl font-semibold">{s.value}</p>
+              <p className="text-xs text-muted-foreground">{s.label}</p>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-3 sm:p-4">
-              <p className="text-xs sm:text-sm text-muted-foreground">Active</p>
-              <p className="text-xl sm:text-2xl font-semibold">{suppliers.filter(s => s.status === "active").length}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3 sm:p-4">
-              <p className="text-xs sm:text-sm text-muted-foreground">Outstanding</p>
-              <p className="text-xl sm:text-2xl font-semibold text-red-600">{formatPrice(totalOutstanding)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3 sm:p-4">
-              <p className="text-xs sm:text-sm text-muted-foreground">This Month</p>
-              <p className="text-xl sm:text-2xl font-semibold">{formatPrice(2400000)}</p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="flex items-center gap-3 sm:gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search suppliers..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Button variant="outline" size="icon" className="shrink-0">
-          <Filter className="h-4 w-4" />
-        </Button>
+        ))}
       </div>
 
-      {/* Suppliers List */}
-      <Card>
-        <CardContent className="p-0">
-          {/* Mobile Card View */}
-          <div className="block sm:hidden divide-y divide-border">
-            {filteredSuppliers.map((supplier) => (
-              <div key={supplier.id} className="p-4 space-y-3 cursor-pointer" onClick={() => handleViewSupplier(supplier)}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">{supplier.businessName}</p>
-                    <p className="text-xs text-muted-foreground">{supplier.sellerName}</p>
-                  </div>
-                  <Badge 
-                    variant="secondary" 
-                    className={cn("text-xs font-normal shrink-0", statusColors[supplier.status])}
-                  >
-                    {supplier.status}
-                  </Badge>
-                </div>
-                <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-3 w-3" />
-                    <span className="truncate">{supplier.email}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-3 w-3" />
-                    <span>{supplier.phone}</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <Badge variant="secondary" className="text-xs font-normal">{supplier.category}</Badge>
-                  <span className={cn("font-medium", supplier.outstanding > 0 && "text-red-600")}>
-                    {formatPrice(supplier.outstanding)}
-                  </span>
-                </div>
-              </div>
-            ))}
+      <Card className="border-border/50">
+        <CardContent className="p-4 space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search suppliers..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                className="pl-9 h-9 bg-muted/50 border-0"
+              />
+            </div>
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-36 h-9 bg-muted/50 border-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="suspended">Suspended</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Desktop Table View */}
-          <div className="hidden sm:block overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4 pl-6 w-12">
-                    <input type="checkbox" className="rounded border-border" />
-                  </th>
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Company</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Contact</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Category</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Outstanding</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground p-4 pr-6 w-12"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSuppliers.map((supplier) => (
-                  <tr key={supplier.id} className="group cursor-pointer hover:bg-muted/50 border-b border-border last:border-0" onClick={() => handleViewSupplier(supplier)}>
-                    <td className="p-4 pl-6" onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" className="rounded border-border" />
-                    </td>
-                    <td className="p-4">
-                      <p className="font-medium">{supplier.businessName}</p>
-                    </td>
-                    <td className="p-4">
-                      <div>
-                        <p className="font-medium">{supplier.sellerName}</p>
-                        <p className="text-sm text-muted-foreground">{supplier.email}</p>
+          {suppliersQuery.isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : suppliers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Truck className="h-10 w-10 text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">No suppliers yet</p>
+              <Button variant="outline" size="sm" className="mt-3" onClick={openCreate}>
+                Add your first supplier
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {suppliers.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between p-4 border rounded-lg gap-3 hover:bg-muted/40 transition-colors cursor-pointer"
+                  onClick={() => openView(s)}
+                >
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                      <Truck className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium truncate">{s.name}</p>
+                        {s.category && (
+                          <Badge variant="secondary" className="text-xs">
+                            {s.category}
+                          </Badge>
+                        )}
                       </div>
-                    </td>
-                    <td className="p-4">
-                      <Badge variant="secondary" className="font-normal">{supplier.category}</Badge>
-                    </td>
-                    <td className={cn("p-4 font-medium", supplier.outstanding > 0 && "text-red-600")}>
-                      {formatPrice(supplier.outstanding)}
-                    </td>
-                    <td className="p-4">
-                      <Badge 
-                        variant="secondary" 
-                        className={cn("font-normal", statusColors[supplier.status])}
-                      >
-                        {supplier.status}
-                      </Badge>
-                    </td>
-                    <td className="p-4 pr-6" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewSupplier(supplier)}>
-                            <Eye className="mr-2 h-4 w-4" />View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditSupplier(supplier)}>
-                            <Edit className="mr-2 h-4 w-4" />Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" />Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {s.contactPerson ?? "—"}
+                        {s.email && <> · {s.email}</>}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {s.rating != null && (
+                      <span className="flex items-center gap-1 text-xs">
+                        <Star className="h-3 w-3 fill-yellow-400 stroke-yellow-400" />
+                        {s.rating.toFixed(1)}
+                      </span>
+                    )}
+                    <Badge
+                      variant="secondary"
+                      className={cn("text-xs capitalize", statusColor[s.status])}
+                    >
+                      {s.status}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Pagination */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          Showing 1-{filteredSuppliers.length} of {suppliers.length} suppliers
-        </p>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled>
-            Previous
-          </Button>
-          <Button variant="outline" size="sm">
-            Next
-          </Button>
-        </div>
-      </div>
+      {total > 0 && (
+        <TablePagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={total}
+          startIndex={startIndex + 1}
+          endIndex={endIndex}
+          pageSize={pageSize}
+          onPageChange={setPage}
+        />
+      )}
 
-      {/* Add/Edit Sheet */}
-      <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
+      <Sheet open={sheetOpen} onOpenChange={(o) => (o ? setSheetOpen(true) : close())}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>{selectedSupplier ? "Edit Supplier" : "Add Supplier"}</SheetTitle>
-            <SheetDescription>
-              {selectedSupplier ? "Update supplier details" : "Add a new supplier to your network"}
-            </SheetDescription>
+            <SheetTitle>
+              {sheetMode === "create"
+                ? "Add Supplier"
+                : sheetMode === "edit"
+                  ? `Edit ${selected?.name}`
+                  : selected?.name}
+            </SheetTitle>
           </SheetHeader>
-          <div className="grid gap-6 py-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Business Name</Label>
-                <Input placeholder="e.g., Fresh Farms Ltd" defaultValue={selectedSupplier?.businessName} />
-              </div>
-              <div className="space-y-2">
-                <Label>Seller Name</Label>
-                <Input placeholder="e.g., John Adams" defaultValue={selectedSupplier?.sellerName} />
-              </div>
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <Select defaultValue={selectedSupplier?.category}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input type="email" placeholder="supplier@email.com" defaultValue={selectedSupplier?.email} />
-              </div>
-              <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input placeholder="+234 800 000 0000" defaultValue={selectedSupplier?.phone} />
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select defaultValue={selectedSupplier?.status || "Active"}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Active">Active</SelectItem>
-                    <SelectItem value="Inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-          <SheetFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsAddSheetOpen(false)} className="w-full sm:w-auto">Cancel</Button>
-            <Button className="w-full sm:w-auto">{selectedSupplier ? "Update Supplier" : "Add Supplier"}</Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
 
-      {/* View Details Sheet */}
-      <Sheet open={isViewSheetOpen} onOpenChange={setIsViewSheetOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{selectedSupplier?.businessName}</SheetTitle>
-            <SheetDescription>Supplier details and purchase history</SheetDescription>
-          </SheetHeader>
-          {selectedSupplier && (
-            <Tabs defaultValue="details" className="mt-6">
+          {sheetMode === "view" && selected ? (
+            <Tabs defaultValue="overview" className="mt-4">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="purchases">Purchases</TabsTrigger>
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="ingredients">Ingredients</TabsTrigger>
               </TabsList>
-              <TabsContent value="details" className="space-y-4 mt-4">
-                <div className="space-y-3">
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground">Business Name</p>
-                    <p className="font-medium">{selectedSupplier.businessName}</p>
-                  </div>
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground">Seller Name</p>
-                    <p className="font-medium">{selectedSupplier.sellerName}</p>
-                  </div>
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground">Category</p>
-                    <Badge variant="secondary">{selectedSupplier.category}</Badge>
-                  </div>
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground">Email</p>
-                    <p className="font-medium">{selectedSupplier.email}</p>
-                  </div>
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground">Phone</p>
-                    <p className="font-medium">{selectedSupplier.phone}</p>
-                  </div>
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <span className="text-sm">Status</span>
-                    <Badge className={statusColors[selectedSupplier.status]}>
-                      {selectedSupplier.status}
+
+              <TabsContent value="overview" className="space-y-3 mt-4 text-sm">
+                <div className="space-y-2">
+                  {selected.contactPerson && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Contact</span>
+                      <span className="font-medium">{selected.contactPerson}</span>
+                    </div>
+                  )}
+                  {selected.email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" /> {selected.email}
+                    </div>
+                  )}
+                  {selected.phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" /> {selected.phone}
+                    </div>
+                  )}
+                  {selected.address && (
+                    <div className="flex items-start gap-2">
+                      <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <span>{selected.address}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-3 border-t">
+                  {selected.paymentTerms && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Payment Terms</p>
+                      <p className="font-medium">{selected.paymentTerms}</p>
+                    </div>
+                  )}
+                  {selected.category && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Category</p>
+                      <p className="font-medium">{selected.category}</p>
+                    </div>
+                  )}
+                  {selected.rating != null && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Rating</p>
+                      <p className="font-medium flex items-center gap-1">
+                        <Star className="h-3 w-3 fill-yellow-400 stroke-yellow-400" />
+                        {selected.rating.toFixed(1)}
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <Badge
+                      variant="secondary"
+                      className={cn("text-xs capitalize", statusColor[selected.status])}
+                    >
+                      {selected.status}
                     </Badge>
                   </div>
-                  <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                    <p className="text-xs text-red-600 dark:text-red-400">Outstanding Balance</p>
-                    <p className="text-xl font-bold text-red-600 dark:text-red-400">
-                      {formatPrice(selectedSupplier.outstanding)}
-                    </p>
+                </div>
+
+                {selected.notes && (
+                  <div className="pt-3 border-t">
+                    <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                    <p>{selected.notes}</p>
                   </div>
+                )}
+
+                <div className="flex gap-2 pt-3 border-t">
+                  <Button variant="outline" className="flex-1" onClick={() => openEdit(selected)}>
+                    <Edit className="h-4 w-4 mr-2" /> Edit
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={handleDelete}
+                    disabled={deleteSupplier.isPending}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                  </Button>
                 </div>
               </TabsContent>
-              <TabsContent value="purchases" className="space-y-4 mt-4">
-                <h3 className="text-sm font-medium text-muted-foreground">Purchase History</h3>
-                {selectedSupplier.purchases.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-muted-foreground border rounded-lg">
-                    No purchase history
-                  </div>
+
+              <TabsContent value="ingredients" className="space-y-2 mt-4">
+                {ingredientsQuery.isLoading ? (
+                  <Skeleton className="h-24 w-full" />
+                ) : (ingredientsQuery.data ?? []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">
+                    No ingredients linked to this supplier
+                  </p>
                 ) : (
-                  <div className="space-y-3">
-                    {selectedSupplier.purchases.map((purchase) => (
-                      <div key={purchase.id} className="p-3 border rounded-lg space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-mono text-sm font-medium">{purchase.id}</span>
-                          <span className="text-xs text-muted-foreground">{purchase.date}</span>
-                        </div>
-                        <div className="text-sm">
-                          <p className="font-medium">{purchase.items}</p>
-                          <p className="text-muted-foreground">{purchase.quantity} {purchase.unit} • {purchase.location}</p>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-xs">
-                          <div>
-                            <p className="text-muted-foreground">Total</p>
-                            <p className="font-medium">{formatPrice(purchase.totalPrice)}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Paid</p>
-                            <p className="font-medium text-green-600">{formatPrice(purchase.paidAmount)}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Outstanding</p>
-                            <p className={cn("font-medium", purchase.outstanding > 0 && "text-red-600")}>
-                              {formatPrice(purchase.outstanding)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  (ingredientsQuery.data ?? []).map((i) => (
+                    <div
+                      key={i.id}
+                      className="flex justify-between p-2 border rounded text-sm"
+                    >
+                      <span>{i.name}</span>
+                      <span className="text-muted-foreground">
+                        {i.sku ?? "—"} · {i.unit}
+                      </span>
+                    </div>
+                  ))
                 )}
               </TabsContent>
             </Tabs>
+          ) : (
+            <div className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Contact Person</Label>
+                <Input
+                  value={form.contactPerson}
+                  onChange={(e) => setForm({ ...form, contactPerson: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone</Label>
+                  <Input
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Address</Label>
+                <Input
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <Input
+                    placeholder="e.g. Produce, Beverages"
+                    value={form.category}
+                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Payment Terms</Label>
+                  <Input
+                    placeholder="e.g. Net 30"
+                    value={form.paymentTerms}
+                    onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select
+                    value={form.status}
+                    onValueChange={(v) =>
+                      setForm({ ...form, status: v as SupplierStatus })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Rating (0-5)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min={0}
+                    max={5}
+                    value={form.rating}
+                    onChange={(e) => setForm({ ...form, rating: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Textarea
+                  rows={2}
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                />
+              </div>
+
+              <SheetFooter className="flex-col sm:flex-row gap-2 pt-4 border-t">
+                <Button variant="outline" className="w-full sm:w-auto" onClick={close}>
+                  Cancel
+                </Button>
+                <Button
+                  className="w-full sm:w-auto"
+                  onClick={sheetMode === "create" ? handleCreate : handleUpdate}
+                  disabled={createSupplier.isPending || updateSupplier.isPending}
+                >
+                  {sheetMode === "create" ? "Add Supplier" : "Save Changes"}
+                </Button>
+              </SheetFooter>
+            </div>
           )}
-          <SheetFooter className="flex-col sm:flex-row gap-2 mt-6">
-            <Button variant="outline" onClick={() => setIsViewSheetOpen(false)} className="w-full sm:w-auto">Close</Button>
-            <Button onClick={() => { setIsViewSheetOpen(false); handleEditSupplier(selectedSupplier!); }} className="w-full sm:w-auto">Edit Supplier</Button>
-          </SheetFooter>
         </SheetContent>
       </Sheet>
     </div>

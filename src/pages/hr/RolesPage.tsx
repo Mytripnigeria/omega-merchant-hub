@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Plus, Shield, Users, Settings, Key, X, Edit, Trash2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Search, Plus, Shield, Users, Key, Edit, Trash2 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -17,100 +17,192 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import {
+  useRoles,
+  useCreateRole,
+  useUpdateRole,
+  useDeleteRole,
+  usePermissions,
+  useStaff,
+} from "@/hooks/api/use-hr";
+import { useStore } from "@/contexts/StoreContext";
 import type { Role } from "@/types/hr";
 
-// Extended Role type for UI with computed fields
-interface RoleWithUI extends Role {
-  users: number;
-  isSystem?: boolean;
+interface RoleForm {
+  name: string;
+  description: string;
+  permissions: string[];
+  color: string;
 }
 
-// Transform API Role to UI format
-const transformRole = (role: Role): RoleWithUI => ({
-  ...role,
-  users: role.staffCount,
-  isSystem: role.name === "Admin",
+const emptyForm = (): RoleForm => ({
+  name: "",
+  description: "",
+  permissions: [],
+  color: "#6366F1",
 });
 
-const allPermissions = [
-  { id: "orders", label: "Orders", description: "View and manage orders" },
-  { id: "payments", label: "Payments", description: "Process payments and refunds" },
-  { id: "inventory", label: "Inventory", description: "Manage stock and inventory" },
-  { id: "staff", label: "Staff", description: "Manage staff and schedules" },
-  { id: "reports", label: "Reports", description: "Access business reports" },
-  { id: "settings", label: "Settings", description: "Modify system settings" },
-  { id: "kitchen", label: "Kitchen", description: "Access kitchen display" },
-  { id: "customers", label: "Customers", description: "View customer data" },
-];
-
-const mockRoles: Role[] = [
-  { id: "1", storeId: "store-1", name: "Admin", description: "Full system access", permissions: ["all"], staffCount: 2, createdAt: "2025-01-01", updatedAt: "2025-01-01" },
-  { id: "2", storeId: "store-1", name: "Manager", description: "Store management access", permissions: ["orders", "staff", "reports", "inventory"], staffCount: 4, createdAt: "2025-02-15", updatedAt: "2025-02-15" },
-  { id: "3", storeId: "store-1", name: "Cashier", description: "POS and order access", permissions: ["orders", "payments"], staffCount: 8, createdAt: "2025-03-10", updatedAt: "2025-03-10" },
-  { id: "4", storeId: "store-1", name: "Chef", description: "Kitchen access only", permissions: ["orders", "kitchen"], staffCount: 6, createdAt: "2025-03-10", updatedAt: "2025-03-10" },
-  { id: "5", storeId: "store-1", name: "Server", description: "Order taking access", permissions: ["orders"], staffCount: 10, createdAt: "2025-04-01", updatedAt: "2025-04-01" },
-];
-
-// Transform to UI format
-const rolesData: RoleWithUI[] = mockRoles.map(transformRole);
+function permissionLabel(perm: string): string {
+  return perm
+    .replace(/[._:]/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 export default function RolesPage() {
+  const { currentStore } = useStore();
   const [search, setSearch] = useState("");
-  const [roles] = useState(rolesData);
-  const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
-  const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<RoleWithUI | null>(null);
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [selected, setSelected] = useState<Role | null>(null);
+  const [form, setForm] = useState<RoleForm>(emptyForm());
+
+  const rolesQuery = useRoles({ storeId: currentStore?.id, limit: 100 });
+  const permissionsQuery = usePermissions();
+  const createRole = useCreateRole();
+  const updateRole = useUpdateRole();
+  const deleteRole = useDeleteRole();
+
+  const allPermissions = permissionsQuery.data ?? [];
+  const roles = rolesQuery.data?.data ?? [];
+
+  const staffByRole = useStaff({
+    storeId: currentStore?.id,
+    roleId: selected?.id,
+    limit: 100,
+  });
+
+  const filtered = useMemo(
+    () =>
+      roles.filter(
+        (r) =>
+          r.name.toLowerCase().includes(search.toLowerCase()) ||
+          (r.description ?? "").toLowerCase().includes(search.toLowerCase()),
+      ),
+    [roles, search],
+  );
 
   const stats = [
-    { label: "Total Roles", value: roles.length.toString(), icon: Shield },
-    { label: "Total Users", value: roles.reduce((sum, r) => sum + r.users, 0).toString(), icon: Users },
-    { label: "Permissions", value: allPermissions.length.toString(), icon: Key },
+    { label: "Total Roles", value: String(roles.length), icon: Shield },
+    {
+      label: "Total Staff",
+      value: String(roles.reduce((sum, r) => sum + (r.staffCount ?? 0), 0)),
+      icon: Users,
+    },
+    { label: "Permissions", value: String(allPermissions.length), icon: Key },
   ];
 
-  const handleViewRole = (role: RoleWithUI) => {
-    setSelectedRole(role);
-    setSelectedPermissions(role.permissions);
-    setIsViewSheetOpen(true);
+  const openCreate = () => {
+    setSelected(null);
+    setForm(emptyForm());
+    setCreateOpen(true);
   };
 
-  const handleAddRole = () => {
-    setSelectedRole(null);
-    setSelectedPermissions([]);
-    setIsAddSheetOpen(true);
+  const openView = (role: Role) => {
+    setSelected(role);
+    setForm({
+      name: role.name,
+      description: role.description ?? "",
+      permissions: [...(role.permissions ?? [])],
+      color: role.color ?? "#6366F1",
+    });
+    setViewOpen(true);
   };
 
-  const togglePermission = (permId: string) => {
-    setSelectedPermissions(prev => 
-      prev.includes(permId) 
-        ? prev.filter(p => p !== permId)
-        : [...prev, permId]
+  const togglePerm = (perm: string) => {
+    setForm((f) => ({
+      ...f,
+      permissions: f.permissions.includes(perm)
+        ? f.permissions.filter((p) => p !== perm)
+        : [...f.permissions, perm],
+    }));
+  };
+
+  const handleCreate = () => {
+    if (!currentStore) {
+      toast.error("Select a store first");
+      return;
+    }
+    if (!form.name.trim()) {
+      toast.error("Role name is required");
+      return;
+    }
+    if (form.permissions.length === 0) {
+      toast.error("Select at least one permission");
+      return;
+    }
+    createRole.mutate(
+      {
+        storeId: currentStore.id,
+        name: form.name,
+        description: form.description || undefined,
+        permissions: form.permissions,
+        color: form.color || undefined,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Role created");
+          setCreateOpen(false);
+          setForm(emptyForm());
+        },
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't create role"),
+      },
     );
   };
 
-  const filteredRoles = roles.filter(r => 
-    r.name.toLowerCase().includes(search.toLowerCase()) ||
-    r.description.toLowerCase().includes(search.toLowerCase())
-  );
+  const handleUpdate = () => {
+    if (!selected) return;
+    if (form.permissions.length === 0) {
+      toast.error("Select at least one permission");
+      return;
+    }
+    updateRole.mutate(
+      {
+        id: selected.id,
+        data: {
+          name: form.name,
+          description: form.description || undefined,
+          permissions: form.permissions,
+          color: form.color || undefined,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Role updated");
+          setViewOpen(false);
+        },
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't update role"),
+      },
+    );
+  };
+
+  const handleDelete = () => {
+    if (!selected) return;
+    if (!confirm(`Delete role ${selected.name}?`)) return;
+    deleteRole.mutate(selected.id, {
+      onSuccess: () => {
+        toast.success("Role deleted");
+        setViewOpen(false);
+      },
+      onError: (e: Error) => toast.error(e.message ?? "Couldn't delete role"),
+    });
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Roles & Permissions</h1>
           <p className="text-sm text-muted-foreground">Define access levels for your team</p>
         </div>
-        <Button size="sm" onClick={handleAddRole}>
-          <Plus className="h-4 w-4 mr-2" />Add Role
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Role
         </Button>
       </div>
 
-      {/* Two-column layout for desktop */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Stats */}
           <div className="grid gap-3 grid-cols-3">
             {stats.map((stat) => (
               <Card key={stat.label} className="border-border/50">
@@ -127,95 +219,104 @@ export default function RolesPage() {
             ))}
           </div>
 
-          {/* Search */}
           <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search roles..." 
-              value={search} 
-              onChange={(e) => setSearch(e.target.value)} 
-              className="pl-9 h-9 bg-muted/50 border-0" 
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search roles..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 h-9 bg-muted/50 border-0"
             />
           </div>
 
-          {/* Roles Grid */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            {filteredRoles.map((role) => (
-              <Card 
-                key={role.id} 
-                className="border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => handleViewRole(role)}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Shield className="h-4 w-4 text-primary" />
+          {rolesQuery.isLoading ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-40 w-full" />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Shield className="h-10 w-10 text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">No roles yet</p>
+              <Button variant="outline" size="sm" className="mt-3" onClick={openCreate}>
+                Create your first role
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {filtered.map((role) => (
+                <Card
+                  key={role.id}
+                  className="border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => openView(role)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-8 w-8 rounded-lg flex items-center justify-center"
+                          style={{ backgroundColor: (role.color ?? "#6366F1") + "20" }}
+                        >
+                          <Shield
+                            className="h-4 w-4"
+                            style={{ color: role.color ?? "#6366F1" }}
+                          />
+                        </div>
+                        <div>
+                          <CardTitle className="text-base">{role.name}</CardTitle>
+                        </div>
                       </div>
-                      <div>
-                        <CardTitle className="text-base">{role.name}</CardTitle>
-                        {role.isSystem && (
-                          <Badge variant="outline" className="text-xs mt-0.5">System</Badge>
-                        )}
-                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        <Users className="h-3 w-3 mr-1" />
+                        {role.staffCount ?? 0}
+                      </Badge>
                     </div>
-                    <Badge variant="secondary" className="text-xs">
-                      <Users className="h-3 w-3 mr-1" />
-                      {role.users}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground">{role.description}</p>
-                  <div className="flex flex-wrap gap-1">
-                    {role.permissions.slice(0, 4).map((perm) => (
-                      <Badge key={perm} variant="outline" className="text-xs">{perm}</Badge>
-                    ))}
-                    {role.permissions.length > 4 && (
-                      <Badge variant="outline" className="text-xs">+{role.permissions.length - 4}</Badge>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {role.description && (
+                      <p className="text-sm text-muted-foreground">{role.description}</p>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <div className="flex flex-wrap gap-1">
+                      {(role.permissions ?? []).slice(0, 4).map((perm) => (
+                        <Badge key={perm} variant="outline" className="text-xs">
+                          {permissionLabel(perm)}
+                        </Badge>
+                      ))}
+                      {(role.permissions ?? []).length > 4 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{(role.permissions ?? []).length - 4}
+                        </Badge>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
           <Card className="border-border/50">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium">All Permissions</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {allPermissions.map((perm) => (
-                <div key={perm.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
-                  <div className="flex items-center gap-2">
-                    <Key className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-sm">{perm.label}</span>
+            <CardContent className="space-y-2 max-h-96 overflow-y-auto">
+              {permissionsQuery.isLoading ? (
+                Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)
+              ) : allPermissions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No permissions defined</p>
+              ) : (
+                allPermissions.map((perm) => (
+                  <div
+                    key={perm}
+                    className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50"
+                  >
+                    <Key className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <span className="text-sm truncate">{permissionLabel(perm)}</span>
                   </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start" onClick={handleAddRole}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create New Role
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Key className="mr-2 h-4 w-4" />
-                Manage Permissions
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Settings className="mr-2 h-4 w-4" />
-                Role Settings
-              </Button>
+                ))
+              )}
             </CardContent>
           </Card>
 
@@ -223,15 +324,15 @@ export default function RolesPage() {
             <CardContent className="p-4">
               <h4 className="font-medium text-sm mb-2">Security Tip</h4>
               <p className="text-xs text-muted-foreground">
-                Follow the principle of least privilege - only grant permissions that are necessary for each role.
+                Follow the principle of least privilege — only grant the permissions a role
+                actually needs to do its job.
               </p>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* Add Role Sheet */}
-      <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
+      <Sheet open={createOpen} onOpenChange={setCreateOpen}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Create New Role</SheetTitle>
@@ -240,145 +341,188 @@ export default function RolesPage() {
           <div className="grid gap-6 py-6">
             <div className="space-y-2">
               <Label>Role Name</Label>
-              <Input placeholder="e.g., Supervisor" />
+              <Input
+                placeholder="e.g., Supervisor"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <Label>Description</Label>
-              <Textarea placeholder="Brief description of this role" rows={2} />
+              <Textarea
+                placeholder="Brief description of this role"
+                rows={2}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Color</Label>
+              <Input
+                type="color"
+                value={form.color}
+                onChange={(e) => setForm({ ...form, color: e.target.value })}
+                className="h-10 w-20 p-1"
+              />
             </div>
             <div className="space-y-4">
               <Label>Permissions</Label>
-              <div className="space-y-3">
-                {allPermissions.map((perm) => (
-                  <div 
-                    key={perm.id} 
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
-                    onClick={() => togglePermission(perm.id)}
-                  >
-                    <div className="space-y-0.5">
-                      <p className="text-sm font-medium">{perm.label}</p>
-                      <p className="text-xs text-muted-foreground">{perm.description}</p>
+              {permissionsQuery.isLoading ? (
+                <Skeleton className="h-40 w-full" />
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {allPermissions.map((perm) => (
+                    <div
+                      key={perm}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
+                      onClick={() => togglePerm(perm)}
+                    >
+                      <p className="text-sm font-medium">{permissionLabel(perm)}</p>
+                      <Switch checked={form.permissions.includes(perm)} />
                     </div>
-                    <Switch checked={selectedPermissions.includes(perm.id)} />
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <SheetFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsAddSheetOpen(false)} className="w-full sm:w-auto">Cancel</Button>
-            <Button className="w-full sm:w-auto">Create Role</Button>
+            <Button
+              variant="outline"
+              onClick={() => setCreateOpen(false)}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              className="w-full sm:w-auto"
+              onClick={handleCreate}
+              disabled={createRole.isPending}
+            >
+              Create Role
+            </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
 
-      {/* View/Edit Role Sheet */}
-      <Sheet open={isViewSheetOpen} onOpenChange={setIsViewSheetOpen}>
+      <Sheet open={viewOpen} onOpenChange={setViewOpen}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <SheetTitle>{selectedRole?.name}</SheetTitle>
-                <SheetDescription>{selectedRole?.description}</SheetDescription>
-              </div>
-              {selectedRole?.isSystem && (
-                <Badge variant="outline">System Role</Badge>
-              )}
-            </div>
+            <SheetTitle>{selected?.name}</SheetTitle>
+            <SheetDescription>{selected?.description ?? "Role details"}</SheetDescription>
           </SheetHeader>
-          
+
           <Tabs defaultValue="details" className="mt-6">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="permissions">Permissions</TabsTrigger>
-              <TabsTrigger value="users">Users</TabsTrigger>
+              <TabsTrigger value="staff">Staff</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="details" className="space-y-4 mt-4">
               <div className="space-y-2">
                 <Label>Role Name</Label>
-                <Input defaultValue={selectedRole?.name} disabled={selectedRole?.isSystem} />
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Description</Label>
-                <Textarea defaultValue={selectedRole?.description} rows={2} disabled={selectedRole?.isSystem} />
+                <Textarea
+                  rows={2}
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Color</Label>
+                <Input
+                  type="color"
+                  value={form.color}
+                  onChange={(e) => setForm({ ...form, color: e.target.value })}
+                  className="h-10 w-20 p-1"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 border rounded-lg text-center">
-                  <p className="text-2xl font-semibold">{selectedRole?.users}</p>
-                  <p className="text-xs text-muted-foreground">Assigned Users</p>
+                  <p className="text-2xl font-semibold">{selected?.staffCount ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">Assigned Staff</p>
                 </div>
                 <div className="p-4 border rounded-lg text-center">
-                  <p className="text-2xl font-semibold">{selectedRole?.permissions.length}</p>
+                  <p className="text-2xl font-semibold">{form.permissions.length}</p>
                   <p className="text-xs text-muted-foreground">Permissions</p>
                 </div>
               </div>
-              <div className="text-xs text-muted-foreground">
-                Created: {selectedRole?.createdAt}
-              </div>
             </TabsContent>
-            
+
             <TabsContent value="permissions" className="space-y-3 mt-4">
-              {allPermissions.map((perm) => (
-                <div 
-                  key={perm.id} 
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
-                  onClick={() => !selectedRole?.isSystem && togglePermission(perm.id)}
-                >
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-medium">{perm.label}</p>
-                    <p className="text-xs text-muted-foreground">{perm.description}</p>
+              {permissionsQuery.isLoading ? (
+                <Skeleton className="h-40 w-full" />
+              ) : (
+                allPermissions.map((perm) => (
+                  <div
+                    key={perm}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
+                    onClick={() => togglePerm(perm)}
+                  >
+                    <p className="text-sm font-medium">{permissionLabel(perm)}</p>
+                    <Switch checked={form.permissions.includes(perm)} />
                   </div>
-                  <Switch 
-                    checked={selectedPermissions.includes(perm.id) || selectedRole?.permissions.includes("all")} 
-                    disabled={selectedRole?.isSystem}
-                  />
-                </div>
-              ))}
+                ))
+              )}
             </TabsContent>
-            
-            <TabsContent value="users" className="space-y-3 mt-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium">Users with this role</p>
-                <Button size="sm" variant="outline">
-                  <Plus className="h-3 w-3 mr-1" />Add
-                </Button>
-              </div>
-              {Array.from({ length: selectedRole?.users || 0 }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                      <span className="text-xs font-medium">U{i + 1}</span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">User {i + 1}</p>
-                      <p className="text-xs text-muted-foreground">user{i + 1}@store.com</p>
+
+            <TabsContent value="staff" className="space-y-3 mt-4">
+              {staffByRole.isLoading ? (
+                <Skeleton className="h-40 w-full" />
+              ) : (staffByRole.data?.data ?? []).length === 0 ? (
+                <div className="text-center py-6 text-sm text-muted-foreground">
+                  No staff assigned to this role
+                </div>
+              ) : (
+                (staffByRole.data?.data ?? []).map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex items-center justify-between p-3 border rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                        <span className="text-xs font-medium">
+                          {(s.firstName[0] ?? "") + (s.lastName[0] ?? "")}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {s.firstName} {s.lastName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{s.email}</p>
+                      </div>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+                ))
+              )}
             </TabsContent>
           </Tabs>
-          
+
           <SheetFooter className="flex-col sm:flex-row gap-2 mt-6">
-            {!selectedRole?.isSystem && (
-              <>
-                <Button variant="destructive" size="sm" className="w-full sm:w-auto">
-                  <Trash2 className="h-4 w-4 mr-2" />Delete
-                </Button>
-                <Button className="w-full sm:w-auto">
-                  <Edit className="h-4 w-4 mr-2" />Save Changes
-                </Button>
-              </>
-            )}
-            {selectedRole?.isSystem && (
-              <p className="text-xs text-muted-foreground text-center w-full">
-                System roles cannot be modified
-              </p>
-            )}
+            <Button
+              variant="destructive"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={handleDelete}
+              disabled={deleteRole.isPending}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+            <Button
+              className="w-full sm:w-auto"
+              onClick={handleUpdate}
+              disabled={updateRole.isPending}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Save Changes
+            </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>

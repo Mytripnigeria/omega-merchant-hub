@@ -46,21 +46,30 @@ export interface Role {
   updatedAt: string;
 }
 
+export interface ShiftBreak {
+  id: string;
+  type: "lunch" | "rest" | "other";
+  startTime: string;
+  durationMinutes: number;
+  notes?: string | null;
+}
+
 export interface Shift {
   id: string;
   storeId: string;
   staffId: string;
   staffName: string;
-  roleId?: string;
-  roleName?: string;
+  roleId?: string | null;
+  roleName?: string | null;
   date: string;
   startTime: string;
   endTime: string;
-  breakDuration?: number; // in minutes
+  breakDuration?: number | null; // in minutes
   status: "scheduled" | "in-progress" | "completed" | "missed" | "cancelled";
-  actualClockIn?: string;
-  actualClockOut?: string;
-  notes?: string;
+  actualClockIn?: string | null;
+  actualClockOut?: string | null;
+  notes?: string | null;
+  breaks?: ShiftBreak[] | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -215,6 +224,13 @@ export interface UpdateShiftRequest {
   notes?: string;
 }
 
+export interface PayslipAdjustmentInput {
+  name: string;
+  amount: number;
+  type: PayslipAdjustment["type"];
+  isDeduction: boolean;
+}
+
 export interface CreatePayslipRequest {
   storeId: string;
   staffId: string;
@@ -225,8 +241,7 @@ export interface CreatePayslipRequest {
   hoursWorked?: number;
   overtimeHours?: number;
   overtimeRate?: number;
-  additions?: Omit<PayslipAdjustment, 'id'>[];
-  deductions?: Omit<PayslipAdjustment, 'id'>[];
+  adjustments?: PayslipAdjustmentInput[];
   notes?: string;
 }
 
@@ -235,13 +250,14 @@ export interface UpdatePayslipRequest {
   hoursWorked?: number;
   overtimeHours?: number;
   overtimeRate?: number;
-  additions?: PayslipAdjustment[];
-  deductions?: PayslipAdjustment[];
-  status?: Payslip["status"];
+  adjustments?: PayslipAdjustmentInput[];
   paymentDate?: string;
   paymentMethod?: Payslip["paymentMethod"];
   receiptUrl?: string;
   notes?: string;
+  period?: string;
+  periodStart?: string;
+  periodEnd?: string;
 }
 
 // Stats

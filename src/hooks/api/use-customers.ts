@@ -1,14 +1,13 @@
-// Customers API Hook
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { customerService } from "@/services/mock/customers";
-import type { 
-  Customer, 
-  CustomerFilters, 
-  CreateCustomerRequest, 
-  UpdateCustomerRequest 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { customersApi } from "@/services/api/customers";
+import { ordersService } from "@/services/api/orders";
+import type {
+  Customer,
+  CustomerFilters,
+  CreateCustomerRequest,
+  UpdateCustomerRequest,
 } from "@/types/customers";
 
-// Query keys
 export const customerKeys = {
   all: ["customers"] as const,
   lists: () => [...customerKeys.all, "list"] as const,
@@ -16,161 +15,162 @@ export const customerKeys = {
   details: () => [...customerKeys.all, "detail"] as const,
   detail: (id: string) => [...customerKeys.details(), id] as const,
   stats: () => [...customerKeys.all, "stats"] as const,
-  wallet: (customerId: string) => [...customerKeys.all, "wallet", customerId] as const,
-  points: (customerId: string) => [...customerKeys.all, "points", customerId] as const,
+  wallet: (id: string) => [...customerKeys.all, "wallet", id] as const,
+  points: (id: string) => [...customerKeys.all, "points", id] as const,
+  orders: (id: string) => [...customerKeys.all, "orders", id] as const,
 };
 
-// Get customers list
 export function useCustomers(filters?: CustomerFilters) {
   return useQuery({
     queryKey: customerKeys.list(filters),
-    queryFn: () => customerService.getCustomers(filters),
+    queryFn: () => customersApi.list(filters),
   });
 }
 
-// Get single customer
 export function useCustomer(id: string) {
   return useQuery({
     queryKey: customerKeys.detail(id),
-    queryFn: () => customerService.getCustomer(id),
+    queryFn: () => customersApi.get(id),
     enabled: !!id,
   });
 }
 
-// Get customer stats
 export function useCustomerStats() {
   return useQuery({
     queryKey: customerKeys.stats(),
-    queryFn: () => customerService.getStats(),
+    queryFn: () => customersApi.stats(),
   });
 }
 
-// Get wallet transactions
+export function useCustomerOrders(customerId: string) {
+  return useQuery({
+    queryKey: customerKeys.orders(customerId),
+    queryFn: () => ordersService.list({ customerId, limit: 50 }),
+    enabled: !!customerId,
+  });
+}
+
 export function useWalletTransactions(customerId: string) {
   return useQuery({
     queryKey: customerKeys.wallet(customerId),
-    queryFn: () => customerService.getWalletTransactions(customerId),
+    queryFn: () => customersApi.walletTxs(customerId),
     enabled: !!customerId,
   });
 }
 
-// Get points transactions
 export function usePointsTransactions(customerId: string) {
   return useQuery({
     queryKey: customerKeys.points(customerId),
-    queryFn: () => customerService.getPointsTransactions(customerId),
+    queryFn: () => customersApi.pointsTxs(customerId),
     enabled: !!customerId,
   });
 }
 
-// Create customer mutation
 export function useCreateCustomer() {
-  const queryClient = useQueryClient();
-  
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateCustomerRequest) => customerService.createCustomer(data),
+    mutationFn: (data: CreateCustomerRequest) => customersApi.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: customerKeys.stats() });
+      qc.invalidateQueries({ queryKey: customerKeys.lists() });
+      qc.invalidateQueries({ queryKey: customerKeys.stats() });
     },
   });
 }
 
-// Update customer mutation
 export function useUpdateCustomer() {
-  const queryClient = useQueryClient();
-  
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateCustomerRequest }) => 
-      customerService.updateCustomer(id, data),
-    onSuccess: (updatedCustomer) => {
-      if (updatedCustomer) {
-        queryClient.setQueryData(customerKeys.detail(updatedCustomer.id), updatedCustomer);
-      }
-      queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
+    mutationFn: ({ id, data }: { id: string; data: UpdateCustomerRequest }) =>
+      customersApi.update(id, data),
+    onSuccess: (updated: Customer) => {
+      qc.setQueryData(customerKeys.detail(updated.id), updated);
+      qc.invalidateQueries({ queryKey: customerKeys.lists() });
     },
   });
 }
 
-// Delete customer mutation
 export function useDeleteCustomer() {
-  const queryClient = useQueryClient();
-  
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => customerService.deleteCustomer(id),
+    mutationFn: (id: string) => customersApi.remove(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: customerKeys.stats() });
+      qc.invalidateQueries({ queryKey: customerKeys.lists() });
+      qc.invalidateQueries({ queryKey: customerKeys.stats() });
     },
   });
 }
 
-// Wallet credit mutation
 export function useCreditWallet() {
-  const queryClient = useQueryClient();
-  
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ customerId, amount, description }: { 
-      customerId: string; 
-      amount: number; 
-      description: string 
-    }) => customerService.creditWallet(customerId, amount, description),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.detail(variables.customerId) });
-      queryClient.invalidateQueries({ queryKey: customerKeys.wallet(variables.customerId) });
-    },
-  });
-}
-
-// Wallet debit mutation
-export function useDebitWallet() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: ({ customerId, amount, description, reference }: { 
-      customerId: string; 
-      amount: number; 
+    mutationFn: ({
+      customerId,
+      ...payload
+    }: {
+      customerId: string;
+      amount: number;
       description: string;
       reference?: string;
-    }) => customerService.debitWallet(customerId, amount, description, reference),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.detail(variables.customerId) });
-      queryClient.invalidateQueries({ queryKey: customerKeys.wallet(variables.customerId) });
+    }) => customersApi.creditWallet(customerId, payload),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: customerKeys.detail(vars.customerId) });
+      qc.invalidateQueries({ queryKey: customerKeys.wallet(vars.customerId) });
     },
   });
 }
 
-// Add points mutation
-export function useAddPoints() {
-  const queryClient = useQueryClient();
-  
+export function useDebitWallet() {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ customerId, points, description, orderId }: { 
-      customerId: string; 
-      points: number; 
+    mutationFn: ({
+      customerId,
+      ...payload
+    }: {
+      customerId: string;
+      amount: number;
+      description: string;
+      reference?: string;
+    }) => customersApi.debitWallet(customerId, payload),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: customerKeys.detail(vars.customerId) });
+      qc.invalidateQueries({ queryKey: customerKeys.wallet(vars.customerId) });
+    },
+  });
+}
+
+export function useAddPoints() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      customerId,
+      ...payload
+    }: {
+      customerId: string;
+      points: number;
       description: string;
       orderId?: string;
-    }) => customerService.addPoints(customerId, points, description, orderId),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.detail(variables.customerId) });
-      queryClient.invalidateQueries({ queryKey: customerKeys.points(variables.customerId) });
+    }) => customersApi.addPoints(customerId, payload),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: customerKeys.detail(vars.customerId) });
+      qc.invalidateQueries({ queryKey: customerKeys.points(vars.customerId) });
     },
   });
 }
 
-// Redeem points mutation
 export function useRedeemPoints() {
-  const queryClient = useQueryClient();
-  
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ customerId, points, description }: { 
-      customerId: string; 
-      points: number; 
+    mutationFn: ({
+      customerId,
+      ...payload
+    }: {
+      customerId: string;
+      points: number;
       description: string;
-    }) => customerService.redeemPoints(customerId, points, description),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.detail(variables.customerId) });
-      queryClient.invalidateQueries({ queryKey: customerKeys.points(variables.customerId) });
+    }) => customersApi.redeemPoints(customerId, payload),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: customerKeys.detail(vars.customerId) });
+      qc.invalidateQueries({ queryKey: customerKeys.points(vars.customerId) });
     },
   });
 }

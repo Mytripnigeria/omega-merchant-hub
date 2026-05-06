@@ -1,113 +1,294 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLoading } from "@/hooks/use-loading";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { TablePagination } from "@/components/ui/table-pagination";
-import { Clock, Play, Square, Users, Calendar, X, FileText, Coffee, AlertCircle } from "lucide-react";
+import {
+  Clock,
+  Play,
+  Square,
+  Users,
+  Calendar,
+  Coffee,
+  Trash2,
+} from "lucide-react";
+import { toast } from "sonner";
+import { format, formatDistanceStrict } from "date-fns";
+import {
+  useShifts,
+  useStaff,
+  useCreateShift,
+  useUpdateShift,
+  useAdminEndShift,
+  useAddShiftBreak,
+  useDeleteShiftBreak,
+} from "@/hooks/api/use-hr";
+import { useStore } from "@/contexts/StoreContext";
+import type { Shift, ShiftBreak } from "@/types/hr";
 
-interface Shift {
-  id: number;
-  user: string;
-  role: string;
-  started: string;
-  duration: string;
-  breaks?: { type: string; start: string; duration: string }[];
-  notes?: string;
+const ALL = "__all__";
+
+function formatDuration(start?: string | null, end?: string | null): string {
+  if (!start) return "—";
+  const startMs = new Date(start).getTime();
+  const endMs = end ? new Date(end).getTime() : Date.now();
+  if (Number.isNaN(startMs) || Number.isNaN(endMs)) return "—";
+  return formatDistanceStrict(endMs, startMs);
 }
 
-const activeShifts: Shift[] = [
-  { id: 1, user: "John Doe", role: "Cashier", started: "9:00 AM", duration: "4h 30m", breaks: [{ type: "Lunch", start: "12:00 PM", duration: "30m" }], notes: "Regular shift" },
-  { id: 2, user: "Sarah Smith", role: "Manager", started: "8:00 AM", duration: "5h 30m", breaks: [{ type: "Lunch", start: "1:00 PM", duration: "45m" }], notes: "Opening manager" },
-  { id: 3, user: "Mike Johnson", role: "Kitchen", started: "10:00 AM", duration: "3h 30m", breaks: [], notes: "Prep work assigned" },
-];
-
-const stats = [
-  { label: "Active Shifts", value: "8", icon: Users },
-  { label: "Total Hours Today", value: "42h", icon: Clock },
-  { label: "Scheduled", value: "12", icon: Calendar },
-];
-
-function StatsSkeleton() {
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <Card key={i} className={i === 2 ? "col-span-2 md:col-span-1" : ""}>
-          <CardContent className="p-3 sm:p-4 pt-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-2">
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-7 w-12" />
-              </div>
-              <Skeleton className="h-8 w-8" />
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
-function ShiftsSkeleton() {
-  return (
-    <div className="space-y-3">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border rounded-lg">
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-3 w-40" />
-          </div>
-          <div className="flex items-center justify-between sm:justify-end gap-3">
-            <Skeleton className="h-5 w-16 rounded-full" />
-            <Skeleton className="h-8 w-24" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+interface NewShiftForm {
+  staffId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  notes: string;
+}
+
+interface BreakForm {
+  type: ShiftBreak["type"];
+  durationMinutes: string;
+  notes: string;
 }
 
 export default function WorkstationShiftsPage() {
-  const isLoading = useLoading(1000);
-  const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
-  const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
-  const [sheetMode, setSheetMode] = useState<"view" | "edit" | "add">("view");
-  const [currentPage, setCurrentPage] = useState(1);
+  const { currentStore } = useStore();
+  const [page, setPage] = useState(1);
   const pageSize = 10;
+  const [statusFilter, setStatusFilter] = useState<string>("in-progress");
+  const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetMode, setSheetMode] = useState<"view" | "edit" | "add">("view");
+  const [newForm, setNewForm] = useState<NewShiftForm>({
+    staffId: "",
+    date: todayIso(),
+    startTime: "09:00",
+    endTime: "17:00",
+    notes: "",
+  });
+  const [editNotes, setEditNotes] = useState("");
+  const [breakForm, setBreakForm] = useState<BreakForm>({
+    type: "lunch",
+    durationMinutes: "30",
+    notes: "",
+  });
 
-  const totalItems = activeShifts.length;
-  const totalPages = Math.ceil(totalItems / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, totalItems);
-  const paginatedShifts = activeShifts.slice(startIndex, endIndex);
+  const shiftsQuery = useShifts({
+    storeId: currentStore?.id,
+    status: statusFilter === ALL ? undefined : (statusFilter as Shift["status"]),
+    page,
+    limit: pageSize,
+  });
+  const staffQuery = useStaff({ storeId: currentStore?.id, limit: 100, status: "active" });
 
-  const openViewSheet = (shift: Shift) => {
-    setSelectedShift(shift);
+  const todaysCompletedShifts = useShifts({
+    storeId: currentStore?.id,
+    status: "completed",
+    date: todayIso(),
+    limit: 100,
+  });
+  const scheduledShifts = useShifts({
+    storeId: currentStore?.id,
+    status: "scheduled",
+    dateFrom: todayIso(),
+    limit: 100,
+  });
+
+  const createShift = useCreateShift();
+  const updateShift = useUpdateShift();
+  const adminEndShift = useAdminEndShift();
+  const addBreak = useAddShiftBreak();
+  const deleteBreak = useDeleteShiftBreak();
+
+  const shifts = shiftsQuery.data?.data ?? [];
+  const total = shiftsQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, total);
+
+  const totalHoursToday = useMemo(() => {
+    const list = todaysCompletedShifts.data?.data ?? [];
+    let mins = 0;
+    for (const s of list) {
+      if (s.actualClockIn && s.actualClockOut) {
+        const ms = new Date(s.actualClockOut).getTime() - new Date(s.actualClockIn).getTime();
+        if (ms > 0) mins += ms / 60000;
+      }
+    }
+    return Math.round(mins / 60);
+  }, [todaysCompletedShifts.data]);
+
+  const stats = [
+    {
+      label: "Active Shifts",
+      value: String(
+        statusFilter === "in-progress"
+          ? total
+          : (shiftsQuery.data?.data.filter((s) => s.status === "in-progress").length ?? 0),
+      ),
+      icon: Users,
+    },
+    { label: "Total Hours Today", value: `${totalHoursToday}h`, icon: Clock },
+    { label: "Scheduled", value: String(scheduledShifts.data?.total ?? 0), icon: Calendar },
+  ];
+
+  const openView = (s: Shift) => {
+    setSelectedShift(s);
+    setEditNotes(s.notes ?? "");
     setSheetMode("view");
+    setSheetOpen(true);
   };
-
-  const openEditSheet = (shift: Shift) => {
-    setSelectedShift(shift);
+  const openEdit = (s: Shift) => {
+    setSelectedShift(s);
+    setEditNotes(s.notes ?? "");
     setSheetMode("edit");
+    setSheetOpen(true);
   };
-
-  const openAddSheet = () => {
+  const openAdd = () => {
     setSelectedShift(null);
+    setNewForm({
+      staffId: "",
+      date: todayIso(),
+      startTime: "09:00",
+      endTime: "17:00",
+      notes: "",
+    });
     setSheetMode("add");
-    setIsAddSheetOpen(true);
+    setSheetOpen(true);
+  };
+  const closeSheet = () => {
+    setSheetOpen(false);
+    setSelectedShift(null);
+    setBreakForm({ type: "lunch", durationMinutes: "30", notes: "" });
   };
 
-  const closeSheet = () => {
-    setSelectedShift(null);
-    setIsAddSheetOpen(false);
+  const handleStartShift = () => {
+    if (!currentStore || !newForm.staffId) {
+      toast.error("Pick a store and staff member");
+      return;
+    }
+    createShift.mutate(
+      {
+        storeId: currentStore.id,
+        staffId: newForm.staffId,
+        date: newForm.date,
+        startTime: newForm.startTime,
+        endTime: newForm.endTime,
+        notes: newForm.notes || undefined,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Shift created");
+          closeSheet();
+        },
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't create shift"),
+      },
+    );
   };
+
+  const handleSaveEdit = () => {
+    if (!selectedShift) return;
+    updateShift.mutate(
+      {
+        id: selectedShift.id,
+        data: { notes: editNotes },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Shift updated");
+          closeSheet();
+        },
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't update shift"),
+      },
+    );
+  };
+
+  const handleSaveNotes = () => {
+    if (!selectedShift) return;
+    updateShift.mutate(
+      { id: selectedShift.id, data: { notes: editNotes } },
+      {
+        onSuccess: () => toast.success("Notes saved"),
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't save notes"),
+      },
+    );
+  };
+
+  const handleEndShift = (id: string) => {
+    if (!confirm("End this shift now?")) return;
+    adminEndShift.mutate(id, {
+      onSuccess: () => {
+        toast.success("Shift ended");
+        if (selectedShift?.id === id) closeSheet();
+      },
+      onError: (e: Error) => toast.error(e.message ?? "Couldn't end shift"),
+    });
+  };
+
+  const handleAddBreak = () => {
+    if (!selectedShift) return;
+    const durationMinutes = Number(breakForm.durationMinutes);
+    if (!durationMinutes || durationMinutes < 1) {
+      toast.error("Duration must be a positive number");
+      return;
+    }
+    addBreak.mutate(
+      {
+        shiftId: selectedShift.id,
+        type: breakForm.type,
+        startTime: new Date().toISOString(),
+        durationMinutes,
+        notes: breakForm.notes || undefined,
+      },
+      {
+        onSuccess: (updated) => {
+          setSelectedShift(updated);
+          setBreakForm({ type: "lunch", durationMinutes: "30", notes: "" });
+          toast.success("Break logged");
+        },
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't log break"),
+      },
+    );
+  };
+
+  const handleDeleteBreak = (breakId: string) => {
+    if (!selectedShift) return;
+    deleteBreak.mutate(
+      { shiftId: selectedShift.id, breakId },
+      {
+        onSuccess: (updated) => {
+          setSelectedShift(updated);
+          toast.success("Break removed");
+        },
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't remove break"),
+      },
+    );
+  };
+
+  const isLoading = shiftsQuery.isLoading;
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
@@ -116,65 +297,91 @@ export default function WorkstationShiftsPage() {
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">Workstation Shifts</h1>
           <p className="text-sm text-muted-foreground">Manage active shifts and clock in/out</p>
         </div>
-        <Button size="sm" className="w-full sm:w-auto" onClick={openAddSheet}>
+        <Button size="sm" className="w-full sm:w-auto" onClick={openAdd}>
           <Play className="mr-2 h-4 w-4" />
           Start Shift
         </Button>
       </div>
 
-      {isLoading ? (
-        <StatsSkeleton />
-      ) : (
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
-          {stats.map((stat, index) => (
-            <Card key={stat.label} className={index === 2 ? "col-span-2 md:col-span-1" : ""}>
-              <CardContent className="p-3 sm:p-4 pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">{stat.label}</p>
-                    <p className="text-xl sm:text-2xl font-bold">{stat.value}</p>
-                  </div>
-                  <stat.icon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground shrink-0" />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
+        {stats.map((stat, index) => (
+          <Card key={stat.label} className={index === 2 ? "col-span-2 md:col-span-1" : ""}>
+            <CardContent className="p-3 sm:p-4 pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{stat.label}</p>
+                  <p className="text-xl sm:text-2xl font-bold">{stat.value}</p>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                <stat.icon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground shrink-0" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
       <Card>
-        <CardHeader className="p-4">
-          <CardTitle className="text-sm sm:text-base">Active Shifts</CardTitle>
+        <CardHeader className="p-4 flex-row items-center justify-between">
+          <CardTitle className="text-sm sm:text-base">Shifts</CardTitle>
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All</SelectItem>
+              <SelectItem value="in-progress">In progress</SelectItem>
+              <SelectItem value="scheduled">Scheduled</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="missed">Missed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
         </CardHeader>
         <CardContent className="p-4 pt-0">
           {isLoading ? (
-            <ShiftsSkeleton />
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : shifts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <Calendar className="h-10 w-10 text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">No shifts in this view</p>
+            </div>
           ) : (
             <div className="space-y-3">
-              {paginatedShifts.map((shift) => (
-                <div 
-                  key={shift.id} 
+              {shifts.map((shift) => (
+                <div
+                  key={shift.id}
                   className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg transition-colors hover:bg-muted/50 cursor-pointer"
-                  onClick={() => openViewSheet(shift)}
+                  onClick={() => openView(shift)}
                 >
                   <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">{shift.user}</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground">{shift.role} • Started at {shift.started}</p>
+                    <p className="font-medium text-sm truncate">{shift.staffName || "—"}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      {shift.roleName ?? "—"} • {shift.date} • {shift.startTime} – {shift.endTime}
+                    </p>
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
-                    <Badge variant="outline" className="text-xs">{shift.duration}</Badge>
-                    <Button 
-                      variant="destructive" 
-                      size="sm" 
-                      className="shrink-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                      }}
-                    >
-                      <Square className="mr-1 sm:mr-2 h-3 w-3" />
-                      <span className="hidden sm:inline">End Shift</span>
-                      <span className="sm:hidden">End</span>
-                    </Button>
+                    <Badge variant="outline" className="text-xs">
+                      {shift.status === "in-progress"
+                        ? `Active • ${formatDuration(shift.actualClockIn)}`
+                        : shift.status}
+                    </Badge>
+                    {shift.status === "in-progress" && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEndShift(shift.id);
+                        }}
+                        disabled={adminEndShift.isPending}
+                      >
+                        <Square className="mr-1 sm:mr-2 h-3 w-3" />
+                        <span className="hidden sm:inline">End Shift</span>
+                        <span className="sm:hidden">End</span>
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -183,27 +390,34 @@ export default function WorkstationShiftsPage() {
         </CardContent>
       </Card>
 
-      <TablePagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        totalItems={totalItems}
-        startIndex={startIndex + 1}
-        endIndex={endIndex}
-        pageSize={pageSize}
-        onPageChange={setCurrentPage}
-      />
+      {total > 0 && (
+        <TablePagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={total}
+          startIndex={startIndex + 1}
+          endIndex={endIndex}
+          pageSize={pageSize}
+          onPageChange={setPage}
+        />
+      )}
 
-      {/* Action Sheet */}
-      <Sheet open={!!selectedShift || isAddSheetOpen} onOpenChange={closeSheet}>
+      <Sheet open={sheetOpen} onOpenChange={(o) => (o ? setSheetOpen(true) : closeSheet())}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <div className="flex items-center justify-between">
-              <SheetTitle>
-                {sheetMode === "add" ? "Start New Shift" : sheetMode === "edit" ? "Edit Shift" : "Shift Details"}
-              </SheetTitle>
-            </div>
+            <SheetTitle>
+              {sheetMode === "add"
+                ? "Start New Shift"
+                : sheetMode === "edit"
+                  ? "Edit Shift"
+                  : "Shift Details"}
+            </SheetTitle>
             <SheetDescription>
-              {sheetMode === "add" ? "Clock in a staff member" : `Active shift for ${selectedShift?.user}`}
+              {sheetMode === "add"
+                ? "Schedule a shift for a staff member"
+                : selectedShift
+                  ? `${selectedShift.staffName} • ${selectedShift.date}`
+                  : ""}
             </SheetDescription>
           </SheetHeader>
 
@@ -219,121 +433,241 @@ export default function WorkstationShiftsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Staff Member</Label>
-                    <p className="text-sm font-medium">{selectedShift.user}</p>
+                    <p className="text-sm font-medium">{selectedShift.staffName}</p>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Role</Label>
-                    <p className="text-sm font-medium">{selectedShift.role}</p>
+                    <p className="text-sm font-medium">{selectedShift.roleName ?? "—"}</p>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Start Time</Label>
-                    <p className="text-sm font-medium">{selectedShift.started}</p>
+                    <Label className="text-xs text-muted-foreground">Scheduled</Label>
+                    <p className="text-sm font-medium">
+                      {selectedShift.date} {selectedShift.startTime}–{selectedShift.endTime}
+                    </p>
                   </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Status</Label>
+                    <Badge variant="outline">{selectedShift.status}</Badge>
+                  </div>
+                  {selectedShift.actualClockIn && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Clocked in</Label>
+                      <p className="text-sm font-medium">
+                        {format(new Date(selectedShift.actualClockIn), "p")}
+                      </p>
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Duration</Label>
-                    <p className="text-sm font-medium">{selectedShift.duration}</p>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t space-y-3">
-                  <h4 className="font-medium text-sm">Quick Actions</h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" size="sm">
-                      <Coffee className="mr-2 h-4 w-4" />
-                      Add Break
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <FileText className="mr-2 h-4 w-4" />
-                      Add Note
-                    </Button>
+                    <p className="text-sm font-medium">
+                      {formatDuration(selectedShift.actualClockIn, selectedShift.actualClockOut)}
+                    </p>
                   </div>
                 </div>
               </TabsContent>
 
               <TabsContent value="breaks" className="space-y-4 mt-4">
-                {selectedShift.breaks && selectedShift.breaks.length > 0 ? (
+                {(selectedShift.breaks?.length ?? 0) > 0 ? (
                   <div className="space-y-3">
-                    {selectedShift.breaks.map((brk, idx) => (
-                      <div key={idx} className="p-3 border rounded-lg">
-                        <div className="flex items-center justify-between">
+                    {selectedShift.breaks!.map((brk) => (
+                      <div key={brk.id} className="p-3 border rounded-lg">
+                        <div className="flex items-center justify-between gap-3">
                           <div>
-                            <p className="text-sm font-medium">{brk.type}</p>
-                            <p className="text-xs text-muted-foreground">Started at {brk.start}</p>
+                            <p className="text-sm font-medium capitalize">{brk.type}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(brk.startTime), "PP p")}
+                            </p>
+                            {brk.notes && (
+                              <p className="text-xs mt-1">{brk.notes}</p>
+                            )}
                           </div>
-                          <Badge variant="outline">{brk.duration}</Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">{brk.durationMinutes}m</Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteBreak(brk.id)}
+                              disabled={deleteBreak.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="flex flex-col items-center justify-center py-6 text-center">
                     <Coffee className="h-10 w-10 text-muted-foreground mb-3" />
-                    <p className="text-sm text-muted-foreground">No breaks taken yet</p>
+                    <p className="text-sm text-muted-foreground">No breaks logged yet</p>
                   </div>
                 )}
-                <Button variant="outline" className="w-full">
-                  <Coffee className="mr-2 h-4 w-4" />
-                  Start Break
-                </Button>
+                <div className="border-t pt-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select
+                      value={breakForm.type}
+                      onValueChange={(v) => setBreakForm({ ...breakForm, type: v as ShiftBreak["type"] })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="lunch">Lunch</SelectItem>
+                        <SelectItem value="rest">Rest</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      min={1}
+                      placeholder="Minutes"
+                      value={breakForm.durationMinutes}
+                      onChange={(e) => setBreakForm({ ...breakForm, durationMinutes: e.target.value })}
+                    />
+                  </div>
+                  <Input
+                    placeholder="Notes (optional)"
+                    value={breakForm.notes}
+                    onChange={(e) => setBreakForm({ ...breakForm, notes: e.target.value })}
+                  />
+                  <Button
+                    className="w-full"
+                    onClick={handleAddBreak}
+                    disabled={addBreak.isPending}
+                  >
+                    <Coffee className="mr-2 h-4 w-4" />
+                    Log Break
+                  </Button>
+                </div>
               </TabsContent>
 
               <TabsContent value="notes" className="space-y-4 mt-4">
-                <div className="p-3 border rounded-lg">
-                  <p className="text-sm">{selectedShift.notes || "No notes added"}</p>
-                </div>
-                <Textarea placeholder="Add a note..." className="min-h-[100px]" />
-                <Button className="w-full">Save Note</Button>
+                <Textarea
+                  placeholder="Add a note..."
+                  className="min-h-[120px]"
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                />
+                <Button
+                  className="w-full"
+                  onClick={handleSaveNotes}
+                  disabled={updateShift.isPending}
+                >
+                  Save Notes
+                </Button>
               </TabsContent>
             </Tabs>
+          ) : sheetMode === "edit" && selectedShift ? (
+            <div className="space-y-4 mt-6">
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  className="min-h-[120px]"
+                />
+              </div>
+            </div>
           ) : (
             <div className="space-y-4 mt-6">
               <div className="space-y-2">
                 <Label>Staff Member</Label>
-                <Select>
+                <Select
+                  value={newForm.staffId}
+                  onValueChange={(v) => setNewForm({ ...newForm, staffId: v })}
+                >
                   <SelectTrigger><SelectValue placeholder="Select staff" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="john">John Doe</SelectItem>
-                    <SelectItem value="sarah">Sarah Smith</SelectItem>
-                    <SelectItem value="mike">Mike Johnson</SelectItem>
+                    {(staffQuery.data?.data ?? []).map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.firstName} {s.lastName} ({s.roleName})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Role</Label>
-                <Select>
-                  <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cashier">Cashier</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="kitchen">Kitchen</SelectItem>
-                    <SelectItem value="server">Server</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-2">
+                  <Label>Date</Label>
+                  <Input
+                    type="date"
+                    value={newForm.date}
+                    onChange={(e) => setNewForm({ ...newForm, date: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Start</Label>
+                  <Input
+                    type="time"
+                    value={newForm.startTime}
+                    onChange={(e) => setNewForm({ ...newForm, startTime: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>End</Label>
+                  <Input
+                    type="time"
+                    value={newForm.endTime}
+                    onChange={(e) => setNewForm({ ...newForm, endTime: e.target.value })}
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Notes</Label>
-                <Textarea placeholder="Add shift notes..." />
+                <Textarea
+                  placeholder="Optional"
+                  value={newForm.notes}
+                  onChange={(e) => setNewForm({ ...newForm, notes: e.target.value })}
+                />
               </div>
             </div>
           )}
 
           <SheetFooter className="mt-6 flex-col sm:flex-row gap-2">
-            {sheetMode === "view" ? (
+            {sheetMode === "view" && selectedShift ? (
               <>
-                <Button variant="outline" onClick={() => openEditSheet(selectedShift!)} className="w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  onClick={() => openEdit(selectedShift)}
+                  className="w-full sm:w-auto"
+                >
                   Edit Shift
                 </Button>
-                <Button variant="destructive" className="w-full sm:w-auto">
-                  <Square className="mr-2 h-4 w-4" />
-                  End Shift
+                {selectedShift.status === "in-progress" && (
+                  <Button
+                    variant="destructive"
+                    className="w-full sm:w-auto"
+                    onClick={() => handleEndShift(selectedShift.id)}
+                    disabled={adminEndShift.isPending}
+                  >
+                    <Square className="mr-2 h-4 w-4" />
+                    End Shift
+                  </Button>
+                )}
+              </>
+            ) : sheetMode === "edit" ? (
+              <>
+                <Button variant="outline" onClick={closeSheet} className="w-full sm:w-auto">
+                  Cancel
+                </Button>
+                <Button
+                  className="w-full sm:w-auto"
+                  onClick={handleSaveEdit}
+                  disabled={updateShift.isPending}
+                >
+                  Save Changes
                 </Button>
               </>
             ) : (
               <>
-                <Button variant="outline" onClick={closeSheet} className="w-full sm:w-auto">Cancel</Button>
-                <Button className="w-full sm:w-auto">
+                <Button variant="outline" onClick={closeSheet} className="w-full sm:w-auto">
+                  Cancel
+                </Button>
+                <Button
+                  className="w-full sm:w-auto"
+                  onClick={handleStartShift}
+                  disabled={createShift.isPending}
+                >
                   <Play className="mr-2 h-4 w-4" />
-                  {sheetMode === "add" ? "Start Shift" : "Save Changes"}
+                  Start Shift
                 </Button>
               </>
             )}

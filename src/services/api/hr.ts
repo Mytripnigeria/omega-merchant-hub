@@ -111,6 +111,29 @@ export const hrService = {
     return apiRequest(`/shifts/${id}`, { method: 'DELETE' });
   },
 
+  async adminEndShift(id: string): Promise<Shift> {
+    return apiRequest(`/shifts/${id}/admin-end`, { method: 'POST' });
+  },
+
+  async addShiftBreak(
+    id: string,
+    payload: {
+      type: 'lunch' | 'rest' | 'other';
+      startTime: string;
+      durationMinutes: number;
+      notes?: string;
+    },
+  ): Promise<Shift> {
+    return apiRequest(`/shifts/${id}/breaks`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async deleteShiftBreak(id: string, breakId: string): Promise<Shift> {
+    return apiRequest(`/shifts/${id}/breaks/${breakId}`, { method: 'DELETE' });
+  },
+
   async getPayslips(filters?: PayslipFilters): Promise<PaginatedResponse<Payslip>> {
     return apiRequest(`/payslips${buildQuery(filters ?? {})}`);
   },

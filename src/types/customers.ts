@@ -1,80 +1,45 @@
-// Customer Domain Types
+// Customer Domain Types — aligned with backend CustomerEntity / CustomerResponseDto
 
-export type CustomerStatus = "Active" | "VIP" | "Inactive";
+export type CustomerStatus = "active" | "vip" | "inactive";
+export type CustomerSource = "walk-in" | "storefront" | "referral" | "import" | "other";
 export type LoyaltyTier = "bronze" | "silver" | "gold" | "platinum";
-
-export interface CustomerOrder {
-  id: string;
-  date: string;
-  total: number;
-  status: string;
-  items: number;
-}
 
 export interface Customer {
   id: string;
+  businessId: string;
   firstName: string;
   lastName: string;
-  email: string;
-  phone: string;
-  birthday?: string;
-  gender?: string;
-  country: string;
-  state: string;
-  city: string;
-  street?: string;
-  zipCode?: string;
-  orders: number;
-  spent: number;
-  lastOrder?: string;
+  email: string | null;
+  phone: string | null;
+  birthday: string | null;
+  gender: string | null;
+  country: string | null;
+  state: string | null;
+  city: string | null;
+  street: string | null;
+  zipCode: string | null;
   status: CustomerStatus;
-  source: string;
+  source: CustomerSource;
   walletBalance: number;
   points: number;
   loyaltyTier: LoyaltyTier;
   groups: string[];
   referralCode: string;
-  referredBy?: string;
-  recentOrders: CustomerOrder[];
+  referredBy: string | null;
+  notes: string | null;
+  totalOrders: number;
+  totalSpent: number;
+  lastOrderAt: string | null;
+  hasUserAccount: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface CustomerGroup {
-  id: string;
-  name: string;
-  description?: string;
-  memberCount: number;
-  isActive: boolean;
-}
+// API Request types
 
-export interface LoyaltyRule {
-  id: string;
-  tier: LoyaltyTier;
-  pointsPerNaira: number;
-  minSpendForTier: number;
-  benefits: string[];
-}
-
-// API Request/Response Types
 export interface CreateCustomerRequest {
   firstName: string;
   lastName: string;
-  email: string;
-  phone: string;
-  birthday?: string;
-  gender?: string;
-  country?: string;
-  state?: string;
-  city?: string;
-  street?: string;
-  zipCode?: string;
-  groups?: string[];
-}
-
-export interface UpdateCustomerRequest {
-  firstName?: string;
-  lastName?: string;
   email?: string;
   phone?: string;
   birthday?: string;
@@ -84,18 +49,24 @@ export interface UpdateCustomerRequest {
   city?: string;
   street?: string;
   zipCode?: string;
-  status?: CustomerStatus;
+  source?: CustomerSource;
   groups?: string[];
+  notes?: string;
+}
+
+export interface UpdateCustomerRequest extends Partial<CreateCustomerRequest> {
+  status?: CustomerStatus;
+  loyaltyTier?: LoyaltyTier;
 }
 
 export interface CustomerFilters {
   status?: CustomerStatus;
+  source?: CustomerSource;
   loyaltyTier?: LoyaltyTier;
-  source?: string;
   group?: string;
   search?: string;
-  minSpent?: number;
-  maxSpent?: number;
+  page?: number;
+  limit?: number;
 }
 
 export interface CustomerStats {
@@ -114,7 +85,7 @@ export interface WalletTransaction {
   amount: number;
   balance: number;
   description: string;
-  reference?: string;
+  reference: string | null;
   createdAt: string;
 }
 
@@ -125,6 +96,6 @@ export interface PointsTransaction {
   points: number;
   balance: number;
   description: string;
-  orderId?: string;
+  orderId: string | null;
   createdAt: string;
 }

@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMemo, useState } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { 
+import { Skeleton } from "@/components/ui/skeleton";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -12,7 +13,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Download, FileText, DollarSign, Users, Clock, Calendar, Mail, Printer, Eye, Plus, Trash2 } from "lucide-react";
+import {
+  Search,
+  FileText,
+  DollarSign,
+  Calendar,
+  Plus,
+  Trash2,
+  CheckCircle2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -24,683 +33,990 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import type { Payslip as APIPayslip } from "@/types/hr";
+import { Textarea } from "@/components/ui/textarea";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { format } from "date-fns";
+import { toast } from "sonner";
+import {
+  usePayslips,
+  useStaff,
+  useCreatePayslip,
+  useUpdatePayslip,
+  useDeletePayslip,
+  useApprovePayslip,
+  useMarkPayslipPaid,
+} from "@/hooks/api/use-hr";
+import { useStore } from "@/contexts/StoreContext";
+import type {
+  Payslip,
+  PayslipAdjustment,
+  PayslipAdjustmentInput,
+} from "@/types/hr";
 
-// UI Payslip type with computed display fields
-interface PayslipUI {
-  id: string;
-  storeId: string;
+const ALL = "__all__";
+type SheetMode = "view" | "create" | "edit" | "mark-paid";
+
+interface AdjustmentRow {
+  id?: string;
+  name: string;
+  amount: string;
+  type: PayslipAdjustment["type"];
+  isDeduction: boolean;
+}
+
+interface PayslipForm {
   staffId: string;
-  staffName: string;
   period: string;
   periodStart: string;
   periodEnd: string;
-  baseSalary: number;
-  hoursWorked?: number;
-  overtimeHours?: number;
-  overtimeRate?: number;
-  additions: APIPayslip["additions"];
-  grossPay: number;
-  netPay: number;
-  status: APIPayslip["status"];
-  paymentMethod?: APIPayslip["paymentMethod"];
-  receiptUrl?: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-  // Computed UI fields
-  staff: string;
-  email: string;
-  role: string;
-  overtime: number;
-  bonus: number;
-  deductions: number;
-  tax: number;
-  displayStatus: "Paid" | "Pending" | "Processing";
-  paidDate?: string;
-  bankAccount?: string;
+  baseSalary: string;
+  hoursWorked: string;
+  overtimeHours: string;
+  overtimeRate: string;
+  notes: string;
+  adjustments: AdjustmentRow[];
 }
 
-// Transform API Payslip to UI format
-const transformPayslip = (payslip: APIPayslip): PayslipUI => {
-  const totalDeductions = payslip.deductions.reduce((sum, d) => sum + d.amount, 0);
-  const bonuses = payslip.additions.filter(a => a.type === "bonus").reduce((sum, a) => sum + a.amount, 0);
-  const overtime = (payslip.overtimeHours || 0) * (payslip.overtimeRate || 0);
-  
+interface MarkPaidForm {
+  paymentDate: string;
+  paymentMethod: NonNullable<Payslip["paymentMethod"]>;
+  receiptUrl: string;
+}
+
+function emptyForm(): PayslipForm {
+  const today = new Date();
+  const period = format(today, "yyyy-MM");
+  const start = format(new Date(today.getFullYear(), today.getMonth(), 1), "yyyy-MM-dd");
+  const end = format(new Date(today.getFullYear(), today.getMonth() + 1, 0), "yyyy-MM-dd");
   return {
-    ...payslip,
-    staff: payslip.staffName,
-    email: `${payslip.staffName.toLowerCase().replace(" ", ".")}@store.com`,
-    role: "Staff",
-    overtime,
-    bonus: bonuses,
-    deductions: totalDeductions,
-    tax: payslip.deductions.filter(d => d.type === "tax").reduce((sum, d) => sum + d.amount, 0),
-    displayStatus: payslip.status === "paid" ? "Paid" : payslip.status === "pending" ? "Pending" : "Processing",
-    paidDate: payslip.paymentDate,
-    bankAccount: "****1234",
+    staffId: "",
+    period,
+    periodStart: start,
+    periodEnd: end,
+    baseSalary: "0",
+    hoursWorked: "",
+    overtimeHours: "",
+    overtimeRate: "",
+    notes: "",
+    adjustments: [],
   };
-};
-
-const mockPayslips: APIPayslip[] = [
-  { id: "PS-001", storeId: "store-1", staffId: "1", staffName: "John Doe", period: "Jan 2026", periodStart: "2026-01-01", periodEnd: "2026-01-31", baseSalary: 300000, overtimeHours: 15, overtimeRate: 1667, additions: [{ id: "a1", name: "Performance Bonus", amount: 10000, type: "bonus" }], deductions: [{ id: "d1", name: "Pension", amount: 15000, type: "insurance" }, { id: "d2", name: "PAYE", amount: 45000, type: "tax" }], grossPay: 335000, netPay: 275000, status: "paid", paymentDate: "2026-01-25", createdAt: "2026-01-20", updatedAt: "2026-01-25" },
-  { id: "PS-002", storeId: "store-1", staffId: "2", staffName: "Sarah Smith", period: "Jan 2026", periodStart: "2026-01-01", periodEnd: "2026-01-31", baseSalary: 250000, overtimeHours: 10, overtimeRate: 1250, additions: [], deductions: [{ id: "d3", name: "Pension", amount: 12500, type: "insurance" }, { id: "d4", name: "PAYE", amount: 35000, type: "tax" }], grossPay: 262500, netPay: 212500, status: "pending", createdAt: "2026-01-20", updatedAt: "2026-01-20" },
-  { id: "PS-003", storeId: "store-1", staffId: "3", staffName: "Mike Johnson", period: "Jan 2026", periodStart: "2026-01-01", periodEnd: "2026-01-31", baseSalary: 280000, additions: [{ id: "a2", name: "Bonus", amount: 5000, type: "bonus" }], deductions: [{ id: "d5", name: "Pension", amount: 14000, type: "insurance" }, { id: "d6", name: "PAYE", amount: 40000, type: "tax" }], grossPay: 285000, netPay: 231000, status: "approved", createdAt: "2026-01-20", updatedAt: "2026-01-22" },
-  { id: "PS-004", storeId: "store-1", staffId: "4", staffName: "Lisa Brown", period: "Jan 2026", periodStart: "2026-01-01", periodEnd: "2026-01-31", baseSalary: 220000, overtimeHours: 18, overtimeRate: 1222, additions: [{ id: "a3", name: "Bonus", amount: 8000, type: "bonus" }], deductions: [{ id: "d7", name: "Pension", amount: 11000, type: "insurance" }, { id: "d8", name: "PAYE", amount: 32000, type: "tax" }], grossPay: 250000, netPay: 203000, status: "paid", paymentDate: "2026-01-25", createdAt: "2026-01-20", updatedAt: "2026-01-25" },
-  { id: "PS-005", storeId: "store-1", staffId: "5", staffName: "David Wilson", period: "Jan 2026", periodStart: "2026-01-01", periodEnd: "2026-01-31", baseSalary: 350000, overtimeHours: 30, overtimeRate: 1944, additions: [{ id: "a4", name: "Bonus", amount: 15000, type: "bonus" }], deductions: [{ id: "d9", name: "Pension", amount: 19000, type: "insurance" }, { id: "d10", name: "PAYE", amount: 55000, type: "tax" }], grossPay: 423320, netPay: 321000, status: "paid", paymentDate: "2026-01-25", createdAt: "2026-01-20", updatedAt: "2026-01-25" },
-];
-
-// Transform to UI format
-const payslips: PayslipUI[] = mockPayslips.map(transformPayslip);
-
-// Custom Charges Component for Breakdown Tab
-interface CustomCharge {
-  id: string;
-  name: string;
-  amount: number;
-  type: "earning" | "deduction";
 }
 
-function BreakdownTab({ payslip, formatCurrency }: { payslip: PayslipUI | null; formatCurrency: (amount: number) => string }) {
-  const [customCharges, setCustomCharges] = useState<CustomCharge[]>([]);
-  const [newChargeName, setNewChargeName] = useState("");
-  const [newChargeAmount, setNewChargeAmount] = useState("");
-  const [newChargeType, setNewChargeType] = useState<"earning" | "deduction">("earning");
-
-  const addCustomCharge = () => {
-    if (newChargeName && newChargeAmount) {
-      setCustomCharges([
-        ...customCharges,
-        {
-          id: Date.now().toString(),
-          name: newChargeName,
-          amount: parseFloat(newChargeAmount),
-          type: newChargeType,
-        },
-      ]);
-      setNewChargeName("");
-      setNewChargeAmount("");
-    }
+function payslipToForm(p: Payslip): PayslipForm {
+  const adjustments: AdjustmentRow[] = [
+    ...p.additions.map((a) => ({
+      id: a.id,
+      name: a.name,
+      amount: String(a.amount),
+      type: a.type,
+      isDeduction: false,
+    })),
+    ...p.deductions.map((a) => ({
+      id: a.id,
+      name: a.name,
+      amount: String(a.amount),
+      type: a.type,
+      isDeduction: true,
+    })),
+  ];
+  return {
+    staffId: p.staffId,
+    period: p.period,
+    periodStart: p.periodStart,
+    periodEnd: p.periodEnd,
+    baseSalary: String(p.baseSalary),
+    hoursWorked: p.hoursWorked != null ? String(p.hoursWorked) : "",
+    overtimeHours: p.overtimeHours != null ? String(p.overtimeHours) : "",
+    overtimeRate: p.overtimeRate != null ? String(p.overtimeRate) : "",
+    notes: p.notes ?? "",
+    adjustments,
   };
-
-  const removeCustomCharge = (id: string) => {
-    setCustomCharges(customCharges.filter((c) => c.id !== id));
-  };
-
-  const customEarnings = customCharges.filter((c) => c.type === "earning");
-  const customDeductions = customCharges.filter((c) => c.type === "deduction");
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <h4 className="text-sm font-medium">Earnings</h4>
-        <div className="space-y-2">
-          <div className="flex justify-between p-3 border rounded-lg">
-            <span className="text-sm">Basic Salary</span>
-            <span className="font-medium">{formatCurrency(payslip?.baseSalary || 0)}</span>
-          </div>
-          <div className="flex justify-between p-3 border rounded-lg">
-            <span className="text-sm">Overtime (15 hours)</span>
-            <span className="font-medium text-green-600">+{formatCurrency(payslip?.overtime || 0)}</span>
-          </div>
-          <div className="flex justify-between p-3 border rounded-lg">
-            <span className="text-sm">Performance Bonus</span>
-            <span className="font-medium text-green-600">+{formatCurrency(payslip?.bonus || 0)}</span>
-          </div>
-          {customEarnings.map((charge) => (
-            <div key={charge.id} className="flex items-center justify-between p-3 border rounded-lg border-dashed border-green-300 bg-green-50/50 dark:bg-green-900/10">
-              <span className="text-sm">{charge.name}</span>
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-green-600">+{formatCurrency(charge.amount)}</span>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeCustomCharge(charge.id)}>
-                  <Trash2 className="h-3 w-3 text-destructive" />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <h4 className="text-sm font-medium">Deductions</h4>
-        <div className="space-y-2">
-          <div className="flex justify-between p-3 border rounded-lg">
-            <span className="text-sm">Pension (8%)</span>
-            <span className="font-medium text-red-600">-{formatCurrency((payslip?.deductions || 0) * 0.6)}</span>
-          </div>
-          <div className="flex justify-between p-3 border rounded-lg">
-            <span className="text-sm">Health Insurance</span>
-            <span className="font-medium text-red-600">-{formatCurrency((payslip?.deductions || 0) * 0.4)}</span>
-          </div>
-          <div className="flex justify-between p-3 border rounded-lg">
-            <span className="text-sm">Income Tax (PAYE)</span>
-            <span className="font-medium text-red-600">-{formatCurrency(payslip?.tax || 0)}</span>
-          </div>
-          {customDeductions.map((charge) => (
-            <div key={charge.id} className="flex items-center justify-between p-3 border rounded-lg border-dashed border-red-300 bg-red-50/50 dark:bg-red-900/10">
-              <span className="text-sm">{charge.name}</span>
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-red-600">-{formatCurrency(charge.amount)}</span>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeCustomCharge(charge.id)}>
-                  <Trash2 className="h-3 w-3 text-destructive" />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Add Custom Charge */}
-      <div className="space-y-3 pt-3 border-t">
-        <h4 className="text-sm font-medium">Add Custom Charge</h4>
-        <div className="grid gap-3">
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              placeholder="Charge name"
-              value={newChargeName}
-              onChange={(e) => setNewChargeName(e.target.value)}
-              className="h-9"
-            />
-            <Input
-              type="number"
-              placeholder="Amount"
-              value={newChargeAmount}
-              onChange={(e) => setNewChargeAmount(e.target.value)}
-              className="h-9"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Select value={newChargeType} onValueChange={(v: "earning" | "deduction") => setNewChargeType(v)}>
-              <SelectTrigger className="flex-1 h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="earning">Earning (+)</SelectItem>
-                <SelectItem value="deduction">Deduction (-)</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button size="sm" className="h-9" onClick={addCustomCharge} disabled={!newChargeName || !newChargeAmount}>
-              <Plus className="h-4 w-4 mr-1" />
-              Add
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
-const getStatusColor = (status: string) => {
+function formToAdjustments(form: PayslipForm): PayslipAdjustmentInput[] {
+  return form.adjustments
+    .filter((a) => a.name.trim().length > 0 && Number(a.amount) > 0)
+    .map((a) => ({
+      name: a.name,
+      amount: Number(a.amount),
+      type: a.type,
+      isDeduction: a.isDeduction,
+    }));
+}
+
+function statusColor(status: Payslip["status"]): string {
   switch (status) {
-    case "Paid": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-    case "Pending": return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
-    case "Processing": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-    default: return "";
+    case "paid":
+      return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+    case "approved":
+      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+    case "pending":
+      return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+    case "draft":
+      return "bg-gray-100 text-gray-700 dark:bg-gray-800/50 dark:text-gray-300";
+    case "cancelled":
+      return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+    default:
+      return "";
   }
-};
+}
 
-const formatCurrency = (amount: number) => `₦${amount.toLocaleString()}`;
+function ngn(amount: number): string {
+  return `₦${amount.toLocaleString()}`;
+}
 
 export default function PayslipsPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [periodFilter, setPeriodFilter] = useState("jan2026");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
-  const [isGenerateSheetOpen, setIsGenerateSheetOpen] = useState(false);
-  const [selectedPayslip, setSelectedPayslip] = useState<PayslipUI | null>(null);
+  const { currentStore } = useStore();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>(ALL);
+  const [periodFilter, setPeriodFilter] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetMode, setSheetMode] = useState<SheetMode>("view");
+  const [selected, setSelected] = useState<Payslip | null>(null);
+  const [form, setForm] = useState<PayslipForm>(emptyForm());
+  const [paidForm, setPaidForm] = useState<MarkPaidForm>({
+    paymentDate: format(new Date(), "yyyy-MM-dd"),
+    paymentMethod: "bank",
+    receiptUrl: "",
+  });
 
-  const stats = [
-    { label: "Total Payroll", value: "₦4.5M", icon: DollarSign, description: "This month" },
-    { label: "Staff Paid", value: "18/24", icon: Users, description: "75% complete" },
-    { label: "Pending", value: "6", icon: Clock, description: "Awaiting approval" },
-    { label: "Period", value: "Jan 2026", icon: Calendar, description: "Current cycle" },
-  ];
+  const payslipsQuery = usePayslips({
+    storeId: currentStore?.id,
+    status: statusFilter === ALL ? undefined : (statusFilter as Payslip["status"]),
+    period: periodFilter || undefined,
+    page,
+    limit: pageSize,
+  });
+  const staffQuery = useStaff({ storeId: currentStore?.id, limit: 200 });
 
-  const handleViewPayslip = (payslip: PayslipUI) => {
-    setSelectedPayslip(payslip);
-    setIsViewSheetOpen(true);
+  const createPayslip = useCreatePayslip();
+  const updatePayslip = useUpdatePayslip();
+  const deletePayslip = useDeletePayslip();
+  const approvePayslip = useApprovePayslip();
+  const markPaid = useMarkPayslipPaid();
+
+  const payslips = payslipsQuery.data?.data ?? [];
+  const total = payslipsQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, total);
+
+  const filteredPayslips = useMemo(() => {
+    if (!search.trim()) return payslips;
+    const q = search.toLowerCase();
+    return payslips.filter(
+      (p) => p.staffName.toLowerCase().includes(q) || p.period.toLowerCase().includes(q),
+    );
+  }, [payslips, search]);
+
+  const stats = useMemo(() => {
+    const totalNet = payslips.reduce((sum, p) => sum + p.netPay, 0);
+    const paid = payslips.filter((p) => p.status === "paid").length;
+    const pending = payslips.filter(
+      (p) => p.status === "pending" || p.status === "draft",
+    ).length;
+    return [
+      { label: "Total Payslips", value: String(total), icon: FileText },
+      { label: "Paid", value: String(paid), icon: CheckCircle2 },
+      { label: "Pending", value: String(pending), icon: Calendar },
+      { label: "Net Total", value: ngn(totalNet), icon: DollarSign },
+    ];
+  }, [payslips, total]);
+
+  const openCreate = () => {
+    setSelected(null);
+    setForm(emptyForm());
+    setSheetMode("create");
+    setSheetOpen(true);
+  };
+  const openView = (p: Payslip) => {
+    setSelected(p);
+    setForm(payslipToForm(p));
+    setSheetMode("view");
+    setSheetOpen(true);
+  };
+  const openEdit = (p: Payslip) => {
+    setSelected(p);
+    setForm(payslipToForm(p));
+    setSheetMode("edit");
+    setSheetOpen(true);
+  };
+  const openMarkPaid = (p: Payslip) => {
+    setSelected(p);
+    setPaidForm({
+      paymentDate: format(new Date(), "yyyy-MM-dd"),
+      paymentMethod: "bank",
+      receiptUrl: "",
+    });
+    setSheetMode("mark-paid");
+    setSheetOpen(true);
+  };
+  const close = () => {
+    setSheetOpen(false);
+    setSelected(null);
   };
 
-  const filteredPayslips = payslips.filter(p => {
-    const matchesSearch = p.staff.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          p.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || p.status.toLowerCase() === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const addAdjustment = (isDeduction: boolean) => {
+    setForm({
+      ...form,
+      adjustments: [
+        ...form.adjustments,
+        {
+          name: "",
+          amount: "0",
+          type: isDeduction ? "tax" : "allowance",
+          isDeduction,
+        },
+      ],
+    });
+  };
+
+  const updateAdjustment = (idx: number, patch: Partial<AdjustmentRow>) => {
+    setForm({
+      ...form,
+      adjustments: form.adjustments.map((a, i) => (i === idx ? { ...a, ...patch } : a)),
+    });
+  };
+
+  const removeAdjustment = (idx: number) => {
+    setForm({
+      ...form,
+      adjustments: form.adjustments.filter((_, i) => i !== idx),
+    });
+  };
+
+  const handleCreate = () => {
+    if (!currentStore) {
+      toast.error("Select a store first");
+      return;
+    }
+    if (!form.staffId) {
+      toast.error("Pick a staff member");
+      return;
+    }
+    createPayslip.mutate(
+      {
+        storeId: currentStore.id,
+        staffId: form.staffId,
+        period: form.period,
+        periodStart: form.periodStart,
+        periodEnd: form.periodEnd,
+        baseSalary: Number(form.baseSalary) || 0,
+        hoursWorked: form.hoursWorked ? Number(form.hoursWorked) : undefined,
+        overtimeHours: form.overtimeHours ? Number(form.overtimeHours) : undefined,
+        overtimeRate: form.overtimeRate ? Number(form.overtimeRate) : undefined,
+        notes: form.notes || undefined,
+        adjustments: formToAdjustments(form),
+      },
+      {
+        onSuccess: () => {
+          toast.success("Payslip created");
+          close();
+        },
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't create payslip"),
+      },
+    );
+  };
+
+  const handleUpdate = () => {
+    if (!selected) return;
+    updatePayslip.mutate(
+      {
+        id: selected.id,
+        data: {
+          period: form.period,
+          periodStart: form.periodStart,
+          periodEnd: form.periodEnd,
+          baseSalary: Number(form.baseSalary) || 0,
+          hoursWorked: form.hoursWorked ? Number(form.hoursWorked) : undefined,
+          overtimeHours: form.overtimeHours ? Number(form.overtimeHours) : undefined,
+          overtimeRate: form.overtimeRate ? Number(form.overtimeRate) : undefined,
+          notes: form.notes || undefined,
+          adjustments: formToAdjustments(form),
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Payslip updated");
+          close();
+        },
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't update payslip"),
+      },
+    );
+  };
+
+  const handleDelete = () => {
+    if (!selected) return;
+    if (!confirm(`Delete payslip for ${selected.staffName} (${selected.period})?`)) return;
+    deletePayslip.mutate(selected.id, {
+      onSuccess: () => {
+        toast.success("Payslip deleted");
+        close();
+      },
+      onError: (e: Error) => toast.error(e.message ?? "Couldn't delete payslip"),
+    });
+  };
+
+  const handleApprove = () => {
+    if (!selected) return;
+    approvePayslip.mutate(selected.id, {
+      onSuccess: (updated) => {
+        toast.success(`Payslip ${updated.status}`);
+        setSelected(updated);
+      },
+      onError: (e: Error) => toast.error(e.message ?? "Couldn't approve"),
+    });
+  };
+
+  const handleMarkPaid = () => {
+    if (!selected) return;
+    markPaid.mutate(
+      {
+        id: selected.id,
+        paymentDate: paidForm.paymentDate,
+        paymentMethod: paidForm.paymentMethod,
+        receiptUrl: paidForm.receiptUrl || undefined,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Payslip marked paid");
+          close();
+        },
+        onError: (e: Error) => toast.error(e.message ?? "Couldn't mark paid"),
+      },
+    );
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Payslips</h1>
-          <p className="text-sm text-muted-foreground">Manage staff salaries and payments</p>
+          <p className="text-sm text-muted-foreground">
+            Generate and disburse staff payslips
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
-            <Download className="mr-2 h-4 w-4" />
-            <span className="hidden xs:inline">Export</span>
-          </Button>
-          <Button size="sm" className="flex-1 sm:flex-none" onClick={() => setIsGenerateSheetOpen(true)}>
-            <FileText className="mr-2 h-4 w-4" />
-            <span className="hidden xs:inline">Generate</span>
-          </Button>
-        </div>
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="mr-2 h-4 w-4" />
+          Create Payslip
+        </Button>
       </div>
 
-      {/* Two-column layout for desktop */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main content - 2 columns on desktop */}
-        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-          {/* Stats - 2x2 grid on mobile, 4 columns on desktop */}
-          <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-            {stats.map((stat) => (
-              <Card key={stat.label} className="border-border/50">
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-muted flex items-center justify-center">
-                      <stat.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                  <p className="text-xl sm:text-2xl font-semibold">{stat.value}</p>
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat) => (
+          <Card key={stat.label} className="border-border/50">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-muted flex items-center justify-center">
+                  <stat.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+                </div>
+              </div>
+              <p className="text-xl sm:text-2xl font-semibold">{stat.value}</p>
+              <p className="text-xs text-muted-foreground">{stat.label}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-          {/* Filters */}
+      <Card className="border-border/50">
+        <CardHeader className="p-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search staff..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by staff or period..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                 className="pl-9 h-9 bg-muted/50 border-0"
               />
             </div>
-            <Select value={periodFilter} onValueChange={setPeriodFilter}>
-              <SelectTrigger className="w-full sm:w-32 h-9 bg-muted/50 border-0">
-                <SelectValue placeholder="Period" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="jan2026">Jan 2026</SelectItem>
-                <SelectItem value="dec2025">Dec 2025</SelectItem>
-                <SelectItem value="nov2025">Nov 2025</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-28 h-9 bg-muted/50 border-0">
+            <Input
+              type="month"
+              placeholder="Period"
+              value={periodFilter}
+              onChange={(e) => {
+                setPeriodFilter(e.target.value);
+                setPage(1);
+              }}
+              className="w-full sm:w-44 h-9 bg-muted/50 border-0"
+            />
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-36 h-9 bg-muted/50 border-0">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value={ALL}>All</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
           </div>
-
-          {/* Payslips List */}
-          <Card className="border-border/50">
-            <CardContent className="p-0">
-              {/* Mobile Card View */}
+        </CardHeader>
+        <CardContent className="p-0">
+          {payslipsQuery.isLoading ? (
+            <div className="p-4 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : filteredPayslips.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <FileText className="h-10 w-10 text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">No payslips yet</p>
+              <Button variant="outline" size="sm" className="mt-3" onClick={openCreate}>
+                Create your first payslip
+              </Button>
+            </div>
+          ) : (
+            <>
               <div className="block sm:hidden divide-y divide-border">
-                {filteredPayslips.map((slip) => (
-                  <div 
-                    key={slip.id} 
+                {filteredPayslips.map((p) => (
+                  <div
+                    key={p.id}
                     className="p-4 space-y-3 cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleViewPayslip(slip)}
+                    onClick={() => openView(p)}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <Avatar className="h-9 w-9 shrink-0">
+                        <Avatar className="h-10 w-10 shrink-0">
                           <AvatarFallback className="bg-muted text-xs">
-                            {slip.staff.split(' ').map(n => n[0]).join('')}
+                            {p.staffName.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <p className="font-medium text-sm truncate">{slip.staff}</p>
-                          <p className="text-xs text-muted-foreground truncate">{slip.role}</p>
+                          <p className="font-medium truncate">{p.staffName}</p>
+                          <p className="text-xs text-muted-foreground">{p.period}</p>
                         </div>
                       </div>
-                      <Badge 
-                        variant="secondary" 
-                        className={cn("text-xs font-normal shrink-0", getStatusColor(slip.status))}
+                      <Badge
+                        variant="secondary"
+                        className={cn("text-xs font-normal shrink-0 capitalize", statusColor(p.status))}
                       >
-                        {slip.status}
+                        {p.status}
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div>
-                        <p className="text-muted-foreground">Base</p>
-                        <p className="font-medium">{formatCurrency(slip.baseSalary)}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Extras</p>
-                        <p className="font-medium text-green-600">+{formatCurrency(slip.overtime + slip.bonus)}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Deductions</p>
-                        <p className="font-medium text-red-600">-{formatCurrency(slip.deductions + slip.tax)}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-border">
-                      <span className="text-xs text-muted-foreground">{slip.period}</span>
-                      <span className="font-semibold">{formatCurrency(slip.netPay)}</span>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Net Pay</span>
+                      <span className="font-medium">{ngn(p.netPay)}</span>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Desktop Table View */}
               <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left text-xs font-medium text-muted-foreground p-4">Staff</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Base</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Overtime</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Deductions</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Net Pay</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Period</th>
+                      <th className="text-right text-xs font-medium text-muted-foreground p-4">Gross</th>
+                      <th className="text-right text-xs font-medium text-muted-foreground p-4">Net</th>
                       <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4 w-10"></th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Paid</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredPayslips.map((slip) => (
-                      <tr 
-                        key={slip.id} 
-                        className="border-b border-border last:border-0 group cursor-pointer hover:bg-muted/50"
-                        onClick={() => handleViewPayslip(slip)}
+                    {filteredPayslips.map((p) => (
+                      <tr
+                        key={p.id}
+                        className="border-b border-border last:border-0 cursor-pointer hover:bg-muted/50"
+                        onClick={() => openView(p)}
                       >
                         <td className="p-4">
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
                               <AvatarFallback className="bg-muted text-xs">
-                                {slip.staff.split(' ').map(n => n[0]).join('')}
+                                {p.staffName.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                               </AvatarFallback>
                             </Avatar>
-                            <div>
-                              <p className="font-medium text-sm">{slip.staff}</p>
-                              <p className="text-xs text-muted-foreground">{slip.role}</p>
-                            </div>
+                            <p className="font-medium text-sm">{p.staffName}</p>
                           </div>
                         </td>
-                        <td className="p-4 text-sm">{formatCurrency(slip.baseSalary)}</td>
-                        <td className="p-4 text-sm text-green-600">+{formatCurrency(slip.overtime)}</td>
-                        <td className="p-4 text-sm text-red-600">-{formatCurrency(slip.deductions + slip.tax)}</td>
-                        <td className="p-4 font-semibold text-sm">{formatCurrency(slip.netPay)}</td>
+                        <td className="p-4 text-sm">{p.period}</td>
+                        <td className="p-4 text-sm text-right">{ngn(p.grossPay)}</td>
+                        <td className="p-4 text-sm font-medium text-right">{ngn(p.netPay)}</td>
                         <td className="p-4">
-                          <Badge 
-                            variant="secondary" 
-                            className={cn("text-xs font-normal", getStatusColor(slip.status))}
+                          <Badge
+                            variant="secondary"
+                            className={cn("text-xs font-normal capitalize", statusColor(p.status))}
                           >
-                            {slip.status}
+                            {p.status}
                           </Badge>
                         </td>
-                        <td className="p-4">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                        <td className="p-4 text-sm text-muted-foreground">
+                          {p.paymentDate ? format(new Date(p.paymentDate), "MMM d, yyyy") : "—"}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </CardContent>
-          </Card>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
-          {/* Pagination */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">Showing 1-5 of 24 payslips</p>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled className="h-8">Previous</Button>
-              <Button variant="outline" size="sm" className="h-8">Next</Button>
-            </div>
-          </div>
-        </div>
+      {total > 0 && (
+        <TablePagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={total}
+          startIndex={startIndex + 1}
+          endIndex={endIndex}
+          pageSize={pageSize}
+          onPageChange={setPage}
+        />
+      )}
 
-        {/* Sidebar - Hidden on mobile */}
-        <div className="hidden lg:block space-y-6">
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setIsGenerateSheetOpen(true)}>
-                <FileText className="mr-2 h-4 w-4" />
-                Generate All Payslips
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Download className="mr-2 h-4 w-4" />
-                Export to Excel
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Users className="mr-2 h-4 w-4" />
-                Bulk Pay
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Payment Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total Base</span>
-                <span className="font-medium">₦6.0M</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total Overtime</span>
-                <span className="font-medium text-green-600">+₦450K</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total Deductions</span>
-                <span className="font-medium text-red-600">-₦380K</span>
-              </div>
-              <div className="border-t pt-3 flex justify-between text-sm">
-                <span className="font-medium">Net Payroll</span>
-                <span className="font-semibold">₦6.07M</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {[
-                { action: "Payslip generated", staff: "John Doe", time: "2 hours ago" },
-                { action: "Payment approved", staff: "Sarah Smith", time: "4 hours ago" },
-                { action: "Overtime added", staff: "Mike Johnson", time: "1 day ago" },
-              ].map((activity, i) => (
-                <div key={i} className="flex items-start gap-3 text-sm">
-                  <div className="h-2 w-2 rounded-full bg-primary mt-1.5" />
-                  <div>
-                    <p className="text-muted-foreground">{activity.action}</p>
-                    <p className="text-xs text-muted-foreground">{activity.staff} • {activity.time}</p>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* View Payslip Sheet */}
-      <Sheet open={isViewSheetOpen} onOpenChange={setIsViewSheetOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <div className="flex items-center gap-3">
-              <Avatar className="h-12 w-12">
-                <AvatarFallback className="bg-primary/10 text-primary">
-                  {selectedPayslip?.staff.split(' ').map(n => n[0]).join('')}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <SheetTitle>{selectedPayslip?.staff}</SheetTitle>
-                <SheetDescription>{selectedPayslip?.role} • {selectedPayslip?.period}</SheetDescription>
-              </div>
-            </div>
+      <Sheet open={sheetOpen} onOpenChange={(o) => (o ? setSheetOpen(true) : close())}>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+          <SheetHeader className="space-y-1 pb-4 border-b">
+            <SheetTitle>
+              {sheetMode === "create"
+                ? "Create Payslip"
+                : sheetMode === "edit"
+                  ? "Edit Payslip"
+                  : sheetMode === "mark-paid"
+                    ? "Mark as Paid"
+                    : selected
+                      ? `${selected.staffName} – ${selected.period}`
+                      : "Payslip"}
+            </SheetTitle>
+            {sheetMode === "view" && selected && (
+              <SheetDescription>
+                {format(new Date(selected.periodStart), "MMM d")} –{" "}
+                {format(new Date(selected.periodEnd), "MMM d, yyyy")}
+              </SheetDescription>
+            )}
           </SheetHeader>
-          
-          <Tabs defaultValue="summary" className="mt-6">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="summary">Summary</TabsTrigger>
-              <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
-              <TabsTrigger value="history">History</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="summary" className="space-y-4 mt-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Status</span>
-                <Badge className={cn("text-xs", getStatusColor(selectedPayslip?.status || ""))}>
-                  {selectedPayslip?.status}
-                </Badge>
-              </div>
-              
-              <Card className="border-border/50">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Base Salary</span>
-                    <span className="font-medium">{formatCurrency(selectedPayslip?.baseSalary || 0)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Overtime</span>
-                    <span className="font-medium text-green-600">+{formatCurrency(selectedPayslip?.overtime || 0)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Bonus</span>
-                    <span className="font-medium text-green-600">+{formatCurrency(selectedPayslip?.bonus || 0)}</span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Gross Pay</span>
-                    <span className="font-medium">{formatCurrency((selectedPayslip?.baseSalary || 0) + (selectedPayslip?.overtime || 0) + (selectedPayslip?.bonus || 0))}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Deductions</span>
-                    <span className="font-medium text-red-600">-{formatCurrency(selectedPayslip?.deductions || 0)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Tax</span>
-                    <span className="font-medium text-red-600">-{formatCurrency(selectedPayslip?.tax || 0)}</span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <span className="font-medium">Net Pay</span>
-                    <span className="text-lg font-semibold text-primary">{formatCurrency(selectedPayslip?.netPay || 0)}</span>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="p-3 border rounded-lg">
-                  <p className="text-muted-foreground text-xs">Bank Account</p>
-                  <p className="font-medium">{selectedPayslip?.bankAccount}</p>
-                </div>
-                <div className="p-3 border rounded-lg">
-                  <p className="text-muted-foreground text-xs">Paid On</p>
-                  <p className="font-medium">{selectedPayslip?.paidDate || "Pending"}</p>
-                </div>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="breakdown" className="space-y-4 mt-4">
-              <BreakdownTab payslip={selectedPayslip} formatCurrency={formatCurrency} />
-            </TabsContent>
-            
-            <TabsContent value="history" className="space-y-3 mt-4">
-              {["Jan 2026", "Dec 2025", "Nov 2025", "Oct 2025"].map((period, i) => (
-                <div key={period} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div>
-                    <p className="text-sm font-medium">{period}</p>
-                    <p className="text-xs text-muted-foreground">Paid on {25 - i}/01/2026</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">{formatCurrency((selectedPayslip?.netPay || 0) - (i * 5000))}</p>
-                    <Badge variant="outline" className="text-xs">Paid</Badge>
-                  </div>
-                </div>
-              ))}
-            </TabsContent>
-          </Tabs>
-          
-          <SheetFooter className="flex-col sm:flex-row gap-2 mt-6">
-            <Button variant="outline" className="w-full sm:w-auto">
-              <Mail className="h-4 w-4 mr-2" />Email
-            </Button>
-            <Button variant="outline" className="w-full sm:w-auto">
-              <Printer className="h-4 w-4 mr-2" />Print
-            </Button>
-            <Button className="w-full sm:w-auto">
-              <Download className="h-4 w-4 mr-2" />Download PDF
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
 
-      {/* Generate Payslips Sheet */}
-      <Sheet open={isGenerateSheetOpen} onOpenChange={setIsGenerateSheetOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Generate Payslips</SheetTitle>
-            <SheetDescription>Create payslips for the selected period</SheetDescription>
-          </SheetHeader>
-          <div className="grid gap-6 py-6">
-            <div className="space-y-2">
-              <Label>Pay Period</Label>
-              <Select defaultValue="jan2026">
-                <SelectTrigger>
-                  <SelectValue placeholder="Select period" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="jan2026">January 2026</SelectItem>
-                  <SelectItem value="feb2026">February 2026</SelectItem>
-                </SelectContent>
-              </Select>
+          {sheetMode === "view" && selected ? (
+            <div className="mt-4">
+              <Tabs defaultValue="summary">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="summary">Summary</TabsTrigger>
+                  <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
+                  <TabsTrigger value="payment">Payment</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="summary" className="space-y-4 mt-4">
+                  <div className="grid gap-3 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Status</span>
+                      <Badge className={cn("text-xs capitalize", statusColor(selected.status))}>
+                        {selected.status}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Base Salary</span>
+                      <span className="font-medium">{ngn(selected.baseSalary)}</span>
+                    </div>
+                    {selected.hoursWorked != null && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Hours Worked</span>
+                        <span className="font-medium">{selected.hoursWorked}</span>
+                      </div>
+                    )}
+                    {selected.overtimeHours ? (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Overtime</span>
+                        <span className="font-medium">
+                          {selected.overtimeHours}h × {ngn(selected.overtimeRate ?? 0)}
+                        </span>
+                      </div>
+                    ) : null}
+                    <Separator />
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Gross Pay</span>
+                      <span className="font-medium">{ngn(selected.grossPay)}</span>
+                    </div>
+                    <div className="flex justify-between text-base">
+                      <span className="font-medium">Net Pay</span>
+                      <span className="font-semibold">{ngn(selected.netPay)}</span>
+                    </div>
+                  </div>
+                  {selected.notes && (
+                    <div className="pt-3 border-t text-sm">
+                      <p className="text-muted-foreground text-xs mb-1">Notes</p>
+                      <p>{selected.notes}</p>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="breakdown" className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-muted-foreground">Additions</h4>
+                    {selected.additions.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">None</p>
+                    ) : (
+                      selected.additions.map((a) => (
+                        <div
+                          key={a.id}
+                          className="flex justify-between text-sm border rounded p-2"
+                        >
+                          <span>
+                            {a.name} <span className="text-muted-foreground">({a.type})</span>
+                          </span>
+                          <span className="font-medium text-green-600">+{ngn(a.amount)}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="space-y-2 pt-3 border-t">
+                    <h4 className="text-sm font-medium text-muted-foreground">Deductions</h4>
+                    {selected.deductions.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">None</p>
+                    ) : (
+                      selected.deductions.map((a) => (
+                        <div
+                          key={a.id}
+                          className="flex justify-between text-sm border rounded p-2"
+                        >
+                          <span>
+                            {a.name} <span className="text-muted-foreground">({a.type})</span>
+                          </span>
+                          <span className="font-medium text-red-600">-{ngn(a.amount)}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="payment" className="space-y-3 mt-4 text-sm">
+                  {selected.paymentDate ? (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Paid On</span>
+                        <span className="font-medium">
+                          {format(new Date(selected.paymentDate), "PPP")}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Method</span>
+                        <span className="font-medium capitalize">{selected.paymentMethod}</span>
+                      </div>
+                      {selected.receiptUrl && (
+                        <div>
+                          <a
+                            href={selected.receiptUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary underline text-sm"
+                          >
+                            View receipt
+                          </a>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground">Not yet paid.</p>
+                  )}
+                </TabsContent>
+              </Tabs>
+
+              <SheetFooter className="flex-col sm:flex-row gap-2 mt-6 pt-4 border-t">
+                {selected.status === "draft" && (
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => openEdit(selected)}
+                  >
+                    Edit
+                  </Button>
+                )}
+                {(selected.status === "draft" || selected.status === "pending") && (
+                  <Button
+                    className="w-full sm:w-auto"
+                    onClick={handleApprove}
+                    disabled={approvePayslip.isPending}
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Approve
+                  </Button>
+                )}
+                {selected.status === "approved" && (
+                  <Button
+                    className="w-full sm:w-auto"
+                    onClick={() => openMarkPaid(selected)}
+                  >
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Mark Paid
+                  </Button>
+                )}
+                {selected.status === "draft" && (
+                  <Button
+                    variant="destructive"
+                    className="w-full sm:w-auto"
+                    onClick={handleDelete}
+                    disabled={deletePayslip.isPending}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                )}
+              </SheetFooter>
             </div>
-            <div className="space-y-2">
-              <Label>Staff Selection</Label>
-              <Select defaultValue="all">
-                <SelectTrigger>
-                  <SelectValue placeholder="Select staff" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Staff (24)</SelectItem>
-                  <SelectItem value="managers">Managers Only (4)</SelectItem>
-                  <SelectItem value="kitchen">Kitchen Staff (8)</SelectItem>
-                  <SelectItem value="servers">Servers (12)</SelectItem>
-                </SelectContent>
-              </Select>
+          ) : sheetMode === "mark-paid" && selected ? (
+            <div className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Payment Date</Label>
+                <Input
+                  type="date"
+                  value={paidForm.paymentDate}
+                  onChange={(e) =>
+                    setPaidForm({ ...paidForm, paymentDate: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <Select
+                  value={paidForm.paymentMethod}
+                  onValueChange={(v) =>
+                    setPaidForm({
+                      ...paidForm,
+                      paymentMethod: v as MarkPaidForm["paymentMethod"],
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bank">Bank Transfer</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="check">Check</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Receipt URL (optional)</Label>
+                <Input
+                  type="url"
+                  placeholder="https://…"
+                  value={paidForm.receiptUrl}
+                  onChange={(e) => setPaidForm({ ...paidForm, receiptUrl: e.target.value })}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t">
+                <Button variant="outline" className="flex-1" onClick={close}>
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleMarkPaid}
+                  disabled={markPaid.isPending}
+                >
+                  Confirm Payment
+                </Button>
+              </div>
             </div>
-            <Card className="border-border/50">
-              <CardContent className="p-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Staff Selected</span>
-                  <span className="font-medium">24</span>
+          ) : (
+            <div className="space-y-4 mt-4">
+              {sheetMode === "create" && (
+                <div className="space-y-2">
+                  <Label>Staff Member</Label>
+                  <Select
+                    value={form.staffId}
+                    onValueChange={(v) => setForm({ ...form, staffId: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select staff" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(staffQuery.data?.data ?? []).map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.firstName} {s.lastName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Estimated Total</span>
-                  <span className="font-medium">₦6.07M</span>
+              )}
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label>Period (YYYY-MM)</Label>
+                  <Input
+                    value={form.period}
+                    onChange={(e) => setForm({ ...form, period: e.target.value })}
+                  />
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Pay Date</span>
-                  <span className="font-medium">25th Jan 2026</span>
+                <div className="space-y-2">
+                  <Label>Period Start</Label>
+                  <Input
+                    type="date"
+                    value={form.periodStart}
+                    onChange={(e) => setForm({ ...form, periodStart: e.target.value })}
+                  />
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-          <SheetFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsGenerateSheetOpen(false)} className="w-full sm:w-auto">Cancel</Button>
-            <Button className="w-full sm:w-auto">Generate Payslips</Button>
-          </SheetFooter>
+                <div className="space-y-2">
+                  <Label>Period End</Label>
+                  <Input
+                    type="date"
+                    value={form.periodEnd}
+                    onChange={(e) => setForm({ ...form, periodEnd: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Base Salary (₦)</Label>
+                <Input
+                  type="number"
+                  value={form.baseSalary}
+                  onChange={(e) => setForm({ ...form, baseSalary: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label>Hours</Label>
+                  <Input
+                    type="number"
+                    value={form.hoursWorked}
+                    onChange={(e) => setForm({ ...form, hoursWorked: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>OT Hours</Label>
+                  <Input
+                    type="number"
+                    value={form.overtimeHours}
+                    onChange={(e) => setForm({ ...form, overtimeHours: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>OT Rate (₦)</Label>
+                  <Input
+                    type="number"
+                    value={form.overtimeRate}
+                    onChange={(e) => setForm({ ...form, overtimeRate: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-3 border-t">
+                <div className="flex items-center justify-between">
+                  <Label>Adjustments</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addAdjustment(false)}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add bonus
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addAdjustment(true)}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add deduction
+                    </Button>
+                  </div>
+                </div>
+                {form.adjustments.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No adjustments. Add bonuses, allowances, or deductions.
+                  </p>
+                ) : (
+                  form.adjustments.map((a, i) => (
+                    <div
+                      key={i}
+                      className="grid grid-cols-12 gap-2 items-end border rounded-lg p-2"
+                    >
+                      <div className="col-span-4 space-y-1">
+                        <Label className="text-xs">Name</Label>
+                        <Input
+                          value={a.name}
+                          onChange={(e) => updateAdjustment(i, { name: e.target.value })}
+                        />
+                      </div>
+                      <div className="col-span-3 space-y-1">
+                        <Label className="text-xs">Amount</Label>
+                        <Input
+                          type="number"
+                          value={a.amount}
+                          onChange={(e) => updateAdjustment(i, { amount: e.target.value })}
+                        />
+                      </div>
+                      <div className="col-span-3 space-y-1">
+                        <Label className="text-xs">Type</Label>
+                        <Select
+                          value={a.type}
+                          onValueChange={(v) =>
+                            updateAdjustment(i, { type: v as PayslipAdjustment["type"] })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="bonus">Bonus</SelectItem>
+                            <SelectItem value="allowance">Allowance</SelectItem>
+                            <SelectItem value="commission">Commission</SelectItem>
+                            <SelectItem value="tax">Tax</SelectItem>
+                            <SelectItem value="insurance">Insurance</SelectItem>
+                            <SelectItem value="loan">Loan</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="col-span-2 flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeAdjustment(i)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                      <div className="col-span-12 text-xs text-muted-foreground">
+                        {a.isDeduction ? "Deduction (subtracted)" : "Addition (added)"}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Textarea
+                  rows={2}
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t">
+                <Button variant="outline" className="flex-1" onClick={close}>
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={sheetMode === "create" ? handleCreate : handleUpdate}
+                  disabled={createPayslip.isPending || updatePayslip.isPending}
+                >
+                  {sheetMode === "create" ? "Create Payslip" : "Save Changes"}
+                </Button>
+              </div>
+            </div>
+          )}
         </SheetContent>
       </Sheet>
     </div>

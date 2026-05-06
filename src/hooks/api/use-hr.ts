@@ -23,6 +23,7 @@ export function useUpdateStaff() { const qc = useQueryClient(); return useMutati
 export function useDeleteStaff() { const qc = useQueryClient(); return useMutation({ mutationFn: (id: string) => hrService.deleteStaff(id), onSuccess: () => qc.invalidateQueries({ queryKey: hrKeys.staff() }) }); }
 
 export function useRoles(filters?: RoleFilters) { return useQuery({ queryKey: [...hrKeys.roles(), filters], queryFn: () => hrService.getRoles(filters) }); }
+export function usePermissions() { return useQuery({ queryKey: [...hrKeys.all, "permissions"], queryFn: () => hrService.getPermissions(), staleTime: 5 * 60 * 1000 }); }
 export function useRole(id: string) { return useQuery({ queryKey: hrKeys.role(id), queryFn: () => hrService.getRole(id), enabled: !!id }); }
 export function useCreateRole() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreateRoleRequest) => hrService.createRole(data), onSuccess: () => qc.invalidateQueries({ queryKey: hrKeys.roles() }) }); }
 export function useUpdateRole() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateRoleRequest }) => hrService.updateRole(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: hrKeys.roles() }) }); }
@@ -33,8 +34,82 @@ export function useShift(id: string) { return useQuery({ queryKey: hrKeys.shift(
 export function useCreateShift() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreateShiftRequest) => hrService.createShift(data), onSuccess: () => qc.invalidateQueries({ queryKey: hrKeys.shifts() }) }); }
 export function useUpdateShift() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateShiftRequest }) => hrService.updateShift(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: hrKeys.shifts() }) }); }
 export function useDeleteShift() { const qc = useQueryClient(); return useMutation({ mutationFn: (id: string) => hrService.deleteShift(id), onSuccess: () => qc.invalidateQueries({ queryKey: hrKeys.shifts() }) }); }
+export function useAdminEndShift() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => hrService.adminEndShift(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: hrKeys.shifts() }),
+  });
+}
+export function useAddShiftBreak() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      shiftId,
+      ...payload
+    }: {
+      shiftId: string;
+      type: "lunch" | "rest" | "other";
+      startTime: string;
+      durationMinutes: number;
+      notes?: string;
+    }) => hrService.addShiftBreak(shiftId, payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: hrKeys.shifts() }),
+  });
+}
+export function useDeleteShiftBreak() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ shiftId, breakId }: { shiftId: string; breakId: string }) =>
+      hrService.deleteShiftBreak(shiftId, breakId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: hrKeys.shifts() }),
+  });
+}
+export function useSetStaffPin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, pin }: { id: string; pin: string }) =>
+      hrService.setStaffPin(id, pin),
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: hrKeys.staff() });
+      qc.invalidateQueries({ queryKey: hrKeys.staffMember(id) });
+    },
+  });
+}
+export function useClearStaffPin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => hrService.clearStaffPin(id),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: hrKeys.staff() });
+      qc.invalidateQueries({ queryKey: hrKeys.staffMember(id) });
+    },
+  });
+}
 
 export function usePayslips(filters?: PayslipFilters) { return useQuery({ queryKey: [...hrKeys.payslips(), filters], queryFn: () => hrService.getPayslips(filters) }); }
+export function useApprovePayslip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => hrService.approvePayslip(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: hrKeys.payslips() }),
+  });
+}
+export function useMarkPayslipPaid() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...payload
+    }: {
+      id: string;
+      paymentDate: string;
+      paymentMethod: string;
+      receiptUrl?: string;
+    }) => hrService.markPayslipPaid(id, payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: hrKeys.payslips() }),
+  });
+}
 export function usePayslip(id: string) { return useQuery({ queryKey: hrKeys.payslip(id), queryFn: () => hrService.getPayslip(id), enabled: !!id }); }
 export function useCreatePayslip() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreatePayslipRequest) => hrService.createPayslip(data), onSuccess: () => qc.invalidateQueries({ queryKey: hrKeys.payslips() }) }); }
 export function useUpdatePayslip() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdatePayslipRequest }) => hrService.updatePayslip(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: hrKeys.payslips() }) }); }
