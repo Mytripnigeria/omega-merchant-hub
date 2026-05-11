@@ -95,6 +95,9 @@ export function StoresSettingsTab() {
   const [formIsActive, setFormIsActive] = useState(true);
   const [formHours, setFormHours] = useState<WeeklyHours>(DEFAULT_HOURS);
   const [formRadius, setFormRadius] = useState<string>("");
+  const [formDeliveryFee, setFormDeliveryFee] = useState<string>("");
+  const [formLatitude, setFormLatitude] = useState<string>("");
+  const [formLongitude, setFormLongitude] = useState<string>("");
 
   const resetForm = () => {
     setFormName("");
@@ -108,6 +111,9 @@ export function StoresSettingsTab() {
     setFormIsActive(true);
     setFormHours(DEFAULT_HOURS);
     setFormRadius("");
+    setFormDeliveryFee("");
+    setFormLatitude("");
+    setFormLongitude("");
   };
 
   useEffect(() => {
@@ -125,6 +131,19 @@ export function StoresSettingsTab() {
       setFormRadius(
         selectedStore.deliveryRadiusKm != null
           ? String(selectedStore.deliveryRadiusKm)
+          : "",
+      );
+      setFormDeliveryFee(
+        selectedStore.deliveryFee != null
+          ? String(selectedStore.deliveryFee)
+          : "",
+      );
+      setFormLatitude(
+        selectedStore.latitude != null ? String(selectedStore.latitude) : "",
+      );
+      setFormLongitude(
+        selectedStore.longitude != null
+          ? String(selectedStore.longitude)
           : "",
       );
     }
@@ -164,6 +183,9 @@ export function StoresSettingsTab() {
     timezone: formTimezone,
     openingHours: formHours,
     deliveryRadiusKm: formRadius ? Number(formRadius) : undefined,
+    deliveryFee: formDeliveryFee ? Number(formDeliveryFee) : undefined,
+    latitude: formLatitude ? Number(formLatitude) : undefined,
+    longitude: formLongitude ? Number(formLongitude) : undefined,
   });
 
   const handleSubmit = async () => {
@@ -417,6 +439,40 @@ export function StoresSettingsTab() {
                     value={formRadius}
                     onChange={(e) => setFormRadius(e.target.value)}
                     disabled={sheetMode === "view"}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Delivery fee (₦)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="1"
+                    value={formDeliveryFee}
+                    onChange={(e) => setFormDeliveryFee(e.target.value)}
+                    disabled={sheetMode === "view"}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Latitude</Label>
+                  <Input
+                    type="number"
+                    step="0.0000001"
+                    value={formLatitude}
+                    onChange={(e) => setFormLatitude(e.target.value)}
+                    disabled={sheetMode === "view"}
+                    placeholder="e.g. 6.4541"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Longitude</Label>
+                  <Input
+                    type="number"
+                    step="0.0000001"
+                    value={formLongitude}
+                    onChange={(e) => setFormLongitude(e.target.value)}
+                    disabled={sheetMode === "view"}
+                    placeholder="e.g. 3.3947"
                   />
                 </div>
               </div>

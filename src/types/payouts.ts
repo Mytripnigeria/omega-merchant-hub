@@ -1,100 +1,77 @@
-// Payouts Types
+export type PayoutStatus =
+  | "pending"
+  | "queued"
+  | "processing"
+  | "success"
+  | "failed"
+  | "cancelled";
 
-export interface Payout {
+export interface PayoutBankAccount {
   id: string;
-  storeId: string;
-  period: string;
-  periodStart: string;
-  periodEnd: string;
-  grossAmount: number;
-  fees: PayoutFee[];
-  totalFees: number;
-  commissions: PayoutCommission[];
-  totalCommissions: number;
-  taxes: PayoutTax[];
-  totalTaxes: number;
-  netAmount: number;
-  status: "pending" | "processing" | "completed" | "failed" | "on-hold";
-  paymentMethod?: "bank-transfer" | "check" | "other";
-  bankName?: string;
-  bankAccount?: string;
-  scheduledDate?: string;
-  paidDate?: string;
-  transactionRef?: string;
-  notes?: string;
+  businessId: string;
+  label: string;
+  accountNumber: string;
+  bankCode: string;
+  bankName: string | null;
+  accountName: string | null;
+  currency: string;
+  isDefault: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface PayoutFee {
-  id: string;
-  name: string;
-  type: "platform" | "processing" | "gateway" | "other";
-  amount: number;
-  percentage?: number;
+export interface CreatePayoutBankAccountRequest {
+  label: string;
+  accountNumber: string;
+  bankCode: string;
+  isDefault?: boolean;
 }
 
-export interface PayoutCommission {
-  id: string;
-  name: string;
-  type: "sales" | "delivery" | "referral" | "other";
-  amount: number;
-  percentage?: number;
-  ordersCount?: number;
+export interface UpdatePayoutBankAccountRequest {
+  label?: string;
+  isDefault?: boolean;
 }
 
-export interface PayoutTax {
+export interface Payout {
   id: string;
-  name: string;
-  type: "vat" | "withholding" | "sales-tax" | "other";
+  businessId: string;
+  reference: string;
+  bankAccountId: string;
   amount: number;
-  rate?: number;
+  currency: string;
+  status: PayoutStatus;
+  providerTransferCode: string | null;
+  providerStatus: string | null;
+  failureReason: string | null;
+  requestedById: string | null;
+  requestedByName: string | null;
+  note: string | null;
+  queuedAt: string | null;
+  processingAt: string | null;
+  settledAt: string | null;
+  bankAccount: PayoutBankAccount | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
-// Filters
+export interface CreatePayoutRequest {
+  amount: number;
+  bankAccountId: string;
+  note?: string;
+}
+
 export interface PayoutFilters {
-  storeId?: string;
-  status?: Payout["status"];
-  periodFrom?: string;
-  periodTo?: string;
+  status?: PayoutStatus;
+  dateFrom?: string;
+  dateTo?: string;
   page?: number;
   limit?: number;
 }
 
-// Request types
-export interface CreatePayoutRequest {
-  storeId: string;
-  period: string;
-  periodStart: string;
-  periodEnd: string;
-  grossAmount: number;
-  fees?: Omit<PayoutFee, 'id'>[];
-  commissions?: Omit<PayoutCommission, 'id'>[];
-  taxes?: Omit<PayoutTax, 'id'>[];
-  paymentMethod?: Payout["paymentMethod"];
-  scheduledDate?: string;
-  notes?: string;
-}
-
-export interface UpdatePayoutRequest {
-  grossAmount?: number;
-  fees?: PayoutFee[];
-  commissions?: PayoutCommission[];
-  taxes?: PayoutTax[];
-  status?: Payout["status"];
-  paymentMethod?: Payout["paymentMethod"];
-  paidDate?: string;
-  transactionRef?: string;
-  notes?: string;
-}
-
-// Stats
 export interface PayoutStats {
-  totalPayouts: number;
-  pendingPayouts: number;
-  completedPayouts: number;
-  totalPaidAmount: number;
-  totalFees: number;
-  totalCommissions: number;
-  averagePayoutAmount: number;
+  totalPaidOut: number;
+  totalPending: number;
+  successCount: number;
+  failedCount: number;
+  inFlightCount: number;
 }

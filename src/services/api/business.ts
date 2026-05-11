@@ -29,6 +29,8 @@ export interface BusinessSettings {
   receiptCustomerCopy: boolean;
   notificationDoNotDisturbStart?: string | null;
   notificationDoNotDisturbEnd?: string | null;
+  /** VAT rate fraction (0.075 = 7.5%) used at checkout. */
+  taxRate?: number;
 }
 
 export const businessApi = {

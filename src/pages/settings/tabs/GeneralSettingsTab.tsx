@@ -9,7 +9,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
-import { useBusiness, useUpdateBusiness } from "@/hooks/api/use-settings";
+import {
+  useBusiness,
+  useBusinessSettings,
+  useUpdateBusiness,
+  useUpdateBusinessSettings,
+} from "@/hooks/api/use-settings";
 import { useUploadImage } from "@/hooks/api/use-stock";
 
 const CURRENCIES = ["NGN", "USD", "EUR", "GBP", "GHS", "KES", "ZAR"];
@@ -25,8 +30,31 @@ const TIMEZONES = [
 
 export function GeneralSettingsTab() {
   const { data: business, isLoading } = useBusiness();
+  const { data: settings } = useBusinessSettings();
   const updateBusiness = useUpdateBusiness();
+  const updateSettings = useUpdateBusinessSettings();
   const uploadImage = useUploadImage();
+  const [taxRatePct, setTaxRatePct] = useState<string>("");
+
+  useEffect(() => {
+    if (settings) {
+      setTaxRatePct(((Number(settings.taxRate ?? 0.075)) * 100).toFixed(2));
+    }
+  }, [settings]);
+
+  const handleSaveTaxRate = async () => {
+    const pct = Number(taxRatePct);
+    if (Number.isNaN(pct) || pct < 0 || pct > 100) {
+      toast.error("Tax rate must be between 0 and 100");
+      return;
+    }
+    try {
+      await updateSettings.mutateAsync({ taxRate: pct / 100 });
+      toast.success("Tax rate updated");
+    } catch (e) {
+      toast.error((e as Error).message ?? "Couldn't update tax rate");
+    }
+  };
 
   const [name, setName] = useState("");
   const [legalName, setLegalName] = useState("");
@@ -259,6 +287,43 @@ export function GeneralSettingsTab() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Tax</CardTitle>
+          <CardDescription>
+            Single VAT rate applied to every storefront and POS order. Stored
+            on the business and used to calculate tax at checkout.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+            <div className="space-y-2">
+              <Label>Tax rate (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                value={taxRatePct}
+                onChange={(e) => setTaxRatePct(e.target.value)}
+                placeholder="7.50"
+              />
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleSaveTaxRate}
+              disabled={updateSettings.isPending}
+              className="self-end"
+            >
+              {updateSettings.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Save tax rate
+            </Button>
           </div>
         </CardContent>
       </Card>

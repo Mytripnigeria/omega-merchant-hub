@@ -1,11 +1,9 @@
-// Operations, Payouts, Suppliers, Transactions API Hooks
+// Operations, Suppliers, Transactions API Hooks (Payouts live in use-payouts.ts)
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { operationsService } from "@/services/mock/operations";
-import { payoutService } from "@/services/mock/payouts";
 import { supplierService } from "@/services/mock/suppliers";
 import { transactionService } from "@/services/mock/transactions";
 import type { ChecklistFilters, CreateChecklistRequest, UpdateChecklistRequest, ExpenseFilters, CreateExpenseRequest, UpdateExpenseRequest, WasteLogFilters, CreateWasteLogRequest, UpdateWasteLogRequest, KPITargetFilters, CreateKPITargetRequest, UpdateKPITargetRequest, SalesTargetFilters, CreateSalesTargetRequest, UpdateSalesTargetRequest } from "@/types/operations";
-import type { PayoutFilters, CreatePayoutRequest, UpdatePayoutRequest } from "@/types/payouts";
 import type { SupplierFilters, CreateSupplierRequest, UpdateSupplierRequest, PurchaseOrderFilters, CreatePurchaseOrderRequest, UpdatePurchaseOrderRequest } from "@/types/suppliers";
 import type { TransactionFilters, CreateTransactionRequest, UpdateTransactionRequest, AccountBalanceFilters, CreateAccountBalanceRequest, UpdateAccountBalanceRequest, CloseAccountBalanceRequest } from "@/types/transactions";
 
@@ -32,14 +30,6 @@ export function useCreateSalesTarget() { const qc = useQueryClient(); return use
 export function useUpdateSalesTarget() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateSalesTargetRequest }) => operationsService.updateSalesTarget(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.salesTargets() }) }); }
 export function useDeleteSalesTarget() { const qc = useQueryClient(); return useMutation({ mutationFn: (id: string) => operationsService.deleteSalesTarget(id), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.salesTargets() }) }); }
 export function useOperationsStats(storeId?: string) { return useQuery({ queryKey: operationsKeys.stats(storeId), queryFn: () => operationsService.getStats(storeId) }); }
-
-// Payouts
-export const payoutKeys = { all: ["payouts"] as const, list: () => [...payoutKeys.all, "list"] as const, stats: (storeId?: string) => [...payoutKeys.all, "stats", storeId] as const };
-export function usePayouts(filters?: PayoutFilters) { return useQuery({ queryKey: [...payoutKeys.list(), filters], queryFn: () => payoutService.getPayouts(filters) }); }
-export function usePayout(id: string) { return useQuery({ queryKey: [...payoutKeys.all, id], queryFn: () => payoutService.getPayout(id), enabled: !!id }); }
-export function useCreatePayout() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreatePayoutRequest) => payoutService.createPayout(data), onSuccess: () => qc.invalidateQueries({ queryKey: payoutKeys.list() }) }); }
-export function useUpdatePayout() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdatePayoutRequest }) => payoutService.updatePayout(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: payoutKeys.list() }) }); }
-export function usePayoutStats(storeId?: string) { return useQuery({ queryKey: payoutKeys.stats(storeId), queryFn: () => payoutService.getStats(storeId) }); }
 
 // Suppliers
 export const supplierKeys = { all: ["suppliers"] as const, list: () => [...supplierKeys.all, "list"] as const, orders: () => [...supplierKeys.all, "orders"] as const, stats: (storeId?: string) => [...supplierKeys.all, "stats", storeId] as const };

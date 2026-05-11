@@ -29,6 +29,12 @@ export interface Store {
   timezone?: string;
   openingHours?: WeeklyHours | null;
   deliveryRadiusKm?: number | null;
+  /** Flat per-store delivery fee in ₦. Used by storefront-orders. */
+  deliveryFee?: number | null;
+  /** Latitude — used for haversine delivery-radius checks. */
+  latitude?: number | null;
+  /** Longitude — used for haversine delivery-radius checks. */
+  longitude?: number | null;
   isActive: boolean;
   createdAt: string;
   updatedAt?: string;
