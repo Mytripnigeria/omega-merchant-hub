@@ -163,10 +163,10 @@ export default function ProductsPage() {
 
   const { data: products = [], isLoading, error, refetch } = useProducts(filters);
   const { data: stats } = useProductStats(storeId);
-  const { data: categoriesData } = useCategories(storeId ? { storeId, limit: 200 } : undefined);
+  const { data: categoriesData, isError: categoriesError } = useCategories(storeId ? { storeId, limit: 200 } : undefined);
   const categories: Category[] = (categoriesData?.data as Category[] | undefined) ?? [];
-  const { data: ingredientsData } = useIngredients(storeId ? { storeId, limit: 200 } : undefined);
-  const { data: addonGroupsData } = useAddonGroups(storeId ? { storeId, limit: 200 } : undefined);
+  const { data: ingredientsData, isError: ingredientsError } = useIngredients(storeId ? { storeId, limit: 200 } : undefined);
+  const { data: addonGroupsData, isError: addonGroupsError } = useAddonGroups(storeId ? { storeId, limit: 200 } : undefined);
   const ingredients: Ingredient[] = ingredientsData?.data ?? [];
   const addonGroups: AddOnGroup[] = (addonGroupsData?.data as AddOnGroup[] | undefined) ?? [];
 
@@ -815,6 +815,11 @@ export default function ProductsPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                {categoriesError && (
+                  <p className="text-xs text-destructive">
+                    Couldn't load categories. Refresh and try again.
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Image</Label>
@@ -913,6 +918,11 @@ export default function ProductsPage() {
                     Add
                   </Button>
                 </div>
+                {ingredientsError && (
+                  <p className="text-xs text-destructive">
+                    Couldn't load ingredients. Refresh and try again.
+                  </p>
+                )}
                 {draftIngredients.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No ingredients linked.</p>
                 ) : (
@@ -1054,6 +1064,11 @@ export default function ProductsPage() {
 
               <div className="space-y-3 border-t pt-4">
                 <Label>Add-on Groups</Label>
+                {addonGroupsError && (
+                  <p className="text-xs text-destructive">
+                    Couldn't load add-on groups. Refresh and try again.
+                  </p>
+                )}
                 {addonGroups.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     No add-on groups exist yet. Create them in the Add-ons section.

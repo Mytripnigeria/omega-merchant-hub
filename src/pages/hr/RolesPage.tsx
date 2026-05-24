@@ -27,6 +27,7 @@ import {
   useStaff,
 } from "@/hooks/api/use-hr";
 import { useStore } from "@/contexts/StoreContext";
+import { ErrorState } from "@/components/ui/data-states";
 import type { Role } from "@/types/hr";
 
 interface RoleForm {
@@ -235,6 +236,12 @@ export default function RolesPage() {
                 <Skeleton key={i} className="h-40 w-full" />
               ))}
             </div>
+          ) : rolesQuery.isError ? (
+            <ErrorState
+              title="Couldn't load roles"
+              description={(rolesQuery.error as Error)?.message ?? "Please try again."}
+              onRetry={() => rolesQuery.refetch()}
+            />
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Shield className="h-10 w-10 text-muted-foreground mb-3" />

@@ -823,6 +823,16 @@ export default function StaffPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {rolesQuery.isError && (
+                    <p className="text-xs text-destructive">
+                      Couldn't load roles. Refresh and try again.
+                    </p>
+                  )}
+                  {!rolesQuery.isError && !rolesQuery.isLoading && roles.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      No roles yet — create one in Roles &amp; Permissions first.
+                    </p>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
