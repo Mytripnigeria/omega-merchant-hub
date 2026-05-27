@@ -90,6 +90,7 @@ const ExpensesPage = lazy(() => import("./pages/operations/ExpensesPage"));
 const SalesTargetPage = lazy(() => import("./pages/operations/SalesTargetPage"));
 const FoodCostPage = lazy(() => import("./pages/operations/FoodCostPage"));
 const WastePage = lazy(() => import("./pages/operations/WastePage"));
+const TablesPage = lazy(() => import("./pages/operations/TablesPage"));
 
 // Workstation
 const WorkstationPage = lazy(() => import("./pages/workstation/WorkstationPage"));
@@ -215,6 +216,7 @@ const App = () => (
                 <Route path="/operations/sales-target" element={<SalesTargetPage />} />
                 <Route path="/operations/food-cost" element={<FoodCostPage />} />
                 <Route path="/operations/waste" element={<WastePage />} />
+                <Route path="/operations/tables" element={<TablesPage />} />
                 
                 {/* Workstation */}
                 <Route path="/workstation" element={<WorkstationPage />} />

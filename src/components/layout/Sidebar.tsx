@@ -115,6 +115,7 @@ const navItems: NavItem[] = [
     title: "Operations",
     icon: ClipboardList,
     children: [
+      { title: "Tables", href: "/operations/tables" },
       { title: "Checklists", href: "/operations/checklists" },
       { title: "KPI Targets", href: "/operations/kpi" },
       { title: "Expenses", href: "/operations/expenses" },

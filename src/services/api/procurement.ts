@@ -196,6 +196,12 @@ export interface Equipment {
   status: EquipmentStatus;
   currentTemperature: number | null;
   targetTemperature: number | null;
+  /** Lower bound of the safe-temperature range (Celsius), or null. */
+  minTempC: number | null;
+  /** Upper bound of the safe-temperature range (Celsius), or null. */
+  maxTempC: number | null;
+  /** ISO timestamp of the latest temperature reading, or null. */
+  lastReadingAt: string | null;
   lastMaintenanceDate: string | null;
   nextMaintenanceDate: string | null;
   maintenanceCycleDays: number | null;
@@ -220,10 +226,34 @@ export interface CreateEquipmentRequest {
   status?: EquipmentStatus;
   currentTemperature?: number;
   targetTemperature?: number;
+  minTempC?: number;
+  maxTempC?: number;
   lastMaintenanceDate?: string;
   nextMaintenanceDate?: string;
   maintenanceCycleDays?: number;
   notes?: string;
+}
+
+export interface EquipmentTemperatureReading {
+  id: string;
+  equipmentId: string;
+  storeId: string;
+  temperatureC: number;
+  isInRange: boolean;
+  recordedById: string | null;
+  recordedByName: string | null;
+  note: string | null;
+  recordedAt: string;
+}
+
+export interface EquipmentTemperatureStatus {
+  equipmentId: string;
+  name: string;
+  minTempC: number | null;
+  maxTempC: number | null;
+  currentTemperature: number | null;
+  lastReadingAt: string | null;
+  state: "ok" | "out_of_range" | "stale" | "unmeasured";
 }
 
 export type MaintenanceType = "routine" | "repair" | "inspection" | "cleaning";
@@ -286,5 +316,30 @@ export const equipmentApi = {
       method: "POST",
       body: JSON.stringify(payload),
     });
+  },
+
+  /** Latest reading + state per monitored equipment item. */
+  temperatureStatus(params: { storeId?: string } = {}) {
+    return apiRequest<EquipmentTemperatureStatus[]>(
+      `/equipment/temperature/status${buildQs(params)}`,
+    );
+  },
+
+  /** Append a temperature reading to an equipment item. */
+  logTemperature(
+    id: string,
+    payload: { temperatureC: number; note?: string },
+  ) {
+    return apiRequest<EquipmentTemperatureReading>(
+      `/equipment/${id}/temperature-readings`,
+      { method: "POST", body: JSON.stringify(payload) },
+    );
+  },
+
+  /** Recent reading history for one equipment item. */
+  temperatureReadings(id: string, days = 7) {
+    return apiRequest<EquipmentTemperatureReading[]>(
+      `/equipment/${id}/temperature-readings?days=${days}`,
+    );
   },
 };

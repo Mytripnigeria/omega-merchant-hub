@@ -96,6 +96,9 @@ export interface Ingredient {
   costPerUnit: number;
   supplierId?: string;
   storeId: string;
+  /** Best-before / use-by date for the current batch (YYYY-MM-DD). */
+  expiryDate?: string | null;
+  lastRestocked?: string | null;
 }
 
 export interface ComboItem {

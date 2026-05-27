@@ -70,6 +70,8 @@ interface Ingredient {
   supplierId?: string;
   storeId: string;
   lastRestocked?: string;
+  /** Best-before / use-by date for the current batch (YYYY-MM-DD). */
+  expiryDate?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -165,6 +167,7 @@ export default function IngredientsPage() {
   const [formMinStock, setFormMinStock] = useState<number>(0);
   const [formCostPerUnit, setFormCostPerUnit] = useState<number>(0);
   const [formSupplierId, setFormSupplierId] = useState("");
+  const [formExpiryDate, setFormExpiryDate] = useState<string>("");
 
   // View sheet
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
@@ -175,6 +178,7 @@ export default function IngredientsPage() {
   const [adjustTarget, setAdjustTarget] = useState<Ingredient | null>(null);
   const [adjustAmount, setAdjustAmount] = useState<number>(0);
   const [adjustReason, setAdjustReason] = useState("");
+  const [adjustExpiryDate, setAdjustExpiryDate] = useState<string>("");
 
   const lowStockItems = ingredients.filter((i) => Number(i.currentStock) <= Number(i.minStock));
 
@@ -186,6 +190,7 @@ export default function IngredientsPage() {
     setFormMinStock(0);
     setFormCostPerUnit(0);
     setFormSupplierId("");
+    setFormExpiryDate("");
   };
 
   const openCreateSheet = () => {
@@ -208,6 +213,7 @@ export default function IngredientsPage() {
       setFormMinStock(Number(selectedIngredient.minStock ?? 0));
       setFormCostPerUnit(Number(selectedIngredient.costPerUnit ?? 0));
       setFormSupplierId(selectedIngredient.supplierId ?? "");
+      setFormExpiryDate(selectedIngredient.expiryDate ?? "");
     }
   }, [selectedIngredient, isFormSheetOpen]);
 
@@ -232,6 +238,7 @@ export default function IngredientsPage() {
       minStock: formMinStock,
       costPerUnit: formCostPerUnit,
       supplierId: formSupplierId || undefined,
+      expiryDate: formExpiryDate || undefined,
     };
     try {
       if (selectedIngredient) {
@@ -280,10 +287,16 @@ export default function IngredientsPage() {
         id: adjustTarget.id,
         adjustment: adjustAmount,
         reason: adjustReason || undefined,
+        // Best-before is only meaningful on stock intake (positive adjustments).
+        // The backend ignores it for negatives.
+        expiryDate: adjustAmount > 0 && adjustExpiryDate ? adjustExpiryDate : undefined,
       });
       toast.success("Stock adjusted");
       setIsAdjustSheetOpen(false);
       setAdjustTarget(null);
+      setAdjustExpiryDate("");
+      setAdjustAmount(0);
+      setAdjustReason("");
     } catch (err) {
       toast.error((err as Error).message ?? "Failed to adjust stock");
     }
@@ -582,6 +595,17 @@ export default function IngredientsPage() {
                 onChange={(e) => setFormSupplierId(e.target.value)}
               />
             </div>
+            <div className="space-y-2">
+              <Label>Best-before date (optional)</Label>
+              <Input
+                type="date"
+                value={formExpiryDate}
+                onChange={(e) => setFormExpiryDate(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Surfaced on the workstation's "Expiring Soon" alerts. Leave empty if not applicable.
+              </p>
+            </div>
           </div>
           <SheetFooter className="flex-col sm:flex-row gap-2">
             <Button
@@ -639,6 +663,19 @@ export default function IngredientsPage() {
                 rows={3}
               />
             </div>
+            {adjustAmount > 0 && (
+              <div className="space-y-2">
+                <Label>New best-before date (optional)</Label>
+                <Input
+                  type="date"
+                  value={adjustExpiryDate}
+                  onChange={(e) => setAdjustExpiryDate(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Updates the ingredient's expiry to match this incoming batch.
+                </p>
+              </div>
+            )}
           </div>
           <SheetFooter className="flex-col sm:flex-row gap-2">
             <Button

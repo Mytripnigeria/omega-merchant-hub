@@ -177,6 +177,10 @@ export const equipmentKeys = {
   detail: (id: string) => [...equipmentKeys.all, "detail", id] as const,
   maintenance: (id: string) =>
     [...equipmentKeys.all, "maintenance", id] as const,
+  temperatureStatus: (storeId?: string) =>
+    [...equipmentKeys.all, "temperature", "status", storeId] as const,
+  temperatureReadings: (id: string, days?: number) =>
+    [...equipmentKeys.all, "temperature", "readings", id, days] as const,
 };
 
 export function useEquipmentList(filters?: {
@@ -260,6 +264,49 @@ export function useLogMaintenance() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({
         queryKey: equipmentKeys.maintenance(vars.equipmentId),
+      });
+      qc.invalidateQueries({ queryKey: equipmentKeys.detail(vars.equipmentId) });
+      qc.invalidateQueries({ queryKey: equipmentKeys.lists() });
+    },
+  });
+}
+
+// ─── Equipment temperature monitoring ─────────────────────────────────
+
+export function useEquipmentTemperatureStatus(storeId?: string) {
+  return useQuery({
+    queryKey: equipmentKeys.temperatureStatus(storeId),
+    queryFn: () => equipmentApi.temperatureStatus({ storeId }),
+    refetchInterval: 5 * 60 * 1000,
+    enabled: !!storeId,
+  });
+}
+
+export function useEquipmentTemperatureReadings(id: string, days = 7) {
+  return useQuery({
+    queryKey: equipmentKeys.temperatureReadings(id, days),
+    queryFn: () => equipmentApi.temperatureReadings(id, days),
+    enabled: !!id,
+  });
+}
+
+export function useLogEquipmentTemperature() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      equipmentId,
+      ...payload
+    }: {
+      equipmentId: string;
+      temperatureC: number;
+      note?: string;
+    }) => equipmentApi.logTemperature(equipmentId, payload),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({
+        queryKey: equipmentKeys.temperatureReadings(vars.equipmentId),
+      });
+      qc.invalidateQueries({
+        queryKey: [...equipmentKeys.all, "temperature", "status"],
       });
       qc.invalidateQueries({ queryKey: equipmentKeys.detail(vars.equipmentId) });
       qc.invalidateQueries({ queryKey: equipmentKeys.lists() });

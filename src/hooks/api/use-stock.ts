@@ -186,11 +186,29 @@ export function useDeleteIngredient() {
 export function useAdjustStock() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, adjustment, reason }: { id: string; adjustment: number; reason?: string }) =>
-      ingredientApi.adjustStock(id, adjustment, reason),
+    mutationFn: ({
+      id,
+      adjustment,
+      reason,
+      expiryDate,
+    }: {
+      id: string;
+      adjustment: number;
+      reason?: string;
+      expiryDate?: string;
+    }) => ingredientApi.adjustStock(id, adjustment, reason, expiryDate),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: stockKeys.ingredients.all });
     },
+  });
+}
+
+export function useExpiringIngredients(params: { storeId?: string; days?: number } = {}) {
+  return useQuery({
+    queryKey: [...stockKeys.ingredients.all, 'expiring', params],
+    queryFn: () => ingredientApi.expiring(params),
+    enabled: !!params.storeId,
+    staleTime: 60 * 1000,
   });
 }
 

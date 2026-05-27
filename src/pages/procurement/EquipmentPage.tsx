@@ -72,6 +72,10 @@ interface EquipmentForm {
   purchasePrice: string;
   warrantyExpiry: string;
   maintenanceCycleDays: string;
+  /** Lower bound of the safe-temperature range, in Celsius. Blank = unset. */
+  minTempC: string;
+  /** Upper bound of the safe-temperature range, in Celsius. Blank = unset. */
+  maxTempC: string;
   notes: string;
 }
 
@@ -96,6 +100,8 @@ function emptyForm(): EquipmentForm {
     purchasePrice: "",
     warrantyExpiry: "",
     maintenanceCycleDays: "",
+    minTempC: "",
+    maxTempC: "",
     notes: "",
   };
 }
@@ -195,6 +201,8 @@ export default function EquipmentPage() {
     warrantyExpiry: e.warrantyExpiry ?? "",
     maintenanceCycleDays:
       e.maintenanceCycleDays != null ? String(e.maintenanceCycleDays) : "",
+    minTempC: e.minTempC != null ? String(e.minTempC) : "",
+    maxTempC: e.maxTempC != null ? String(e.maxTempC) : "",
     notes: e.notes ?? "",
   });
 
@@ -236,6 +244,8 @@ export default function EquipmentPage() {
     maintenanceCycleDays: form.maintenanceCycleDays
       ? Number(form.maintenanceCycleDays)
       : undefined,
+    minTempC: form.minTempC === "" ? undefined : Number(form.minTempC),
+    maxTempC: form.maxTempC === "" ? undefined : Number(form.maxTempC),
     notes: form.notes || undefined,
   });
 
@@ -808,6 +818,35 @@ export default function EquipmentPage() {
                     }
                   />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Min temperature (°C)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    placeholder="e.g., -22"
+                    value={form.minTempC}
+                    onChange={(e) =>
+                      setForm({ ...form, minTempC: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Max temperature (°C)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    placeholder="e.g., -15"
+                    value={form.maxTempC}
+                    onChange={(e) =>
+                      setForm({ ...form, maxTempC: e.target.value })
+                    }
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground col-span-2">
+                  When set, the workstation flags readings outside this range. Leave blank to skip temperature monitoring for this item.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Notes</Label>

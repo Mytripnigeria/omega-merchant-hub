@@ -154,11 +154,17 @@ export const ingredientApi = {
     return apiRequest<void>(`/ingredients/${id}`, { method: 'DELETE' });
   },
 
-  adjustStock(id: string, adjustment: number, reason?: string) {
+  adjustStock(id: string, adjustment: number, reason?: string, expiryDate?: string) {
     return apiRequest<Ingredient>(`/ingredients/${id}/adjust-stock`, {
       method: 'POST',
-      body: JSON.stringify({ adjustment, reason }),
+      body: JSON.stringify({ adjustment, reason, expiryDate }),
     });
+  },
+
+  /** Lists ingredients whose best-before is within `days` (default 14). */
+  expiring(params: { storeId?: string; days?: number } = {}) {
+    const qs = buildQs(params as Record<string, string | number | boolean | undefined>);
+    return apiRequest<Ingredient[]>(`/ingredients/expiring${qs}`);
   },
 };
 
