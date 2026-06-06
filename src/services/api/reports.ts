@@ -79,6 +79,45 @@ export interface TopProductsReport {
   rows: TopProductRow[];
 }
 
+export interface FoodCostCategoryRow {
+  categoryId: string | null;
+  name: string;
+  unitsSold: number;
+  totalCost: number;
+  totalRevenue: number;
+  /** Cost as a % of revenue for this category. */
+  foodCostPct: number;
+  margin: number;
+  /** This category's share of total food cost across the period (0–100). */
+  shareOfCost: number;
+}
+
+export interface FoodCostItemRow {
+  productId: string;
+  name: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  unitsSold: number;
+  costPrice: number;
+  sellingPrice: number;
+  totalCost: number;
+  totalRevenue: number;
+  foodCostPct: number;
+  margin: number;
+}
+
+export interface FoodCostReport {
+  itemsTracked: number;
+  unitsSold: number;
+  totalCost: number;
+  totalRevenue: number;
+  foodCostPct: number;
+  margin: number;
+  targetPct: number | null;
+  byCategory: FoodCostCategoryRow[];
+  byItem: FoodCostItemRow[];
+}
+
 export interface TopProductsFilter extends ReportsRange {
   limit?: number;
 }
@@ -90,7 +129,32 @@ export interface ReportsRange {
 }
 
 export interface SalesReportFilter extends ReportsRange {
-  groupBy?: "day" | "week" | "month";
+  groupBy?: "hour" | "day" | "week" | "month";
+}
+
+export type StockStatus = "good" | "low" | "critical" | "out";
+
+export interface StockReportRow {
+  ingredientId: string;
+  name: string;
+  sku: string | null;
+  unit: string;
+  currentStock: number;
+  minStock: number;
+  costPerUnit: number;
+  value: number;
+  status: StockStatus;
+  expiryDate: string | null;
+  lastRestocked: string | null;
+}
+
+export interface StockReport {
+  totalItems: number;
+  totalValue: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  expiringCount: number;
+  rows: StockReportRow[];
 }
 
 function buildQuery(filter: Record<string, unknown>): string {
@@ -129,5 +193,13 @@ export const reportsService = {
     return apiRequest<TopProductsReport>(
       `/reports/top-products${qs ? `?${qs}` : ""}`,
     );
+  },
+  foodCost: (filter: ReportsRange = {}): Promise<FoodCostReport> => {
+    const qs = buildQuery(filter as Record<string, unknown>);
+    return apiRequest<FoodCostReport>(`/reports/food-cost${qs ? `?${qs}` : ""}`);
+  },
+  stock: (filter: ReportsRange = {}): Promise<StockReport> => {
+    const qs = buildQuery(filter as Record<string, unknown>);
+    return apiRequest<StockReport>(`/reports/stock${qs ? `?${qs}` : ""}`);
   },
 };

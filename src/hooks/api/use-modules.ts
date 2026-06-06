@@ -1,6 +1,8 @@
 // Operations, Suppliers, Transactions API Hooks (Payouts live in use-payouts.ts)
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { operationsService } from "@/services/mock/operations";
+import { checklistsApi } from "@/services/api/checklists";
+import { kpiTargetsApi } from "@/services/api/kpi-targets";
 import { supplierService } from "@/services/mock/suppliers";
 import { transactionService } from "@/services/mock/transactions";
 import type { ChecklistFilters, CreateChecklistRequest, UpdateChecklistRequest, ExpenseFilters, CreateExpenseRequest, UpdateExpenseRequest, WasteLogFilters, CreateWasteLogRequest, UpdateWasteLogRequest, KPITargetFilters, CreateKPITargetRequest, UpdateKPITargetRequest, SalesTargetFilters, CreateSalesTargetRequest, UpdateSalesTargetRequest } from "@/types/operations";
@@ -9,10 +11,49 @@ import type { TransactionFilters, CreateTransactionRequest, UpdateTransactionReq
 
 // Operations
 export const operationsKeys = { all: ["operations"] as const, checklists: () => [...operationsKeys.all, "checklists"] as const, expenses: () => [...operationsKeys.all, "expenses"] as const, waste: () => [...operationsKeys.all, "waste"] as const, kpis: () => [...operationsKeys.all, "kpis"] as const, salesTargets: () => [...operationsKeys.all, "salesTargets"] as const, stats: (storeId?: string) => [...operationsKeys.all, "stats", storeId] as const };
-export function useChecklists(filters?: ChecklistFilters) { return useQuery({ queryKey: [...operationsKeys.checklists(), filters], queryFn: () => operationsService.getChecklists(filters) }); }
-export function useCreateChecklist() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreateChecklistRequest) => operationsService.createChecklist(data), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.checklists() }) }); }
-export function useUpdateChecklist() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateChecklistRequest }) => operationsService.updateChecklist(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.checklists() }) }); }
-export function useDeleteChecklist() { const qc = useQueryClient(); return useMutation({ mutationFn: (id: string) => operationsService.deleteChecklist(id), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.checklists() }) }); }
+export function useChecklists(filters?: ChecklistFilters) {
+  return useQuery({
+    queryKey: [...operationsKeys.checklists(), filters],
+    queryFn: () => checklistsApi.list(filters),
+  });
+}
+export function useCreateChecklist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateChecklistRequest) => checklistsApi.create(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.checklists() }),
+  });
+}
+export function useUpdateChecklist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateChecklistRequest }) =>
+      checklistsApi.update(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.checklists() }),
+  });
+}
+export function useDeleteChecklist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => checklistsApi.remove(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.checklists() }),
+  });
+}
+export function useToggleChecklistItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      itemId,
+      isCompleted,
+    }: {
+      id: string;
+      itemId: string;
+      isCompleted: boolean;
+    }) => checklistsApi.toggleItem(id, itemId, isCompleted),
+    onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.checklists() }),
+  });
+}
 export function useExpenses(filters?: ExpenseFilters) { return useQuery({ queryKey: [...operationsKeys.expenses(), filters], queryFn: () => operationsService.getExpenses(filters) }); }
 export function useCreateExpense() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreateExpenseRequest) => operationsService.createExpense(data), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.expenses() }) }); }
 export function useUpdateExpense() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateExpenseRequest }) => operationsService.updateExpense(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.expenses() }) }); }
@@ -21,10 +62,59 @@ export function useWasteLogs(filters?: WasteLogFilters) { return useQuery({ quer
 export function useCreateWasteLog() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreateWasteLogRequest) => operationsService.createWasteLog(data), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.waste() }) }); }
 export function useUpdateWasteLog() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateWasteLogRequest }) => operationsService.updateWasteLog(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.waste() }) }); }
 export function useDeleteWasteLog() { const qc = useQueryClient(); return useMutation({ mutationFn: (id: string) => operationsService.deleteWasteLog(id), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.waste() }) }); }
-export function useKPITargets(filters?: KPITargetFilters) { return useQuery({ queryKey: [...operationsKeys.kpis(), filters], queryFn: () => operationsService.getKPITargets(filters) }); }
-export function useCreateKPITarget() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreateKPITargetRequest) => operationsService.createKPITarget(data), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.kpis() }) }); }
-export function useUpdateKPITarget() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateKPITargetRequest }) => operationsService.updateKPITarget(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.kpis() }) }); }
-export function useDeleteKPITarget() { const qc = useQueryClient(); return useMutation({ mutationFn: (id: string) => operationsService.deleteKPITarget(id), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.kpis() }) }); }
+export function useKPITargets(filters?: KPITargetFilters) {
+  return useQuery({
+    queryKey: [...operationsKeys.kpis(), filters],
+    queryFn: () => kpiTargetsApi.list(filters),
+  });
+}
+export function useCreateKPITarget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateKPITargetRequest) => kpiTargetsApi.create(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.kpis() }),
+  });
+}
+export function useUpdateKPITarget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateKPITargetRequest }) =>
+      kpiTargetsApi.update(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.kpis() }),
+  });
+}
+export function useDeleteKPITarget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => kpiTargetsApi.remove(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.kpis() }),
+  });
+}
+export function useKpiPerformances(id: string | undefined) {
+  return useQuery({
+    queryKey: [...operationsKeys.kpis(), "performances", id],
+    queryFn: () => kpiTargetsApi.listPerformances(id!),
+    enabled: !!id,
+  });
+}
+export function useRecordKpiPerformance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: { staffId: string; value: number; note?: string };
+    }) => kpiTargetsApi.recordPerformance(id, data),
+    onSuccess: (_res, vars) => {
+      qc.invalidateQueries({ queryKey: operationsKeys.kpis() });
+      qc.invalidateQueries({
+        queryKey: [...operationsKeys.kpis(), "performances", vars.id],
+      });
+    },
+  });
+}
 export function useSalesTargets(filters?: SalesTargetFilters) { return useQuery({ queryKey: [...operationsKeys.salesTargets(), filters], queryFn: () => operationsService.getSalesTargets(filters) }); }
 export function useCreateSalesTarget() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreateSalesTargetRequest) => operationsService.createSalesTarget(data), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.salesTargets() }) }); }
 export function useUpdateSalesTarget() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateSalesTargetRequest }) => operationsService.updateSalesTarget(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.salesTargets() }) }); }

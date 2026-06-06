@@ -73,23 +73,29 @@ function periodForTime(start: string): Period {
   return "Night";
 }
 
-interface ShiftForm {
-  staffId: string;
-  roleId: string;
+interface ShiftSlot {
   date: string;
   startTime: string;
   endTime: string;
+}
+
+interface ShiftForm {
+  staffId: string;
+  roleId: string;
+  /** One slot per shift day. Add mode supports many; edit mode shows one. */
+  slots: ShiftSlot[];
   notes: string;
 }
 
+function emptySlot(date: string = new Date().toISOString().slice(0, 10)): ShiftSlot {
+  return { date, startTime: "09:00", endTime: "17:00" };
+}
+
 function emptyForm(): ShiftForm {
-  const today = new Date().toISOString().slice(0, 10);
   return {
     staffId: "",
     roleId: "",
-    date: today,
-    startTime: "09:00",
-    endTime: "17:00",
+    slots: [emptySlot()],
     notes: "",
   };
 }
@@ -98,9 +104,7 @@ function shiftToForm(s: Shift): ShiftForm {
   return {
     staffId: s.staffId,
     roleId: s.roleId ?? "",
-    date: s.date,
-    startTime: s.startTime,
-    endTime: s.endTime,
+    slots: [{ date: s.date, startTime: s.startTime, endTime: s.endTime }],
     notes: s.notes ?? "",
   };
 }
@@ -203,9 +207,10 @@ export default function ShiftsPage() {
 
   const openAdd = (date?: Date) => {
     setSelected(null);
+    const isoDate = format(date ?? currentDate, "yyyy-MM-dd");
     setForm({
       ...emptyForm(),
-      date: format(date ?? currentDate, "yyyy-MM-dd"),
+      slots: [emptySlot(isoDate)],
     });
     setSheetMode("add");
     setSheetOpen(true);
@@ -227,7 +232,7 @@ export default function ShiftsPage() {
     setSelected(null);
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!currentStore) {
       toast.error("Select a store first");
       return;
@@ -236,37 +241,63 @@ export default function ShiftsPage() {
       toast.error("Pick a staff member");
       return;
     }
-    createShift.mutate(
-      {
-        storeId: currentStore.id,
-        staffId: form.staffId,
-        roleId: form.roleId || undefined,
-        date: form.date,
-        startTime: form.startTime,
-        endTime: form.endTime,
-        notes: form.notes || undefined,
-      },
-      {
-        onSuccess: () => {
-          toast.success("Shift created");
-          close();
-        },
-        onError: (e: Error) => toast.error(e.message ?? "Couldn't create shift"),
-      },
+    const slots = form.slots.filter((s) => s.date && s.startTime && s.endTime);
+    if (slots.length === 0) {
+      toast.error("Add at least one day");
+      return;
+    }
+    // Fire one create per slot; collect outcomes so partial failures are
+    // reported cleanly instead of silently swallowed.
+    const results = await Promise.allSettled(
+      slots.map((s) =>
+        createShift.mutateAsync({
+          storeId: currentStore.id,
+          staffId: form.staffId,
+          roleId: form.roleId || undefined,
+          date: s.date,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          notes: form.notes || undefined,
+        }),
+      ),
     );
+    const succeeded = results.filter((r) => r.status === "fulfilled").length;
+    const failed = results.length - succeeded;
+    if (succeeded > 0) {
+      toast.success(
+        failed === 0
+          ? `${succeeded} shift${succeeded === 1 ? "" : "s"} created`
+          : `${succeeded} of ${results.length} shifts created`,
+      );
+    }
+    if (failed > 0) {
+      const firstFailure = results.find(
+        (r): r is PromiseRejectedResult => r.status === "rejected",
+      );
+      toast.error(
+        (firstFailure?.reason as Error | undefined)?.message ??
+          "Some shifts couldn't be created",
+      );
+    }
+    if (failed === 0) close();
   };
 
   const handleUpdate = () => {
     if (!selected) return;
+    const slot = form.slots[0];
+    if (!slot) {
+      toast.error("Shift details are missing");
+      return;
+    }
     updateShift.mutate(
       {
         id: selected.id,
         data: {
           staffId: form.staffId,
           roleId: form.roleId || undefined,
-          date: form.date,
-          startTime: form.startTime,
-          endTime: form.endTime,
+          date: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
           notes: form.notes || undefined,
         },
       },
@@ -630,30 +661,120 @@ export default function ShiftsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Date</Label>
-                <Input
-                  type="date"
-                  value={form.date}
-                  onChange={(e) => setForm({ ...form, date: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Start Time</Label>
-                  <Input
-                    type="time"
-                    value={form.startTime}
-                    onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-                  />
+                <div className="flex items-center justify-between">
+                  <Label>
+                    {sheetMode === "add" ? "Shift days" : "Date & time"}
+                  </Label>
+                  {sheetMode === "add" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          slots: [
+                            ...form.slots,
+                            emptySlot(
+                              form.slots[form.slots.length - 1]?.date ??
+                                new Date().toISOString().slice(0, 10),
+                            ),
+                          ],
+                        })
+                      }
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add day
+                    </Button>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label>End Time</Label>
-                  <Input
-                    type="time"
-                    value={form.endTime}
-                    onChange={(e) => setForm({ ...form, endTime: e.target.value })}
-                  />
+                  {form.slots.map((slot, idx) => (
+                    <div
+                      key={idx}
+                      className="grid grid-cols-12 gap-2 items-end"
+                    >
+                      <div className="col-span-5 space-y-1">
+                        {idx === 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            Date
+                          </span>
+                        )}
+                        <Input
+                          type="date"
+                          value={slot.date}
+                          onChange={(e) => {
+                            const next = [...form.slots];
+                            next[idx] = { ...next[idx], date: e.target.value };
+                            setForm({ ...form, slots: next });
+                          }}
+                        />
+                      </div>
+                      <div className="col-span-3 space-y-1">
+                        {idx === 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            Start
+                          </span>
+                        )}
+                        <Input
+                          type="time"
+                          value={slot.startTime}
+                          onChange={(e) => {
+                            const next = [...form.slots];
+                            next[idx] = {
+                              ...next[idx],
+                              startTime: e.target.value,
+                            };
+                            setForm({ ...form, slots: next });
+                          }}
+                        />
+                      </div>
+                      <div className="col-span-3 space-y-1">
+                        {idx === 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            End
+                          </span>
+                        )}
+                        <Input
+                          type="time"
+                          value={slot.endTime}
+                          onChange={(e) => {
+                            const next = [...form.slots];
+                            next[idx] = {
+                              ...next[idx],
+                              endTime: e.target.value,
+                            };
+                            setForm({ ...form, slots: next });
+                          }}
+                        />
+                      </div>
+                      <div className="col-span-1 flex justify-end">
+                        {sheetMode === "add" && form.slots.length > 1 && (
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() =>
+                              setForm({
+                                ...form,
+                                slots: form.slots.filter((_, i) => i !== idx),
+                              })
+                            }
+                            aria-label="Remove day"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
+                {sheetMode === "add" && form.slots.length > 1 && (
+                  <p className="text-xs text-muted-foreground">
+                    {form.slots.length} shifts will be created for this staff
+                    member.
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Notes</Label>

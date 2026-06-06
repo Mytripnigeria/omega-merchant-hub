@@ -22,7 +22,13 @@ export interface Customer {
   source: CustomerSource;
   walletBalance: number;
   points: number;
+  /** @deprecated Legacy fixed-threshold tier. Prefer `loyaltyTierName` which
+   *  follows the merchant's configured tiers (Loyalty Offers). */
   loyaltyTier: LoyaltyTier;
+  /** Merchant-configured tier id, or null when no tier matches. */
+  loyaltyTierId: string | null;
+  /** Resolved tier name (e.g. "Silver"), or null when no tier matches. */
+  loyaltyTierName: string | null;
   groups: string[];
   referralCode: string;
   referredBy: string | null;

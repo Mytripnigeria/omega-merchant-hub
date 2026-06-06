@@ -15,6 +15,10 @@ export const reportsKeys = {
   dashboard: (storeId?: string) => [...reportsKeys.all, "dashboard", storeId] as const,
   topProducts: (filter?: TopProductsFilter) =>
     [...reportsKeys.all, "topProducts", filter] as const,
+  foodCost: (filter?: ReportsRange) =>
+    [...reportsKeys.all, "foodCost", filter] as const,
+  stock: (filter?: ReportsRange) =>
+    [...reportsKeys.all, "stock", filter] as const,
 };
 
 export function useSalesReport(filter: SalesReportFilter = {}) {
@@ -62,6 +66,22 @@ export function useTopProducts(filter: TopProductsFilter = {}) {
   return useQuery({
     queryKey: reportsKeys.topProducts(filter),
     queryFn: () => reportsService.topProducts(filter),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useFoodCostReport(filter: ReportsRange = {}) {
+  return useQuery({
+    queryKey: reportsKeys.foodCost(filter),
+    queryFn: () => reportsService.foodCost(filter),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useStockReport(filter: ReportsRange = {}) {
+  return useQuery({
+    queryKey: reportsKeys.stock(filter),
+    queryFn: () => reportsService.stock(filter),
     staleTime: 60 * 1000,
   });
 }

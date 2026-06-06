@@ -31,8 +31,15 @@ export function useUpdateBusiness() {
   return useMutation({
     mutationFn: (data: Partial<Business> & { logoFileId?: string | null }) =>
       businessApi.update(data),
+    // Merge the (possibly partial) PATCH response into the cache for an instant
+    // update, then invalidate so a full GET reconciles any server-computed
+    // fields (e.g. logoUrl) — otherwise the form shows stale/blank data until
+    // a manual reload.
     onSuccess: (data) => {
-      qc.setQueryData(settingsKeys.business, data);
+      qc.setQueryData<Business>(settingsKeys.business, (old) =>
+        old ? { ...old, ...data } : data,
+      );
+      void qc.invalidateQueries({ queryKey: settingsKeys.business });
     },
   });
 }
@@ -49,7 +56,10 @@ export function useUpdateBusinessSettings() {
   return useMutation({
     mutationFn: (data: Partial<BusinessSettings>) => businessApi.updateSettings(data),
     onSuccess: (data) => {
-      qc.setQueryData(settingsKeys.businessSettings, data);
+      qc.setQueryData<BusinessSettings>(settingsKeys.businessSettings, (old) =>
+        old ? { ...old, ...data } : data,
+      );
+      void qc.invalidateQueries({ queryKey: settingsKeys.businessSettings });
     },
   });
 }
@@ -278,7 +288,10 @@ export function useUpdateNotificationPreferences() {
       channels?: Partial<NotificationChannels>;
       events?: Partial<NotificationEventToggles>;
     }) => notificationsApi.updatePreferences(data),
-    onSuccess: (data) => qc.setQueryData(settingsKeys.notifications, data),
+    onSuccess: (data) => {
+      qc.setQueryData(settingsKeys.notifications, data);
+      void qc.invalidateQueries({ queryKey: settingsKeys.notifications });
+    },
   });
 }
 

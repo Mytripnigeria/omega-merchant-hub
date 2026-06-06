@@ -1,250 +1,316 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, AlertTriangle, TrendingDown, CheckCircle, Search, Filter, Download, MoreHorizontal } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Package,
+  AlertTriangle,
+  TrendingDown,
+  CheckCircle,
+  Search,
+  Clock,
+} from "lucide-react";
+import { useStockReport } from "@/hooks/api/use-reports";
+import { useStore } from "@/contexts/StoreContext";
+import type { StockStatus } from "@/services/api/reports";
+
+const ngn = (n: number) =>
+  new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 0,
+  }).format(n);
+
+function statusBadge(status: StockStatus) {
+  switch (status) {
+    case "out":
+      return (
+        <Badge variant="destructive" className="text-xs font-normal">
+          Out
+        </Badge>
+      );
+    case "critical":
+      return (
+        <Badge variant="destructive" className="text-xs font-normal">
+          Critical
+        </Badge>
+      );
+    case "low":
+      return (
+        <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 text-xs font-normal">
+          Low
+        </Badge>
+      );
+    default:
+      return (
+        <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs font-normal">
+          Good
+        </Badge>
+      );
+  }
+}
 
 export default function StockReportPage() {
+  const { currentStore } = useStore();
+  const storeId = currentStore?.id;
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | StockStatus>("all");
 
-  const stockItems = [
-    { name: "Chicken Breast", sku: "ING-001", current: 45, minimum: 20, unit: "kg", status: "good" },
-    { name: "Olive Oil", sku: "ING-002", current: 8, minimum: 10, unit: "L", status: "low" },
-    { name: "Tomatoes", sku: "ING-003", current: 5, minimum: 15, unit: "kg", status: "critical" },
-    { name: "Pasta", sku: "ING-004", current: 120, minimum: 50, unit: "kg", status: "good" },
-    { name: "Cheese", sku: "ING-005", current: 22, minimum: 20, unit: "kg", status: "good" },
-    { name: "Lettuce", sku: "ING-006", current: 3, minimum: 10, unit: "kg", status: "critical" },
-  ];
+  const { data, isLoading } = useStockReport(
+    storeId ? { storeId } : undefined,
+  );
+  const rows = data?.rows ?? [];
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((r) => {
+      const matchSearch =
+        !q ||
+        r.name.toLowerCase().includes(q) ||
+        (r.sku ?? "").toLowerCase().includes(q);
+      const matchStatus = statusFilter === "all" || r.status === statusFilter;
+      return matchSearch && matchStatus;
+    });
+  }, [rows, search, statusFilter]);
 
   const stats = [
-    { label: "Total Items", value: "248", icon: Package },
-    { label: "In Stock", value: "215", icon: CheckCircle, color: "text-green-600" },
-    { label: "Low Stock", value: "25", icon: AlertTriangle, color: "text-yellow-600" },
-    { label: "Critical", value: "8", icon: TrendingDown, color: "text-red-600" },
+    {
+      label: "Total Items",
+      value: String(data?.totalItems ?? 0),
+      icon: Package,
+    },
+    {
+      label: "Total Value",
+      value: ngn(data?.totalValue ?? 0),
+      icon: CheckCircle,
+    },
+    {
+      label: "Low / Out of Stock",
+      value: String(
+        (data?.lowStockCount ?? 0) + (data?.outOfStockCount ?? 0),
+      ),
+      icon: AlertTriangle,
+    },
+    {
+      label: "Expiring Soon",
+      value: String(data?.expiringCount ?? 0),
+      icon: Clock,
+    },
   ];
-
-  const filteredItems = stockItems.filter(item => 
-    item.name.toLowerCase().includes(search.toLowerCase()) &&
-    (statusFilter === "all" || item.status === statusFilter)
-  );
-
-  const statusColors: Record<string, string> = {
-    good: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-    low: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-    critical: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  };
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Stock Report</h1>
-          <p className="text-sm text-muted-foreground">Inventory levels and stock status</p>
+          <p className="text-sm text-muted-foreground">
+            Current inventory levels, value, and expiring stock
+          </p>
         </div>
-        <Button variant="outline" size="sm">
-          <Download className="h-4 w-4 mr-2" />
-          Export
-        </Button>
       </div>
 
-      {/* Two-column layout for desktop */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Stats */}
-          <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-            {stats.map((stat) => (
-              <Card key={stat.label} className="border-border/50">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+        {isLoading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-4">
+                  <Skeleton className="h-3 w-20 mb-2" />
+                  <Skeleton className="h-6 w-24" />
+                </CardContent>
+              </Card>
+            ))
+          : stats.map((stat) => (
+              <Card key={stat.label}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                      <stat.icon className={`h-4 w-4 ${stat.color || "text-muted-foreground"}`} />
+                      <stat.icon className="h-4 w-4 text-muted-foreground" />
                     </div>
                   </div>
-                  <p className="text-2xl font-semibold">{stat.value}</p>
+                  <p className="text-lg font-semibold truncate">{stat.value}</p>
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
                 </CardContent>
               </Card>
             ))}
-          </div>
+      </div>
 
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-3">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Inventory</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search items..." 
-                value={search} 
-                onChange={(e) => setSearch(e.target.value)} 
-                className="pl-9 h-9 bg-muted/50 border-0" 
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search ingredients..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[130px] h-9 bg-muted/50 border-0">
-                <Filter className="h-4 w-4 mr-2" />
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
+            >
+              <SelectTrigger className="w-full sm:w-44">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="all">All statuses</SelectItem>
                 <SelectItem value="good">Good</SelectItem>
                 <SelectItem value="low">Low</SelectItem>
                 <SelectItem value="critical">Critical</SelectItem>
+                <SelectItem value="out">Out of stock</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Mobile Card View */}
-          <div className="block sm:hidden space-y-3">
-            {filteredItems.map((item) => (
-              <Card key={item.sku} className="border-border/50">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-xs text-muted-foreground font-mono">{item.sku}</p>
-                    </div>
-                    <Badge className={statusColors[item.status]} variant="secondary">
-                      {item.status}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between mt-2 text-sm">
-                    <span className="text-muted-foreground">Current: {item.current} {item.unit}</span>
-                    <span className="text-muted-foreground">Min: {item.minimum} {item.unit}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Desktop Table View */}
-          <Card className="border-border/50 hidden sm:block">
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border/50">
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Item</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">SKU</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Current</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Minimum</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Status</th>
-                      <th className="w-10 p-4"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredItems.map((item) => (
-                      <tr key={item.sku} className="border-b border-border/50 last:border-0 group cursor-pointer hover:bg-muted/50">
-                        <td className="font-medium text-sm p-4">{item.name}</td>
-                        <td className="font-mono text-xs text-muted-foreground p-4">{item.sku}</td>
-                        <td className="text-sm p-4">{item.current} {item.unit}</td>
-                        <td className="text-sm text-muted-foreground p-4">{item.minimum} {item.unit}</td>
-                        <td className="p-4">
-                          <Badge className={statusColors[item.status]} variant="secondary">
-                            {item.status}
-                          </Badge>
-                        </td>
-                        <td className="p-4">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
+          {isLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              {rows.length === 0
+                ? "No ingredients yet."
+                : "No items match the current filters."}
+            </p>
+          ) : (
+            <>
+              <div className="hidden sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="pl-6">Item</TableHead>
+                      <TableHead>SKU</TableHead>
+                      <TableHead className="text-right">Stock</TableHead>
+                      <TableHead className="text-right">Min</TableHead>
+                      <TableHead className="text-right">Value</TableHead>
+                      <TableHead>Best-before</TableHead>
+                      <TableHead className="pr-6">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((row) => (
+                      <TableRow key={row.ingredientId}>
+                        <TableCell className="pl-6 font-medium">{row.name}</TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {row.sku ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {row.currentStock} {row.unit}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground">
+                          {row.minStock} {row.unit}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {ngn(row.value)}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {row.expiryDate ?? "—"}
+                        </TableCell>
+                        <TableCell className="pr-6">
+                          {statusBadge(row.status)}
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Needs Attention</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {stockItems.filter(i => i.status !== "good").map((item) => (
-                <div 
-                  key={item.sku} 
-                  className={`p-3 rounded-lg ${
-                    item.status === "critical" 
-                      ? "bg-red-50 dark:bg-red-900/20" 
-                      : "bg-yellow-50 dark:bg-yellow-900/20"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{item.name}</span>
-                    <Badge variant={item.status === "critical" ? "destructive" : "secondary"} className="text-xs">
-                      {item.status}
-                    </Badge>
+              <div className="sm:hidden divide-y">
+                {filtered.map((row) => (
+                  <div key={row.ingredientId} className="px-3 py-3 space-y-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{row.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {row.sku ?? "—"}
+                        </p>
+                      </div>
+                      {statusBadge(row.status)}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <p className="text-muted-foreground">
+                        Stock:{" "}
+                        <span className="text-foreground">
+                          {row.currentStock} {row.unit}
+                        </span>
+                      </p>
+                      <p className="text-muted-foreground">
+                        Min:{" "}
+                        <span className="text-foreground">
+                          {row.minStock} {row.unit}
+                        </span>
+                      </p>
+                      <p className="text-muted-foreground">
+                        Value:{" "}
+                        <span className="text-foreground font-medium">
+                          {ngn(row.value)}
+                        </span>
+                      </p>
+                    </div>
+                    {row.expiryDate && (
+                      <p className="text-xs text-muted-foreground">
+                        Best-before {row.expiryDate}
+                      </p>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {item.current} / {item.minimum} {item.unit}
-                  </p>
+                ))}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {(data?.lowStockCount ?? 0) > 0 || (data?.outOfStockCount ?? 0) > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingDown className="h-4 w-4 text-red-500" />
+              Needs attention
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {rows
+              .filter((r) => r.status !== "good")
+              .slice(0, 10)
+              .map((row) => (
+                <div
+                  key={row.ingredientId}
+                  className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{row.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {row.currentStock} {row.unit} on hand · min {row.minStock}{" "}
+                      {row.unit}
+                    </p>
+                  </div>
+                  {statusBadge(row.status)}
                 </div>
               ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Stock Health</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-green-600">Good</span>
-                    <span className="font-medium">87%</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-green-500 rounded-full" style={{ width: "87%" }} />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-yellow-600">Low</span>
-                    <span className="font-medium">10%</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-yellow-500 rounded-full" style={{ width: "10%" }} />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-red-600">Critical</span>
-                    <span className="font-medium">3%</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-red-500 rounded-full" style={{ width: "3%" }} />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Download className="mr-2 h-4 w-4" />
-                Export Report
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <AlertTriangle className="mr-2 h-4 w-4" />
-                Reorder Items
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

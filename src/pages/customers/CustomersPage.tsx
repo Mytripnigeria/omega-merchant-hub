@@ -500,7 +500,7 @@ export default function CustomersPage() {
                             variant="secondary"
                             className={cn("text-xs font-normal capitalize", tierColor[c.loyaltyTier])}
                           >
-                            {c.loyaltyTier}
+                            {c.loyaltyTierName ?? c.loyaltyTier}
                           </Badge>
                         </td>
                         <td className="p-3">
@@ -756,7 +756,7 @@ export default function CustomersPage() {
                   <div>
                     <p className="text-2xl font-semibold">{selected.points}</p>
                     <p className="text-xs text-muted-foreground">
-                      Tier: {selected.loyaltyTier}
+                      Tier: {selected.loyaltyTierName ?? selected.loyaltyTier}
                     </p>
                   </div>
                 </div>

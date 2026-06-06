@@ -57,16 +57,32 @@ export function PaymentMethodsTab() {
   const [type, setType] = useState<PaymentMethodType>("cash");
   const [label, setLabel] = useState("");
   const [isEnabled, setIsEnabled] = useState(true);
+  // Bank details for `transfer` methods — surfaced to the storefront so
+  // customers can fund their wallet / pay by transfer.
+  const [bankName, setBankName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [accountName, setAccountName] = useState("");
 
   useEffect(() => {
     if (editing) {
       setType(editing.type);
       setLabel(editing.label);
       setIsEnabled(editing.isEnabled);
+      const cfg = (editing.config ?? {}) as Record<string, unknown>;
+      setBankName(typeof cfg.bankName === "string" ? cfg.bankName : "");
+      setAccountNumber(
+        typeof cfg.accountNumber === "string" ? cfg.accountNumber : "",
+      );
+      setAccountName(
+        typeof cfg.accountName === "string" ? cfg.accountName : "",
+      );
     } else {
       setType("cash");
       setLabel("");
       setIsEnabled(true);
+      setBankName("");
+      setAccountNumber("");
+      setAccountName("");
     }
   }, [editing, isOpen]);
 
@@ -82,15 +98,28 @@ export function PaymentMethodsTab() {
 
   const handleSave = async () => {
     if (!label.trim()) return toast.error("Label is required");
+    const config =
+      type === "transfer"
+        ? {
+            bankName: bankName.trim() || undefined,
+            accountNumber: accountNumber.trim() || undefined,
+            accountName: accountName.trim() || undefined,
+          }
+        : undefined;
     try {
       if (editing) {
         await updateMethod.mutateAsync({
           id: editing.id,
-          data: { type, label: label.trim(), isEnabled },
+          data: { type, label: label.trim(), isEnabled, config },
         });
         toast.success("Payment method updated");
       } else {
-        await createMethod.mutateAsync({ type, label: label.trim(), isEnabled });
+        await createMethod.mutateAsync({
+          type,
+          label: label.trim(),
+          isEnabled,
+          config,
+        });
         toast.success("Payment method created");
       }
       setIsOpen(false);
@@ -224,6 +253,39 @@ export function PaymentMethodsTab() {
                 onChange={(e) => setLabel(e.target.value)}
               />
             </div>
+            {type === "transfer" && (
+              <div className="space-y-3 p-3 border rounded-lg">
+                <p className="text-sm font-medium">Bank details</p>
+                <p className="text-xs text-muted-foreground">
+                  Shown to customers on the storefront for transfers and wallet
+                  top-ups.
+                </p>
+                <div className="space-y-2">
+                  <Label>Bank name</Label>
+                  <Input
+                    placeholder="e.g., GTBank"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Account number</Label>
+                  <Input
+                    placeholder="0123456789"
+                    value={accountNumber}
+                    onChange={(e) => setAccountNumber(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Account name</Label>
+                  <Input
+                    placeholder="Business Name Ltd"
+                    value={accountName}
+                    onChange={(e) => setAccountName(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <div>
                 <p className="text-sm font-medium">Enabled</p>

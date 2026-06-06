@@ -3,6 +3,9 @@
 // ─── Coupons (Discount Codes) ───────────────────────────────────────
 
 export type CouponType = "percentage" | "fixed";
+/** `automatic` applies the discount to the product price the moment the cart
+ * shows up; `code` requires the customer to type the promo code at checkout. */
+export type CouponMethod = "automatic" | "code";
 export type CouponApplicableTo =
   | "all"
   | "specific_products"
@@ -14,6 +17,7 @@ export interface DiscountCode {
   code: string;
   description: string | null;
   type: CouponType;
+  method: CouponMethod;
   value: number;
   minOrderAmount: number | null;
   maxDiscount: number | null;
@@ -41,6 +45,7 @@ export interface CreateDiscountCodeRequest {
   code: string;
   description?: string;
   type: CouponType;
+  method?: CouponMethod;
   value: number;
   minOrderAmount?: number;
   maxDiscount?: number;

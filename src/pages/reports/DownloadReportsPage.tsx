@@ -2,193 +2,296 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, FileText, Calendar, Search, Filter, File, FileSpreadsheet } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  FileSpreadsheet,
+  FileText,
+  Calendar,
+  Loader2,
+  Sparkles,
+} from "lucide-react";
+import { toast } from "sonner";
+import { apiDownload } from "@/lib/api-client";
+import { useStore } from "@/contexts/StoreContext";
+
+type ExportType =
+  | "sales"
+  | "top-products"
+  | "food-cost"
+  | "waste"
+  | "stock";
+
+interface ReportSpec {
+  type: ExportType;
+  title: string;
+  description: string;
+  needsRange: boolean;
+}
+
+const REPORTS: ReportSpec[] = [
+  {
+    type: "sales",
+    title: "Sales Report",
+    description: "Daily revenue, orders, items, channel split for a date range.",
+    needsRange: true,
+  },
+  {
+    type: "top-products",
+    title: "Best Sellers",
+    description: "Top-selling products by revenue, with units and order counts.",
+    needsRange: true,
+  },
+  {
+    type: "food-cost",
+    title: "Food Cost Analysis",
+    description: "Cost vs. revenue per item and per category.",
+    needsRange: true,
+  },
+  {
+    type: "waste",
+    title: "Waste Management",
+    description: "Waste entries logged from the workstation, by reason and ingredient.",
+    needsRange: true,
+  },
+  {
+    type: "stock",
+    title: "Stock Report",
+    description: "Current inventory snapshot — value, status, expiring soon.",
+    needsRange: false,
+  },
+];
+
+function buildQs(params: Record<string, string | undefined>): string {
+  const usp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== "") usp.set(k, v);
+  }
+  const s = usp.toString();
+  return s ? `?${s}` : "";
+}
+
+function defaultRange(): { from: string; to: string } {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), 1);
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  return { from: iso(from), to: iso(now) };
+}
+
+type PeriodPreset = "this_week" | "this_month" | "last_month" | "this_quarter" | "custom";
+
+function rangeFor(preset: PeriodPreset, custom: { from: string; to: string }): {
+  from: string;
+  to: string;
+} {
+  if (preset === "custom") return custom;
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const d = now.getDate();
+  const iso = (date: Date) => date.toISOString().slice(0, 10);
+  if (preset === "this_week") {
+    const start = new Date(y, m, d - now.getDay());
+    return { from: iso(start), to: iso(now) };
+  }
+  if (preset === "last_month") {
+    const start = new Date(y, m - 1, 1);
+    const end = new Date(y, m, 0);
+    return { from: iso(start), to: iso(end) };
+  }
+  if (preset === "this_quarter") {
+    const q = Math.floor(m / 3) * 3;
+    return { from: iso(new Date(y, q, 1)), to: iso(now) };
+  }
+  // this_month
+  return { from: iso(new Date(y, m, 1)), to: iso(now) };
+}
 
 export default function DownloadReportsPage() {
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
+  const { currentStore } = useStore();
+  const storeId = currentStore?.id;
 
-  const reports = [
-    { name: "Monthly Sales Report", type: "PDF", size: "2.4 MB", date: "2026-01-15", category: "Sales" },
-    { name: "Inventory Summary", type: "Excel", size: "1.8 MB", date: "2026-01-14", category: "Inventory" },
-    { name: "Staff Performance", type: "PDF", size: "3.1 MB", date: "2026-01-12", category: "HR" },
-    { name: "Financial Statement", type: "PDF", size: "4.2 MB", date: "2026-01-10", category: "Finance" },
-    { name: "Customer Analytics", type: "Excel", size: "2.8 MB", date: "2026-01-08", category: "Customers" },
-    { name: "Product Performance", type: "PDF", size: "1.5 MB", date: "2026-01-05", category: "Sales" },
-  ];
+  const [preset, setPreset] = useState<PeriodPreset>("this_month");
+  const [custom, setCustom] = useState(defaultRange());
+  const [downloading, setDownloading] = useState<{
+    type: ExportType;
+    format: "xlsx" | "pdf";
+  } | null>(null);
 
-  const stats = [
-    { label: "Total Reports", value: reports.length.toString(), icon: FileText },
-    { label: "This Month", value: "4", icon: Calendar },
-    { label: "Total Size", value: "15.8 MB", icon: Download },
-  ];
+  const range = rangeFor(preset, custom);
 
-  const filteredReports = reports.filter(r => 
-    r.name.toLowerCase().includes(search.toLowerCase()) &&
-    (typeFilter === "all" || r.type === typeFilter)
-  );
+  const handleDownload = async (
+    type: ExportType,
+    needsRange: boolean,
+    format: "xlsx" | "pdf",
+  ) => {
+    if (!storeId) {
+      toast.error("Pick a store first");
+      return;
+    }
+    setDownloading({ type, format });
+    const qs = buildQs({
+      type,
+      format,
+      storeId,
+      storeName: currentStore?.name,
+      ...(needsRange ? { dateFrom: range.from, dateTo: range.to } : {}),
+    });
+    try {
+      await apiDownload(`/reports/export${qs}`);
+      toast.success(`${format.toUpperCase()} downloaded`);
+    } catch (err) {
+      toast.error((err as Error).message ?? "Couldn't download report");
+    } finally {
+      setDownloading(null);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Download Reports</h1>
-          <p className="text-sm text-muted-foreground">Access and download generated reports</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Calendar className="mr-2 h-4 w-4" />
-            Date Range
-          </Button>
-          <Button size="sm">
-            <FileText className="mr-2 h-4 w-4" />
-            Generate
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Download Reports</h1>
+        <p className="text-sm text-muted-foreground">
+          Generate Excel (.xlsx) exports of any report for a date range
+        </p>
       </div>
 
-      {/* Two-column layout for desktop */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Stats */}
-          <div className="grid gap-3 grid-cols-3">
-            {stats.map((stat) => (
-              <Card key={stat.label} className="border-border/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                      <stat.icon className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                  <p className="text-2xl font-semibold">{stat.value}</p>
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search reports..." 
-                value={search} 
-                onChange={(e) => setSearch(e.target.value)} 
-                className="pl-9 h-9 bg-muted/50 border-0" 
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Date range
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Period</Label>
+              <Select
+                value={preset}
+                onValueChange={(v) => setPreset(v as PeriodPreset)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="this_week">This week</SelectItem>
+                  <SelectItem value="this_month">This month</SelectItem>
+                  <SelectItem value="last_month">Last month</SelectItem>
+                  <SelectItem value="this_quarter">This quarter</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">From</Label>
+              <Input
+                type="date"
+                value={preset === "custom" ? custom.from : range.from}
+                onChange={(e) => {
+                  setPreset("custom");
+                  setCustom((c) => ({ ...c, from: e.target.value }));
+                }}
               />
             </div>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-full sm:w-[120px] h-9 bg-muted/50 border-0">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="PDF">PDF</SelectItem>
-                <SelectItem value="Excel">Excel</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="space-y-1.5">
+              <Label className="text-xs">To</Label>
+              <Input
+                type="date"
+                value={preset === "custom" ? custom.to : range.to}
+                onChange={(e) => {
+                  setPreset("custom");
+                  setCustom((c) => ({ ...c, to: e.target.value }));
+                }}
+              />
+            </div>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Stock Report is a live snapshot and ignores the date range.
+          </p>
+        </CardContent>
+      </Card>
 
-          {/* Reports List */}
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Available Reports</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {filteredReports.map((report, index) => (
-                <div 
-                  key={index} 
-                  className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${
-                      report.type === "PDF" 
-                        ? "bg-red-100 dark:bg-red-900/20" 
-                        : "bg-green-100 dark:bg-green-900/20"
-                    }`}>
-                      {report.type === "PDF" ? (
-                        <File className="h-4 w-4 text-red-600 dark:text-red-400" />
-                      ) : (
-                        <FileSpreadsheet className="h-4 w-4 text-green-600 dark:text-green-400" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{report.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {report.category} • {report.size} • {report.date}
-                      </p>
-                    </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {REPORTS.map((r) => {
+          const xlsxBusy =
+            downloading?.type === r.type && downloading.format === "xlsx";
+          const pdfBusy =
+            downloading?.type === r.type && downloading.format === "pdf";
+          return (
+            <Card key={r.type}>
+              <CardContent className="p-4 flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <FileSpreadsheet className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs hidden sm:flex">{report.type}</Badge>
-                    <Button variant="outline" size="sm" className="h-8">
-                      <Download className="h-3 w-3 sm:mr-2" />
-                      <span className="hidden sm:inline">Download</span>
-                    </Button>
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm">{r.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {r.description}
+                    </p>
                   </div>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">By Category</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {["Sales", "Inventory", "HR", "Finance", "Customers"].map((cat) => (
-                <div key={cat} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 cursor-pointer">
-                  <span className="text-sm">{cat}</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {reports.filter(r => r.category === cat).length}
-                  </Badge>
+                <div className="flex gap-2 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={xlsxBusy || pdfBusy || !storeId}
+                    onClick={() => handleDownload(r.type, r.needsRange, "xlsx")}
+                  >
+                    {xlsxBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <FileSpreadsheet className="h-4 w-4 sm:mr-2 text-green-600 dark:text-green-400" />
+                        <span className="hidden sm:inline">Excel</span>
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={xlsxBusy || pdfBusy || !storeId}
+                    onClick={() => handleDownload(r.type, r.needsRange, "pdf")}
+                  >
+                    {pdfBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <FileText className="h-4 w-4 sm:mr-2 text-red-600 dark:text-red-400" />
+                        <span className="hidden sm:inline">PDF</span>
+                      </>
+                    )}
+                  </Button>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Quick Generate</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <FileText className="mr-2 h-4 w-4" />
-                Sales Report
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                Inventory Export
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <File className="mr-2 h-4 w-4" />
-                Staff Report
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50 bg-muted/30">
-            <CardContent className="p-4">
-              <h4 className="font-medium text-sm mb-2">Scheduled Reports</h4>
-              <p className="text-xs text-muted-foreground">
-                Set up automatic report generation and delivery to your email.
-              </p>
-              <Button size="sm" variant="outline" className="mt-3 w-full">
-                Configure
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
+
+      <Card className="border-dashed bg-muted/30">
+        <CardContent className="p-4 flex items-start gap-3">
+          <Sparkles className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p>
+              Each export is a real-time aggregation of orders, ingredients, and
+              movements — there's nothing to schedule.
+            </p>
+            <p>
+              Filenames carry the report type, date range, and download date so
+              you can keep multiple versions in your downloads folder without
+              confusion.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

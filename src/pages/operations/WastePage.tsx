@@ -1,64 +1,120 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
-import { useLoading } from "@/hooks/use-loading";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Trash2, TrendingDown, AlertTriangle, MoreHorizontal, Calendar, User, X, Edit } from "lucide-react";
-import { DatePeriodFilter, DatePeriod, useDatePeriodFilter } from "@/components/ui/date-period-filter";
-import { TablePagination } from "@/components/ui/table-pagination";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { WasteLog as APIWasteLog } from "@/types/operations";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Search,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  AlertTriangle,
+  Calendar,
+  User,
+} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/api-client";
+import { useStore } from "@/contexts/StoreContext";
 
-// UI-specific interface with computed fields for display
-interface WasteLogUI extends APIWasteLog {
-  item: string; // Alias for productName
-  cost: number; // Alias for estimatedValue
-  loggedBy: string; // Alias for reportedByName
+type PresetRange = "this_week" | "this_month" | "last_month" | "this_quarter";
+
+interface WasteReasonRow {
+  reason: string;
+  entries: number;
+  totalQuantity: number;
+  estimatedValue: number;
+  share: number;
 }
 
-const transformWasteLog = (log: APIWasteLog): WasteLogUI => ({
-  ...log,
-  item: log.productName,
-  cost: log.estimatedValue,
-  loggedBy: log.reportedByName,
-});
+interface WasteIngredientRow {
+  ingredientId: string;
+  name: string;
+  unit: string;
+  entries: number;
+  totalQuantity: number;
+  estimatedValue: number;
+}
 
-// Mock data aligned with API types
-const mockWasteLogs: APIWasteLog[] = [
-  { id: "1", storeId: "store-1", productName: "Lettuce", quantity: 5, unit: "kg", reason: "expired", estimatedValue: 2500, date: "2026-01-15", reportedBy: "staff-1", reportedByName: "John D.", notes: "Found moldy in storage", createdAt: "2026-01-15", updatedAt: "2026-01-15" },
-  { id: "2", storeId: "store-1", productName: "Chicken Breast", quantity: 3, unit: "kg", reason: "overproduction", estimatedValue: 4500, date: "2026-01-15", reportedBy: "staff-2", reportedByName: "Sarah M.", notes: "Prepared too much for slow day", createdAt: "2026-01-15", updatedAt: "2026-01-15" },
-  { id: "3", storeId: "store-1", productName: "Milk", quantity: 2, unit: "L", reason: "expired", estimatedValue: 800, date: "2026-01-14", reportedBy: "staff-3", reportedByName: "Mike R.", createdAt: "2026-01-14", updatedAt: "2026-01-14" },
-  { id: "4", storeId: "store-1", productName: "Bread Rolls", quantity: 24, unit: "pcs", reason: "overproduction", estimatedValue: 1200, date: "2026-01-14", reportedBy: "staff-4", reportedByName: "Emma W.", createdAt: "2026-01-14", updatedAt: "2026-01-14" },
-];
+interface WasteLogRow {
+  id: string;
+  ingredientId: string;
+  ingredientName: string;
+  unit: string;
+  quantity: number;
+  estimatedValue: number;
+  reason: string | null;
+  staffId: string | null;
+  staffName: string | null;
+  createdAt: string;
+}
 
-const wasteLog: WasteLogUI[] = mockWasteLogs.map(transformWasteLog);
+interface WasteReport {
+  entries: number;
+  totalValue: number;
+  totalQuantity: number;
+  wastePct: number;
+  vsPreviousPct: number;
+  byReason: WasteReasonRow[];
+  byIngredient: WasteIngredientRow[];
+  recent: WasteLogRow[];
+}
 
-const stats = [
-  { label: "Total Waste (MTD)", value: "₦125,000", icon: Trash2 },
-  { label: "Waste %", value: "3.2%", icon: AlertTriangle },
-  { label: "vs Last Month", value: "-15%", icon: TrendingDown, positive: true },
-  { label: "Items Logged", value: "42", icon: Trash2 },
-];
+function rangeFor(preset: PresetRange): { dateFrom: string; dateTo: string } {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const d = now.getDate();
+  const iso = (date: Date) => date.toISOString().slice(0, 10);
+  if (preset === "this_week") {
+    const start = new Date(y, m, d - now.getDay());
+    return { dateFrom: iso(start), dateTo: iso(now) };
+  }
+  if (preset === "last_month") {
+    const start = new Date(y, m - 1, 1);
+    const end = new Date(y, m, 0);
+    return { dateFrom: iso(start), dateTo: iso(end) };
+  }
+  if (preset === "this_quarter") {
+    const q = Math.floor(m / 3) * 3;
+    const start = new Date(y, q, 1);
+    return { dateFrom: iso(start), dateTo: iso(now) };
+  }
+  const start = new Date(y, m, 1);
+  return { dateFrom: iso(start), dateTo: iso(now) };
+}
 
-const reasons = ["Spoilage", "Expired", "Overproduction", "Damaged", "Customer Return", "Other"];
+const ngn = (n: number) =>
+  new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 0,
+  }).format(n);
+
+function buildQs(params: Record<string, unknown>): string {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== "") qs.set(k, String(v));
+  }
+  const s = qs.toString();
+  return s ? `?${s}` : "";
+}
 
 function StatsSkeleton() {
   return (
@@ -66,13 +122,8 @@ function StatsSkeleton() {
       {Array.from({ length: 4 }).map((_, i) => (
         <Card key={i} className="border-border/50">
           <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-2">
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-7 w-16" />
-              </div>
-              <Skeleton className="h-7 w-7 sm:h-8 sm:w-8 rounded-full" />
-            </div>
+            <Skeleton className="h-3 w-24 mb-2" />
+            <Skeleton className="h-7 w-16" />
           </CardContent>
         </Card>
       ))}
@@ -80,389 +131,381 @@ function StatsSkeleton() {
   );
 }
 
-function WasteSkeleton() {
-  return (
-    <>
-      <div className="block sm:hidden divide-y divide-border -mx-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="px-3 py-4 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-3 w-16" />
-              </div>
-              <Skeleton className="h-5 w-20 rounded-full" />
-            </div>
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-3 w-32" />
-              <Skeleton className="h-4 w-12" />
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="hidden sm:block overflow-x-auto -mx-4">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b">
-              {Array.from({ length: 7 }).map((_, i) => (
-                <th key={i} className="p-4"><Skeleton className="h-3 w-16" /></th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: 4 }).map((_, i) => (
-              <tr key={i} className="border-b last:border-0">
-                <td className="p-4"><Skeleton className="h-4 w-24" /></td>
-                <td className="p-4"><Skeleton className="h-4 w-16" /></td>
-                <td className="p-4"><Skeleton className="h-5 w-20 rounded-full" /></td>
-                <td className="p-4"><Skeleton className="h-4 w-24" /></td>
-                <td className="p-4"><Skeleton className="h-4 w-20" /></td>
-                <td className="p-4"><Skeleton className="h-4 w-12" /></td>
-                <td className="p-4"><Skeleton className="h-8 w-8" /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}
+const reasonBadgeVariant = (
+  reason: string,
+): "default" | "secondary" | "destructive" | "outline" => {
+  const r = reason.toLowerCase();
+  if (r.includes("expir") || r.includes("spoil")) return "destructive";
+  if (r.includes("overproduction") || r.includes("waste")) return "secondary";
+  return "outline";
+};
 
-const WastePage = () => {
+export default function WastePage() {
+  const { currentStore } = useStore();
+  const storeId = currentStore?.id;
+
+  const [preset, setPreset] = useState<PresetRange>("this_month");
   const [search, setSearch] = useState("");
-  const [reasonFilter, setReasonFilter] = useState("all");
-  const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
-  const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
-  const [selectedWaste, setSelectedWaste] = useState<WasteLogUI | null>(null);
-  const [datePeriod, setDatePeriod] = useState<DatePeriod>("all");
-  const [customStartDate, setCustomStartDate] = useState<string>("");
-  const [customEndDate, setCustomEndDate] = useState<string>("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const isLoading = useLoading(1000);
+  const [reasonFilter, setReasonFilter] = useState<string>("all");
 
-  const getReasonColor = (reason: string) => {
-    switch (reason.toLowerCase()) {
-      case "spoilage": return "destructive";
-      case "expired": return "destructive";
-      case "overproduction": return "secondary";
-      default: return "outline";
-    }
-  };
+  const filter = useMemo(() => {
+    const { dateFrom, dateTo } = rangeFor(preset);
+    return { ...(storeId ? { storeId } : {}), dateFrom, dateTo };
+  }, [storeId, preset]);
 
-  const dateFiltered = useDatePeriodFilter(wasteLog, datePeriod, customStartDate, customEndDate, "date");
-
-  const filteredWaste = dateFiltered.filter(w => {
-    const matchesSearch = w.item.toLowerCase().includes(search.toLowerCase());
-    const matchesReason = reasonFilter === "all" || w.reason.toLowerCase() === reasonFilter;
-    return matchesSearch && matchesReason;
+  const { data: report, isLoading } = useQuery<WasteReport>({
+    queryKey: ["reports", "waste", filter],
+    queryFn: () =>
+      apiRequest<WasteReport>(`/reports/waste${buildQs(filter)}`),
+    staleTime: 60 * 1000,
   });
 
-  const totalItems = filteredWaste.length;
-  const totalPages = Math.ceil(totalItems / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, totalItems);
-  const paginatedWaste = filteredWaste.slice(startIndex, endIndex);
+  const reasons = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of report?.byReason ?? []) set.add(r.reason);
+    return Array.from(set).sort();
+  }, [report]);
 
-  const handleViewWaste = (waste: WasteLogUI) => {
-    setSelectedWaste(waste);
-    setIsViewSheetOpen(true);
-  };
+  const filteredLogs = useMemo(() => {
+    const all = report?.recent ?? [];
+    const q = search.trim().toLowerCase();
+    return all.filter((l) => {
+      const matchSearch =
+        !q ||
+        l.ingredientName.toLowerCase().includes(q) ||
+        (l.reason ?? "").toLowerCase().includes(q) ||
+        (l.staffName ?? "").toLowerCase().includes(q);
+      const matchReason =
+        reasonFilter === "all" || (l.reason ?? "Unspecified") === reasonFilter;
+      return matchSearch && matchReason;
+    });
+  }, [report, search, reasonFilter]);
 
-  const handleCustomRange = (start: string, end: string) => {
-    setCustomStartDate(start);
-    setCustomEndDate(end);
-    setCurrentPage(1);
-  };
-
+  const vsPrev = report?.vsPreviousPct ?? 0;
+  const vsPrevPositive = vsPrev <= 0;
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Waste Management</h1>
-          <p className="text-sm text-muted-foreground">Track and reduce food waste</p>
+          <h1 className="text-xl sm:text-2xl font-semibold">Waste Management</h1>
+          <p className="text-sm text-muted-foreground">
+            Waste entries logged from the workstation Outstore.
+          </p>
         </div>
-        <Button size="sm" className="w-full sm:w-auto" onClick={() => setIsAddSheetOpen(true)}>
-          <Plus className="h-4 w-4 sm:mr-2" />
-          <span className="sm:inline">Log Waste</span>
-        </Button>
+        <Select value={preset} onValueChange={(v) => setPreset(v as PresetRange)}>
+          <SelectTrigger className="w-full sm:w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="this_week">This Week</SelectItem>
+            <SelectItem value="this_month">This Month</SelectItem>
+            <SelectItem value="last_month">Last Month</SelectItem>
+            <SelectItem value="this_quarter">This Quarter</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading ? (
         <StatsSkeleton />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-          {stats.map((stat) => (
-            <Card key={stat.label} className="border-border/50">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">{stat.label}</p>
-                    <p className={`text-xl sm:text-2xl font-semibold ${stat.positive ? "text-green-600" : ""}`}>
-                      {stat.value}
-                    </p>
-                  </div>
-                  <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                    <stat.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
-                  </div>
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    Total Waste
+                  </p>
+                  <p className="text-xl sm:text-2xl font-semibold">
+                    {ngn(report?.totalValue ?? 0)}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+                <Trash2 className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    Waste %
+                  </p>
+                  <p className="text-xl sm:text-2xl font-semibold">
+                    {(report?.wastePct ?? 0).toFixed(1)}%
+                  </p>
+                </div>
+                <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                vs current stock value
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    vs Previous Period
+                  </p>
+                  <p
+                    className={`text-xl sm:text-2xl font-semibold ${
+                      vsPrevPositive ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {vsPrev > 0 ? "+" : ""}
+                    {vsPrev.toFixed(1)}%
+                  </p>
+                </div>
+                {vsPrevPositive ? (
+                  <TrendingDown className="h-5 w-5 text-green-600" />
+                ) : (
+                  <TrendingUp className="h-5 w-5 text-red-600" />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    Entries Logged
+                  </p>
+                  <p className="text-xl sm:text-2xl font-semibold">
+                    {report?.entries ?? 0}
+                  </p>
+                </div>
+                <Trash2 className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      <Card className="border-border/50">
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex flex-col sm:flex-row gap-3 mb-4">
+      <Tabs defaultValue="reason" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 sm:w-auto sm:inline-grid">
+          <TabsTrigger value="reason">By Reason</TabsTrigger>
+          <TabsTrigger value="ingredient">By Ingredient</TabsTrigger>
+          <TabsTrigger value="log">Log</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="reason" className="mt-4">
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              {isLoading ? (
+                <Skeleton className="h-32 w-full" />
+              ) : (report?.byReason ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  No waste entries in this period.
+                </p>
+              ) : (
+                (report?.byReason ?? []).map((row) => (
+                  <div
+                    key={row.reason}
+                    className="space-y-2 border-b last:border-0 pb-3 last:pb-0"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <Badge
+                        variant={reasonBadgeVariant(row.reason)}
+                        className="font-normal"
+                      >
+                        {row.reason}
+                      </Badge>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-semibold">
+                          {ngn(row.estimatedValue)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {row.entries} entries · {row.share.toFixed(1)}% share
+                        </p>
+                      </div>
+                    </div>
+                    <Progress
+                      value={Math.min(row.share, 100)}
+                      className="h-1.5"
+                    />
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ingredient" className="mt-4">
+          <Card>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="p-4 space-y-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              ) : (report?.byIngredient ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center p-8">
+                  No waste entries in this period.
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="pl-6">Ingredient</TableHead>
+                      <TableHead className="text-right">Entries</TableHead>
+                      <TableHead className="text-right">Qty wasted</TableHead>
+                      <TableHead className="text-right pr-6">Value</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(report?.byIngredient ?? []).map((row) => (
+                      <TableRow key={row.ingredientId}>
+                        <TableCell className="pl-6 font-medium">
+                          {row.name}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {row.entries}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {row.totalQuantity} {row.unit}
+                        </TableCell>
+                        <TableCell className="text-right pr-6 text-red-500 font-medium">
+                          {ngn(row.estimatedValue)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="log" className="mt-4 space-y-3">
+          <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search waste log..." 
-                value={search} 
-                onChange={(e) => setSearch(e.target.value)} 
-                className="pl-9" 
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search ingredient / reason / staff..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
               />
             </div>
-            <DatePeriodFilter
-              value={datePeriod}
-              onChange={(v) => { setDatePeriod(v); setCurrentPage(1); }}
-              onCustomRange={handleCustomRange}
-              customStartDate={customStartDate}
-              customEndDate={customEndDate}
-            />
             <Select value={reasonFilter} onValueChange={setReasonFilter}>
-              <SelectTrigger className="w-full sm:w-[140px]">
+              <SelectTrigger className="w-full sm:w-44">
                 <SelectValue placeholder="All Reasons" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Reasons</SelectItem>
-                <SelectItem value="spoilage">Spoilage</SelectItem>
-                <SelectItem value="expired">Expired</SelectItem>
-                <SelectItem value="overproduction">Overproduction</SelectItem>
+                {reasons.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {r}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-
-          {isLoading ? (
-            <WasteSkeleton />
-          ) : (
-            <>
-              {/* Mobile Card View */}
-              <div className="block sm:hidden divide-y divide-border -mx-3">
-                {paginatedWaste.map((item) => (
-                  <div 
-                    key={item.id} 
-                    className="px-3 py-4 space-y-3 cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleViewWaste(item)}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-medium text-sm">{item.item}</p>
-                        <p className="text-xs text-muted-foreground">{item.quantity} {item.unit}</p>
-                      </div>
-                      <Badge 
-                        variant={getReasonColor(item.reason) as "default" | "secondary" | "destructive" | "outline"}
-                        className="text-xs font-normal shrink-0"
-                      >
-                        {item.reason}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          <span>{item.date}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          <span>{item.loggedBy}</span>
-                        </div>
-                      </div>
-                      <span className="font-medium text-red-500">-₦{item.cost.toLocaleString()}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Desktop Table View */}
-              <div className="hidden sm:block overflow-x-auto -mx-4">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Item</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Quantity</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Reason</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Date</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4">Logged By</th>
-                      <th className="text-right text-xs font-medium text-muted-foreground p-4">Cost</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground p-4 w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedWaste.map((item) => (
-                      <tr 
-                        key={item.id} 
-                        className="border-b border-border last:border-0 hover:bg-muted/50 group cursor-pointer"
-                        onClick={() => handleViewWaste(item)}
-                      >
-                        <td className="p-4 font-medium text-sm">{item.item}</td>
-                        <td className="p-4 text-sm text-muted-foreground">{item.quantity} {item.unit}</td>
-                        <td className="p-4">
-                          <Badge 
-                            variant={getReasonColor(item.reason) as "default" | "secondary" | "destructive" | "outline"}
-                            className="text-xs font-normal"
-                          >
-                            {item.reason}
-                          </Badge>
-                        </td>
-                        <td className="p-4 text-sm text-muted-foreground">{item.date}</td>
-                        <td className="p-4 text-sm text-muted-foreground">{item.loggedBy}</td>
-                        <td className="p-4 text-sm font-medium text-right text-red-500">
-                          -₦{item.cost.toLocaleString()}
-                        </td>
-                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleViewWaste(item)}>View Details</DropdownMenuItem>
-                              <DropdownMenuItem>Edit</DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <TablePagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                startIndex={startIndex + 1}
-                endIndex={endIndex}
-                pageSize={pageSize}
-                onPageChange={setCurrentPage}
-                onPageSizeChange={setPageSize}
-                showPageSize
-              />
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Add Waste Sheet */}
-      <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Log Waste Item</SheetTitle>
-            <SheetDescription>Record wasted items for tracking</SheetDescription>
-          </SheetHeader>
-          <div className="grid gap-4 py-6">
-            <div className="space-y-2">
-              <Label>Item Name</Label>
-              <Input placeholder="e.g., Lettuce" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Quantity</Label>
-                <Input type="number" placeholder="0" />
-              </div>
-              <div className="space-y-2">
-                <Label>Unit</Label>
-                <Select>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="kg">Kg</SelectItem>
-                    <SelectItem value="g">Grams</SelectItem>
-                    <SelectItem value="L">Liters</SelectItem>
-                    <SelectItem value="pcs">Pieces</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Reason</Label>
-              <Select>
-                <SelectTrigger><SelectValue placeholder="Select reason" /></SelectTrigger>
-                <SelectContent>
-                  {reasons.map(r => (
-                    <SelectItem key={r} value={r.toLowerCase()}>{r}</SelectItem>
+          <Card>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="p-4 space-y-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-12 w-full" />
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Estimated Cost (₦)</Label>
-              <Input type="number" placeholder="0" />
-            </div>
-            <div className="space-y-2">
-              <Label>Notes (Optional)</Label>
-              <Textarea placeholder="Additional details about this waste..." rows={3} />
-            </div>
-          </div>
-          <SheetFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsAddSheetOpen(false)} className="w-full sm:w-auto">Cancel</Button>
-            <Button className="w-full sm:w-auto">Log Waste</Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-
-      {/* View Waste Sheet */}
-      <Sheet open={isViewSheetOpen} onOpenChange={setIsViewSheetOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{selectedWaste?.item}</SheetTitle>
-            <SheetDescription>Waste log details</SheetDescription>
-          </SheetHeader>
-          <div className="grid gap-4 py-6">
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <span className="text-sm text-muted-foreground">Quantity</span>
-              <span className="font-medium">{selectedWaste?.quantity} {selectedWaste?.unit}</span>
-            </div>
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <span className="text-sm text-muted-foreground">Reason</span>
-              <Badge variant={getReasonColor(selectedWaste?.reason || "") as "default" | "secondary" | "destructive" | "outline"}>
-                {selectedWaste?.reason}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <span className="text-sm text-muted-foreground">Cost</span>
-              <span className="font-medium text-red-500">-₦{selectedWaste?.cost.toLocaleString()}</span>
-            </div>
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <span className="text-sm text-muted-foreground">Date</span>
-              <span className="font-medium">{selectedWaste?.date}</span>
-            </div>
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <span className="text-sm text-muted-foreground">Logged By</span>
-              <span className="font-medium">{selectedWaste?.loggedBy}</span>
-            </div>
-            {selectedWaste?.notes && (
-              <div className="p-4 border rounded-lg">
-                <p className="text-sm text-muted-foreground mb-1">Notes</p>
-                <p className="text-sm">{selectedWaste.notes}</p>
-              </div>
-            )}
-          </div>
-          <SheetFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="destructive" size="sm" className="w-full sm:w-auto">
-              <Trash2 className="h-4 w-4 mr-2" />Delete
-            </Button>
-            <Button className="w-full sm:w-auto">
-              <Edit className="h-4 w-4 mr-2" />Edit
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+                </div>
+              ) : filteredLogs.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center p-8">
+                  No waste entries match the current filters.
+                </p>
+              ) : (
+                <>
+                  <div className="hidden sm:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="pl-6">Ingredient</TableHead>
+                          <TableHead>Quantity</TableHead>
+                          <TableHead>Reason</TableHead>
+                          <TableHead>Logged by</TableHead>
+                          <TableHead>When</TableHead>
+                          <TableHead className="text-right pr-6">Value</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredLogs.map((log) => (
+                          <TableRow key={log.id}>
+                            <TableCell className="pl-6 font-medium">
+                              {log.ingredientName}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {log.quantity} {log.unit}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={reasonBadgeVariant(log.reason ?? "")}
+                                className="font-normal"
+                              >
+                                {log.reason ?? "Unspecified"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {log.staffName ?? "—"}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {new Date(log.createdAt).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-right pr-6 text-red-500 font-medium">
+                              {ngn(log.estimatedValue)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="sm:hidden divide-y">
+                    {filteredLogs.map((log) => (
+                      <div key={log.id} className="px-3 py-4 space-y-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">
+                              {log.ingredientName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {log.quantity} {log.unit}
+                            </p>
+                          </div>
+                          <Badge
+                            variant={reasonBadgeVariant(log.reason ?? "")}
+                            className="font-normal shrink-0"
+                          >
+                            {log.reason ?? "Unspecified"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <div className="flex items-center gap-3">
+                            <span className="flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              {log.staffName ?? "—"}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(log.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <span className="text-red-500 font-medium">
+                            {ngn(log.estimatedValue)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
-};
-
-export default WastePage;
+}

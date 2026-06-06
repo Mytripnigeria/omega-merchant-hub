@@ -114,3 +114,52 @@ export async function apiRequest<T>(
   const json = await response.json();
   return json.data as T;
 }
+
+/**
+ * Downloads a binary response (e.g. an .xlsx export) and triggers a browser
+ * save dialog. Honors the same auth header + 401-refresh handling as
+ * `apiRequest`, but skips JSON parsing.
+ */
+export async function apiDownload(path: string): Promise<void> {
+  const token = tokenStorage.getToken();
+
+  const makeRequest = async (accessToken: string | null) => {
+    const headers: Record<string, string> = {};
+    if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+    return fetch(`${API_URL}${path}`, { method: 'GET', headers });
+  };
+
+  let response = await makeRequest(token);
+  if (response.status === 401 && token) {
+    const newToken = await refreshAccessToken();
+    response = await makeRequest(newToken);
+  }
+  if (!response.ok) {
+    let message = `HTTP ${response.status}`;
+    try {
+      const body = await response.json();
+      message = body.message ?? message;
+    } catch {
+      // not JSON — keep the status-based message
+    }
+    throw new Error(message);
+  }
+
+  // Pull filename out of Content-Disposition when present, fall back to the
+  // last path segment otherwise.
+  const dispositionFilename = (() => {
+    const cd = response.headers.get('Content-Disposition') ?? '';
+    const m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd);
+    return m ? decodeURIComponent(m[1]) : null;
+  })();
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = dispositionFilename ?? path.split('/').pop() ?? 'download';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

@@ -1,20 +1,31 @@
 // Operations Types
 
+export type ChecklistAssignmentType = "all_staff" | "role" | "staff";
+export type ChecklistFrequency =
+  | "one_off"
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "quarterly"
+  | "yearly";
+export type ChecklistStatus = "pending" | "in_progress" | "completed";
+
 export interface Checklist {
   id: string;
+  businessId: string;
   storeId: string;
   name: string;
-  description?: string;
-  assignmentType: "shift" | "role" | "staff";
-  assignedTo: string; // shiftId, roleId, or staffId
-  assignedToName: string;
-  frequency: "daily" | "weekly" | "monthly" | "one-time";
+  description: string | null;
+  assignmentType: ChecklistAssignmentType;
+  /** roleId, staffId, or null when assignmentType=all_staff */
+  assignedToId: string | null;
+  /** Display label ("All Staff", role name, staff full name) */
+  assignedToName: string | null;
+  frequency: ChecklistFrequency;
   items: ChecklistItem[];
-  dueDate?: string;
-  dueTime?: string;
-  status: "pending" | "in-progress" | "completed" | "late" | "overdue";
-  completedAt?: string;
-  completedBy?: string;
+  dueDate: string | null;
+  dueTime: string | null;
+  status: ChecklistStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -24,8 +35,9 @@ export interface ChecklistItem {
   title: string;
   description?: string;
   isCompleted: boolean;
-  completedAt?: string;
-  completedBy?: string;
+  completedAt?: string | null;
+  completedBy?: string | null;
+  completedByName?: string | null;
   order: number;
 }
 
@@ -70,22 +82,53 @@ export interface WasteLog {
   updatedAt: string;
 }
 
+export type KpiCategory =
+  | "sales"
+  | "orders"
+  | "customers"
+  | "efficiency"
+  | "waste"
+  | "labor"
+  | "custom";
+export type KpiAssignmentType = ChecklistAssignmentType; // identical shape
+export type KpiPeriod = ChecklistFrequency; // identical shape (one_off..yearly)
+export type KpiStatus =
+  | "on_track"
+  | "at_risk"
+  | "behind"
+  | "achieved"
+  | "exceeded";
+
 export interface KPITarget {
   id: string;
+  businessId: string;
   storeId: string;
   name: string;
-  description?: string;
-  category: "sales" | "orders" | "customers" | "efficiency" | "waste" | "labor" | "custom";
+  description: string | null;
+  category: KpiCategory;
+  assignmentType: KpiAssignmentType;
+  assignedToId: string | null;
+  assignedToName: string | null;
+  period: KpiPeriod;
   targetValue: number;
   currentValue: number;
   unit: string;
-  period: "day" | "week" | "month" | "quarter" | "year";
-  periodStart: string;
-  periodEnd: string;
-  status: "on-track" | "at-risk" | "behind" | "achieved" | "exceeded";
-  progress: number; // percentage
+  periodStart: string | null;
+  periodEnd: string | null;
+  status: KpiStatus;
+  progress: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface KpiPerformanceRow {
+  staffId: string;
+  staffName: string;
+  roleName: string | null;
+  value: number;
+  share: number;
+  progress: number;
+  source: "computed" | "manual";
 }
 
 export interface SalesTarget {
@@ -132,12 +175,10 @@ export interface FoodCostIngredient {
 // Filters
 export interface ChecklistFilters {
   storeId?: string;
-  assignmentType?: Checklist["assignmentType"];
-  assignedTo?: string;
-  status?: Checklist["status"];
-  frequency?: Checklist["frequency"];
-  dateFrom?: string;
-  dateTo?: string;
+  assignmentType?: ChecklistAssignmentType;
+  status?: ChecklistStatus;
+  frequency?: ChecklistFrequency;
+  staffId?: string;
   search?: string;
   page?: number;
   limit?: number;
@@ -167,9 +208,11 @@ export interface WasteLogFilters {
 
 export interface KPITargetFilters {
   storeId?: string;
-  category?: KPITarget["category"];
-  status?: KPITarget["status"];
-  period?: KPITarget["period"];
+  category?: KpiCategory;
+  status?: KpiStatus;
+  period?: KpiPeriod;
+  assignmentType?: KpiAssignmentType;
+  search?: string;
   page?: number;
   limit?: number;
 }
@@ -192,29 +235,41 @@ export interface FoodCostFilters {
   limit?: number;
 }
 
+export interface ChecklistItemInput {
+  /** Omit on new items — the server stamps a UUID. */
+  id?: string;
+  title: string;
+  description?: string;
+  isCompleted?: boolean;
+  order: number;
+}
+
 // Request types
 export interface CreateChecklistRequest {
   storeId: string;
   name: string;
   description?: string;
-  assignmentType: Checklist["assignmentType"];
-  assignedTo: string;
-  frequency: Checklist["frequency"];
-  items: Omit<ChecklistItem, 'id' | 'isCompleted' | 'completedAt' | 'completedBy'>[];
+  assignmentType: ChecklistAssignmentType;
+  /** Required for role/staff; omit for all_staff. */
+  assignedToId?: string;
+  assignedToName?: string;
+  frequency: ChecklistFrequency;
+  items: ChecklistItemInput[];
   dueDate?: string;
   dueTime?: string;
 }
 
 export interface UpdateChecklistRequest {
+  storeId?: string;
   name?: string;
   description?: string;
-  assignmentType?: Checklist["assignmentType"];
-  assignedTo?: string;
-  frequency?: Checklist["frequency"];
-  items?: ChecklistItem[];
+  assignmentType?: ChecklistAssignmentType;
+  assignedToId?: string;
+  assignedToName?: string;
+  frequency?: ChecklistFrequency;
+  items?: ChecklistItemInput[];
   dueDate?: string;
   dueTime?: string;
-  status?: Checklist["status"];
 }
 
 export interface CreateExpenseRequest {
@@ -274,22 +329,29 @@ export interface CreateKPITargetRequest {
   storeId: string;
   name: string;
   description?: string;
-  category: KPITarget["category"];
+  category: KpiCategory;
+  assignmentType: KpiAssignmentType;
+  /** Required for role/staff; omit for all_staff. */
+  assignedToId?: string;
+  assignedToName?: string;
   targetValue: number;
-  unit: string;
-  period: KPITarget["period"];
-  periodStart: string;
-  periodEnd: string;
+  unit?: string;
+  period: KpiPeriod;
+  periodStart?: string;
+  periodEnd?: string;
 }
 
 export interface UpdateKPITargetRequest {
+  storeId?: string;
   name?: string;
   description?: string;
-  category?: KPITarget["category"];
+  category?: KpiCategory;
+  assignmentType?: KpiAssignmentType;
+  assignedToId?: string;
+  assignedToName?: string;
   targetValue?: number;
-  currentValue?: number;
   unit?: string;
-  period?: KPITarget["period"];
+  period?: KpiPeriod;
   periodStart?: string;
   periodEnd?: string;
 }

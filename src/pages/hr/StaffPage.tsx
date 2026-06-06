@@ -33,6 +33,7 @@ import {
   Phone,
   Key,
   Trash2,
+  Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -718,31 +719,61 @@ export default function StaffPage() {
               )}
 
               <div className="space-y-3 pt-4 border-t">
-                <h4 className="text-sm font-medium text-muted-foreground">Workstation PIN</h4>
-                <div className="flex gap-2">
-                  <Input
-                    type="password"
-                    placeholder="New PIN"
-                    maxLength={8}
-                    value={pinInput}
-                    onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
-                  />
+                <h4 className="text-sm font-medium text-muted-foreground">Workstation Sign-in</h4>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Staff ID</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      readOnly
+                      value={selected.staffCode ?? ""}
+                      className="font-mono"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        if (!selected.staffCode) return;
+                        navigator.clipboard.writeText(selected.staffCode);
+                        toast.success("Staff ID copied");
+                      }}
+                      disabled={!selected.staffCode}
+                      aria-label="Copy Staff ID"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Staff enters this ID on the workstation sign-in screen along with their PIN.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">PIN</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="password"
+                      placeholder="New PIN"
+                      maxLength={8}
+                      value={pinInput}
+                      onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleSetPin}
+                      disabled={setStaffPin.isPending || pinInput.length < 4}
+                    >
+                      <Key className="mr-2 h-4 w-4" /> Set
+                    </Button>
+                  </div>
                   <Button
+                    variant="outline"
                     size="sm"
-                    onClick={handleSetPin}
-                    disabled={setStaffPin.isPending || pinInput.length < 4}
+                    onClick={handleClearPin}
+                    disabled={clearStaffPin.isPending}
                   >
-                    <Key className="mr-2 h-4 w-4" /> Set
+                    Clear PIN
                   </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleClearPin}
-                  disabled={clearStaffPin.isPending}
-                >
-                  Clear PIN
-                </Button>
               </div>
 
               <div className="flex gap-3 pt-4 border-t">

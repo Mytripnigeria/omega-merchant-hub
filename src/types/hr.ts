@@ -3,6 +3,9 @@
 export interface Staff {
   id: string;
   storeId: string;
+  /** Human-readable Staff ID — what the staff types on the workstation
+   *  sign-in screen, alongside their PIN. Unique per business. */
+  staffCode: string;
   firstName: string;
   lastName: string;
   email: string;

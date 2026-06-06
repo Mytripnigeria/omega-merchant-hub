@@ -23,47 +23,11 @@ import type {
   OperationsStats,
 } from "@/types/operations";
 
-// Mock data
-const mockChecklists: Checklist[] = [
-  {
-    id: "check-001",
-    storeId: "store-1",
-    name: "Morning Opening Checklist",
-    description: "Tasks to complete before opening",
-    assignmentType: "shift",
-    assignedTo: "shift-morning",
-    assignedToName: "Morning Shift",
-    frequency: "daily",
-    items: [
-      { id: "item-001", title: "Check inventory levels", isCompleted: true, completedAt: "2024-01-20T07:30:00Z", order: 1 },
-      { id: "item-002", title: "Clean work surfaces", isCompleted: true, completedAt: "2024-01-20T07:45:00Z", order: 2 },
-      { id: "item-003", title: "Turn on equipment", isCompleted: false, order: 3 },
-      { id: "item-004", title: "Verify cash register", isCompleted: false, order: 4 },
-    ],
-    dueTime: "08:00",
-    status: "in-progress",
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-20T07:45:00Z",
-  },
-  {
-    id: "check-002",
-    storeId: "store-1",
-    name: "Evening Closing Checklist",
-    assignmentType: "role",
-    assignedTo: "role-002",
-    assignedToName: "Cashier",
-    frequency: "daily",
-    items: [
-      { id: "item-005", title: "Count cash drawer", isCompleted: false, order: 1 },
-      { id: "item-006", title: "Clean POS area", isCompleted: false, order: 2 },
-      { id: "item-007", title: "Lock safe", isCompleted: false, order: 3 },
-    ],
-    dueTime: "22:00",
-    status: "pending",
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
-  },
-];
+// Checklists are now served from the real backend (see services/api/checklists.ts).
+// The mock array is kept as an empty stub so the legacy `operationsService.getChecklists`
+// signature still type-checks for any straggler callers; new code should use
+// `checklistsApi` via the use-modules hooks.
+const mockChecklists: Checklist[] = [];
 
 const mockExpenses: Expense[] = [
   {
@@ -137,56 +101,9 @@ const mockWasteLogs: WasteLog[] = [
   },
 ];
 
-const mockKPITargets: KPITarget[] = [
-  {
-    id: "kpi-001",
-    storeId: "store-1",
-    name: "Daily Sales Target",
-    category: "sales",
-    targetValue: 500000,
-    currentValue: 385000,
-    unit: "₦",
-    period: "day",
-    periodStart: "2024-01-20",
-    periodEnd: "2024-01-20",
-    status: "on-track",
-    progress: 77,
-    createdAt: "2024-01-20T00:00:00Z",
-    updatedAt: "2024-01-20T15:00:00Z",
-  },
-  {
-    id: "kpi-002",
-    storeId: "store-1",
-    name: "Monthly Orders",
-    category: "orders",
-    targetValue: 1000,
-    currentValue: 650,
-    unit: "orders",
-    period: "month",
-    periodStart: "2024-01-01",
-    periodEnd: "2024-01-31",
-    status: "at-risk",
-    progress: 65,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-20T00:00:00Z",
-  },
-  {
-    id: "kpi-003",
-    storeId: "store-1",
-    name: "Waste Reduction",
-    category: "waste",
-    targetValue: 2,
-    currentValue: 3.5,
-    unit: "%",
-    period: "month",
-    periodStart: "2024-01-01",
-    periodEnd: "2024-01-31",
-    status: "behind",
-    progress: 57,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-20T00:00:00Z",
-  },
-];
+// KPI targets are now served from the real backend (services/api/kpi-targets.ts).
+// This empty stub satisfies the legacy `operationsService.getKPITargets` signature.
+const mockKPITargets: KPITarget[] = [];
 
 const mockSalesTargets: SalesTarget[] = [
   {
@@ -208,50 +125,26 @@ const mockSalesTargets: SalesTarget[] = [
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const operationsService = {
-  // Checklists
-  async getChecklists(filters?: ChecklistFilters): Promise<{ data: Checklist[]; total: number }> {
-    await delay(300);
-    let result = [...mockChecklists];
-    if (filters?.storeId) result = result.filter(c => c.storeId === filters.storeId);
-    if (filters?.status) result = result.filter(c => c.status === filters.status);
-    if (filters?.assignmentType) result = result.filter(c => c.assignmentType === filters.assignmentType);
-    return { data: result, total: result.length };
+  // Checklists are served by the real backend (services/api/checklists.ts).
+  // These stubs only exist for legacy callers and return empty data.
+  async getChecklists(_filters?: ChecklistFilters): Promise<{ data: Checklist[]; total: number }> {
+    return { data: [], total: 0 };
   },
 
-  async getChecklist(id: string): Promise<Checklist | null> {
-    await delay(200);
-    return mockChecklists.find(c => c.id === id) || null;
+  async getChecklist(_id: string): Promise<Checklist | null> {
+    return null;
   },
 
-  async createChecklist(data: CreateChecklistRequest): Promise<Checklist> {
-    await delay(400);
-    const newChecklist: Checklist = {
-      ...data,
-      id: `check-${Date.now()}`,
-      assignedToName: data.assignedTo,
-      items: data.items.map((item, i) => ({ ...item, id: `item-${Date.now()}-${i}`, isCompleted: false })),
-      status: "pending",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    mockChecklists.push(newChecklist);
-    return newChecklist;
+  async createChecklist(_data: CreateChecklistRequest): Promise<Checklist | null> {
+    return null;
   },
 
-  async updateChecklist(id: string, data: UpdateChecklistRequest): Promise<Checklist | null> {
-    await delay(300);
-    const index = mockChecklists.findIndex(c => c.id === id);
-    if (index === -1) return null;
-    mockChecklists[index] = { ...mockChecklists[index], ...data, updatedAt: new Date().toISOString() };
-    return mockChecklists[index];
+  async updateChecklist(_id: string, _data: UpdateChecklistRequest): Promise<Checklist | null> {
+    return null;
   },
 
-  async deleteChecklist(id: string): Promise<boolean> {
-    await delay(300);
-    const index = mockChecklists.findIndex(c => c.id === id);
-    if (index === -1) return false;
-    mockChecklists.splice(index, 1);
-    return true;
+  async deleteChecklist(_id: string): Promise<boolean> {
+    return false;
   },
 
   // Expenses
@@ -344,50 +237,22 @@ export const operationsService = {
     return true;
   },
 
-  // KPI Targets
-  async getKPITargets(filters?: KPITargetFilters): Promise<{ data: KPITarget[]; total: number }> {
-    await delay(300);
-    let result = [...mockKPITargets];
-    if (filters?.storeId) result = result.filter(k => k.storeId === filters.storeId);
-    if (filters?.category) result = result.filter(k => k.category === filters.category);
-    if (filters?.status) result = result.filter(k => k.status === filters.status);
-    return { data: result, total: result.length };
+  // KPI Targets are served by the real backend (services/api/kpi-targets.ts).
+  // These stubs only exist for legacy callers and return empty/no-op data.
+  async getKPITargets(_filters?: KPITargetFilters): Promise<{ data: KPITarget[]; total: number }> {
+    return { data: [], total: 0 };
   },
-
-  async getKPITarget(id: string): Promise<KPITarget | null> {
-    await delay(200);
-    return mockKPITargets.find(k => k.id === id) || null;
+  async getKPITarget(_id: string): Promise<KPITarget | null> {
+    return null;
   },
-
-  async createKPITarget(data: CreateKPITargetRequest): Promise<KPITarget> {
-    await delay(400);
-    const newKPI: KPITarget = {
-      ...data,
-      id: `kpi-${Date.now()}`,
-      currentValue: 0,
-      status: "on-track",
-      progress: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    mockKPITargets.push(newKPI);
-    return newKPI;
+  async createKPITarget(_data: CreateKPITargetRequest): Promise<KPITarget | null> {
+    return null;
   },
-
-  async updateKPITarget(id: string, data: UpdateKPITargetRequest): Promise<KPITarget | null> {
-    await delay(300);
-    const index = mockKPITargets.findIndex(k => k.id === id);
-    if (index === -1) return null;
-    mockKPITargets[index] = { ...mockKPITargets[index], ...data, updatedAt: new Date().toISOString() };
-    return mockKPITargets[index];
+  async updateKPITarget(_id: string, _data: UpdateKPITargetRequest): Promise<KPITarget | null> {
+    return null;
   },
-
-  async deleteKPITarget(id: string): Promise<boolean> {
-    await delay(300);
-    const index = mockKPITargets.findIndex(k => k.id === id);
-    if (index === -1) return false;
-    mockKPITargets.splice(index, 1);
-    return true;
+  async deleteKPITarget(_id: string): Promise<boolean> {
+    return false;
   },
 
   // Sales Targets
@@ -447,13 +312,13 @@ export const operationsService = {
     return {
       checklistsToday: checklists.length,
       checklistsCompleted: checklists.filter(c => c.status === 'completed').length,
-      checklistsOverdue: checklists.filter(c => c.status === 'overdue').length,
+      checklistsOverdue: 0,
       totalExpenses: expenses.reduce((sum, e) => sum + e.amount, 0),
       pendingExpenses: expenses.filter(e => e.status === 'pending').length,
       totalWaste: waste.length,
       wasteValue: waste.reduce((sum, w) => sum + w.estimatedValue, 0),
-      kpisOnTrack: kpis.filter(k => k.status === 'on-track' || k.status === 'achieved').length,
-      kpisAtRisk: kpis.filter(k => k.status === 'at-risk' || k.status === 'behind').length,
+      kpisOnTrack: kpis.filter(k => k.status === 'on_track' || k.status === 'achieved').length,
+      kpisAtRisk: kpis.filter(k => k.status === 'at_risk' || k.status === 'behind').length,
       salesProgress: sales[0]?.progress || 0,
     };
   },

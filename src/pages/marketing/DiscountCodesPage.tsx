@@ -45,6 +45,7 @@ import { useProducts, useCategories } from "@/hooks/api/use-products";
 import { useStore } from "@/contexts/StoreContext";
 import type {
   CouponApplicableTo,
+  CouponMethod,
   CouponType,
   CreateDiscountCodeRequest,
   DiscountCode,
@@ -56,6 +57,7 @@ interface DiscountFormState {
   code: string;
   description: string;
   type: CouponType;
+  method: CouponMethod;
   value: string;
   minOrderAmount: string;
   maxDiscount: string;
@@ -73,6 +75,7 @@ const blankForm: DiscountFormState = {
   code: "",
   description: "",
   type: "percentage",
+  method: "code",
   value: "",
   minOrderAmount: "",
   maxDiscount: "",
@@ -90,6 +93,7 @@ const toForm = (d: DiscountCode): DiscountFormState => ({
   code: d.code,
   description: d.description ?? "",
   type: d.type,
+  method: d.method ?? "code",
   value: String(d.value),
   minOrderAmount: d.minOrderAmount != null ? String(d.minOrderAmount) : "",
   maxDiscount: d.maxDiscount != null ? String(d.maxDiscount) : "",
@@ -108,6 +112,7 @@ const formToPayload = (f: DiscountFormState): CreateDiscountCodeRequest => ({
   code: f.code.trim().toUpperCase(),
   description: f.description.trim() || undefined,
   type: f.type,
+  method: f.method,
   value: Number(f.value),
   minOrderAmount: f.minOrderAmount ? Number(f.minOrderAmount) : undefined,
   maxDiscount: f.maxDiscount ? Number(f.maxDiscount) : undefined,
@@ -520,6 +525,34 @@ export default function DiscountCodesPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="method">Method</Label>
+              <Select
+                value={form.method}
+                onValueChange={(v) =>
+                  setForm({ ...form, method: v as CouponMethod })
+                }
+                disabled={sheetMode === "view"}
+              >
+                <SelectTrigger id="method">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="code">
+                    Code — customer enters at checkout
+                  </SelectItem>
+                  <SelectItem value="automatic">
+                    Automatic — applied to product price instantly
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Automatic discounts apply on storefront without the customer
+                typing anything; code discounts only kick in when the promo
+                code is entered at checkout.
+              </p>
             </div>
 
             <div className="space-y-2">
