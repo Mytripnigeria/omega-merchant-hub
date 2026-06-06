@@ -30,7 +30,6 @@ const AccountBalancingPage = lazy(() => import("./pages/orders/AccountBalancingP
 const ProductsPage = lazy(() => import("./pages/stocks/ProductsPage"));
 const CategoriesPage = lazy(() => import("./pages/stocks/CategoriesPage"));
 const IngredientsPage = lazy(() => import("./pages/stocks/IngredientsPage"));
-const VariationsPage = lazy(() => import("./pages/stocks/VariationsPage"));
 const AddOnsPage = lazy(() => import("./pages/stocks/AddOnsPage"));
 const CombosPage = lazy(() => import("./pages/stocks/CombosPage"));
 
@@ -156,7 +155,6 @@ const App = () => (
                 <Route path="/stocks/products" element={<ProductsPage />} />
                 <Route path="/stocks/categories" element={<CategoriesPage />} />
                 <Route path="/stocks/ingredients" element={<IngredientsPage />} />
-                <Route path="/stocks/variations" element={<VariationsPage />} />
                 <Route path="/stocks/addons" element={<AddOnsPage />} />
                 <Route path="/stocks/combos" element={<CombosPage />} />
                 

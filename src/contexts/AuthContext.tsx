@@ -9,6 +9,7 @@ import {
 import {
   authService,
   type AdminLoginPayload,
+  type AdminRegisterPayload,
   type AdminUser,
 } from "@/services/api/auth";
 import { tokenStorage } from "@/lib/api-client";
@@ -18,6 +19,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (payload: AdminLoginPayload) => Promise<void>;
+  register: (payload: AdminRegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -56,6 +58,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAdmin(result.admin);
   }, []);
 
+  const register = useCallback(async (payload: AdminRegisterPayload) => {
+    const result = await authService.register(payload);
+    setAdmin(result.admin);
+  }, []);
+
   const logout = useCallback(async () => {
     await authService.logout();
     setAdmin(null);
@@ -68,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!admin,
         isLoading,
         login,
+        register,
         logout,
         refresh,
       }}

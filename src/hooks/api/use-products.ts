@@ -19,12 +19,17 @@ export const productKeys = {
   categories: (storeId?: string) => [...productKeys.all, "categories", storeId] as const,
 };
 
-export function useProducts(filters?: ProductFilters) {
+export function useProducts(filters?: ProductFilters & { page?: number; limit?: number }) {
   return useQuery({
     queryKey: productKeys.list(filters),
-    queryFn: async () => {
-      const res = await productApi.list(filters as Record<string, string | number | boolean | undefined>);
-      return res.data ?? res;
+    queryFn: async (): Promise<Product[]> => {
+      const res = await productApi.list(
+        filters as Record<string, string | number | boolean | undefined>,
+      );
+      // The backend may return either a paginated envelope or a bare array.
+      // `useProducts` normalizes both to a plain Product[] for callers.
+      if (Array.isArray(res)) return res as Product[];
+      return (res as { data?: Product[] }).data ?? [];
     },
   });
 }

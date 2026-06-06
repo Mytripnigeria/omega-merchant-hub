@@ -220,7 +220,9 @@ const DEFAULT_VISIBILITY = ["pos", "storefront"];
 
 export default function CategoriesPage() {
   // Categories are business-scoped on the backend, so we don't filter by store.
-  const { data: categoriesData, isLoading } = useCategories();
+  // Default backend page size is 10 — bump to the cap so the merchant sees
+  // every category they've created without us needing pagination UI here.
+  const { data: categoriesData, isLoading } = useCategories({ limit: 200 });
   const categories: Category[] = (categoriesData as { data?: Category[] })?.data ?? (categoriesData as Category[] | undefined) ?? [];
   const updateCategory = useUpdateCategory();
   const createCategory = useCreateCategory();

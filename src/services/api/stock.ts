@@ -7,6 +7,9 @@ import type {
   UpdateProductRequest,
   Category,
   Ingredient,
+  IngredientLocationStock,
+  IngredientMovement,
+  IngredientMovementType,
   AddOnGroup,
   Combo,
 } from '@/types/products';
@@ -154,10 +157,16 @@ export const ingredientApi = {
     return apiRequest<void>(`/ingredients/${id}`, { method: 'DELETE' });
   },
 
-  adjustStock(id: string, adjustment: number, reason?: string, expiryDate?: string) {
+  adjustStock(
+    id: string,
+    adjustment: number,
+    reason?: string,
+    expiryDate?: string,
+    locationId?: string,
+  ) {
     return apiRequest<Ingredient>(`/ingredients/${id}/adjust-stock`, {
       method: 'POST',
-      body: JSON.stringify({ adjustment, reason, expiryDate }),
+      body: JSON.stringify({ adjustment, reason, expiryDate, locationId }),
     });
   },
 
@@ -166,54 +175,41 @@ export const ingredientApi = {
     const qs = buildQs(params as Record<string, string | number | boolean | undefined>);
     return apiRequest<Ingredient[]>(`/ingredients/expiring${qs}`);
   },
-};
 
-// ─── Variation Groups ──────────────────────────────────────────────────────
-
-export interface VariationGroup {
-  id: string;
-  name: string;
-  isActive: boolean;
-  storeId: string;
-  options: { id: string; name: string }[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export const variationGroupApi = {
-  list(params?: Record<string, string | number | undefined>) {
-    // Variation groups are business-scoped — drop any storeId callers pass.
-    const qs = buildQs(stripStoreScope(params));
-    return apiRequest<PaginatedResponse<VariationGroup>>(`/variation-groups${qs}`);
+  listLocationStocks(id: string) {
+    return apiRequest<IngredientLocationStock[]>(`/ingredients/${id}/locations`);
   },
 
-  get(id: string) {
-    return apiRequest<VariationGroup>(`/variation-groups/${id}`);
-  },
-
-  stats() {
-    return apiRequest<{ groups: number; totalOptions: number }>(
-      `/variation-groups/stats`,
-    );
-  },
-
-  create(data: { name: string; isActive?: boolean; options?: { name: string }[] }) {
-    const { storeId: _ignored, ...rest } = data as typeof data & {
-      storeId?: string;
-    };
-    void _ignored;
-    return apiRequest<VariationGroup>('/variation-groups', {
-      method: 'POST',
-      body: JSON.stringify(rest),
+  setLocationStock(
+    id: string,
+    locationId: string,
+    data: { currentStock?: number; minStock?: number; expiryDate?: string | null },
+  ) {
+    return apiRequest<IngredientLocationStock>(`/ingredients/${id}/locations/${locationId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
     });
   },
 
-  update(id: string, data: object) {
-    return apiRequest<VariationGroup>(`/variation-groups/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+  removeLocationStock(id: string, locationId: string) {
+    return apiRequest<void>(`/ingredients/${id}/locations/${locationId}`, { method: 'DELETE' });
   },
 
-  remove(id: string) {
-    return apiRequest<void>(`/variation-groups/${id}`, { method: 'DELETE' });
+  /** Paginated movement history (intake, consumption, waste, transfer, correction). */
+  listMovements(
+    id: string,
+    params?: {
+      type?: IngredientMovementType;
+      dateFrom?: string;
+      dateTo?: string;
+      page?: number;
+      limit?: number;
+    },
+  ) {
+    const qs = buildQs(params as Record<string, string | number | boolean | undefined>);
+    return apiRequest<PaginatedResponse<IngredientMovement>>(
+      `/ingredients/${id}/movements${qs}`,
+    );
   },
 };
 

@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Check, Building2, Store, User, ArrowRight, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface StepIndicatorProps {
   currentStep: number;
@@ -59,6 +61,7 @@ const steps = [
 
 export default function Onboarding() {
   const navigate = useNavigate();
+  const { register } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -102,11 +105,37 @@ export default function Onboarding() {
 
   const handleComplete = async () => {
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // POST /auth/admin/register creates business + admin + first store in
+      // one transaction and returns admin tokens. AuthContext sets the admin;
+      // tokenStorage.setToken fires AUTH_CHANGED_EVENT so StoreContext refetches
+      // and selects the new store. By the time we land on /dashboard the
+      // store dropdown is populated.
+      await register({
+        fullName: accountData.fullName.trim(),
+        email: accountData.email.trim(),
+        password: accountData.password,
+        phone: accountData.phone.trim() || undefined,
+        businessName: businessData.businessName.trim(),
+        businessType: businessData.businessType || undefined,
+        businessDescription: businessData.description.trim() || undefined,
+        country: businessData.country || undefined,
+        currency: businessData.currency || undefined,
+        storeName: storeData.storeName.trim(),
+        storeAddress: storeData.storeAddress.trim(),
+        storeCity: storeData.storeCity.trim() || undefined,
+        storeState: storeData.storeState.trim() || undefined,
+        storePhone: storeData.storePhone.trim() || undefined,
+      });
+      toast.success("Welcome to OMEGA — your account is ready.");
+      navigate("/dashboard", { replace: true });
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Couldn't create your account",
+      );
+    } finally {
       setIsLoading(false);
-      navigate("/dashboard");
-    }, 1500);
+    }
   };
 
   const isStepValid = () => {

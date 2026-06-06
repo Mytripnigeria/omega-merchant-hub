@@ -132,7 +132,7 @@ export default function CombosPage() {
   const { data: stats } = useComboStats(storeId);
   const { data: productsData } = useProducts(storeId ? { storeId, limit: 200 } : undefined);
   const combos: Combo[] = combosData?.data ?? [];
-  const products: Product[] = productsData?.data ?? [];
+  const products: Product[] = productsData ?? [];
 
   const createCombo = useCreateCombo();
   const updateCombo = useUpdateCombo();

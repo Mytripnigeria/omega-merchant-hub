@@ -28,6 +28,8 @@ import {
   useAddonGroups,
   useUploadImage,
 } from "@/hooks/api/use-stock";
+import { useTaxRates } from "@/hooks/api/use-settings";
+import { useDiscountCodes } from "@/hooks/api/use-marketing";
 import { ErrorState } from "@/components/ui/data-states";
 import { useStore } from "@/contexts/StoreContext";
 import type { Product, Category, Ingredient, AddOnGroup } from "@/types/products";
@@ -167,6 +169,12 @@ export default function ProductsPage() {
   const categories: Category[] = (categoriesData?.data as Category[] | undefined) ?? [];
   const { data: ingredientsData, isError: ingredientsError } = useIngredients(storeId ? { storeId, limit: 200 } : undefined);
   const { data: addonGroupsData, isError: addonGroupsError } = useAddonGroups(storeId ? { storeId, limit: 200 } : undefined);
+  // Tax + Discount dropdowns are populated from the live /tax-rates and
+  // /coupons endpoints so the merchant picks rates / codes they've actually
+  // configured (was a hardcoded placeholder list).
+  const { data: taxRates = [] } = useTaxRates();
+  const { data: discountCodesPage } = useDiscountCodes({ isActive: true, limit: 100 });
+  const discountCodes = discountCodesPage?.data ?? [];
   const ingredients: Ingredient[] = ingredientsData?.data ?? [];
   const addonGroups: AddOnGroup[] = (addonGroupsData?.data as AddOnGroup[] | undefined) ?? [];
 
@@ -747,6 +755,70 @@ export default function ProductsPage() {
                 </div>
               )}
             </div>
+
+            {/* Mobile: stacked card list (the desktop table is hidden below sm). */}
+            <div className="sm:hidden divide-y divide-border">
+              {products.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  No products yet — tap "Add Product" to create one.
+                </div>
+              ) : (
+                products.map((product) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => handleViewProduct(product)}
+                    className="w-full text-left p-4 flex items-center gap-3 active:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted overflow-hidden">
+                      {product.imageUrl ? (
+                        <img
+                          src={product.imageUrl}
+                          alt={product.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{product.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {product.categoryId
+                          ? (categoryNameById.get(product.categoryId) ?? "—")
+                          : "—"}
+                        {" · "}
+                        {formatPrice(Number(product.sellingPrice ?? 0))}
+                      </p>
+                      <p
+                        className={cn(
+                          "text-xs",
+                          Number(product.stock) === 0
+                            ? "text-destructive"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        Stock: {product.stock}
+                        {" · "}
+                        <span
+                          className={
+                            product.status ? "text-green-600" : "text-muted-foreground"
+                          }
+                        >
+                          {product.status ? "Active" : "Inactive"}
+                        </span>
+                      </p>
+                    </div>
+                    <Switch
+                      checked={product.status}
+                      onClick={(e) => e.stopPropagation()}
+                      onCheckedChange={() => handleToggleStatus(product)}
+                      disabled={toggleStatus.isPending}
+                    />
+                  </button>
+                ))
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -1108,26 +1180,44 @@ export default function ProductsPage() {
                   <Label>Tax Option</Label>
                   <Select value={formTaxOption} onValueChange={setFormTaxOption}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select" />
+                      <SelectValue placeholder="Select tax rate" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="standard">Standard VAT</SelectItem>
-                      <SelectItem value="none">No Tax</SelectItem>
+                      <SelectItem value="none">No tax</SelectItem>
+                      {taxRates.map((tr) => (
+                        <SelectItem key={tr.id} value={tr.id}>
+                          {tr.name} ({tr.ratePercent}%)
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  {taxRates.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      No tax rates yet — add one in Settings → Tax Rates.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Discount Option</Label>
                   <Select value={formDiscountOption} onValueChange={setFormDiscountOption}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select" />
+                      <SelectValue placeholder="Select discount" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="welcome20">WELCOME20</SelectItem>
-                      <SelectItem value="vip25">VIP25</SelectItem>
+                      {discountCodes.map((dc) => (
+                        <SelectItem key={dc.id} value={dc.id}>
+                          {dc.code}
+                          {dc.type === "percentage" ? ` (${dc.value}%)` : ` (₦${dc.value})`}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  {discountCodes.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      No active discount codes — create one in Marketing → Discount Codes.
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="space-y-3">

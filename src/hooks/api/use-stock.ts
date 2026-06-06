@@ -3,7 +3,6 @@ import {
   categoryApi,
   productApi,
   ingredientApi,
-  variationGroupApi,
   addonGroupApi,
   comboApi,
 } from '@/services/api/stock';
@@ -33,13 +32,6 @@ export const stockKeys = {
     list: (p?: object) => [...stockKeys.ingredients.lists(), p] as const,
     detail: (id: string) => [...stockKeys.ingredients.all, 'detail', id] as const,
     stats: (storeId?: string) => [...stockKeys.ingredients.all, 'stats', storeId] as const,
-  },
-  variationGroups: {
-    all: ['variation-groups'] as const,
-    lists: () => [...stockKeys.variationGroups.all, 'list'] as const,
-    list: (p?: object) => [...stockKeys.variationGroups.lists(), p] as const,
-    detail: (id: string) => [...stockKeys.variationGroups.all, 'detail', id] as const,
-    stats: (storeId?: string) => [...stockKeys.variationGroups.all, 'stats', storeId] as const,
   },
   addonGroups: {
     all: ['addon-groups'] as const,
@@ -191,12 +183,14 @@ export function useAdjustStock() {
       adjustment,
       reason,
       expiryDate,
+      locationId,
     }: {
       id: string;
       adjustment: number;
       reason?: string;
       expiryDate?: string;
-    }) => ingredientApi.adjustStock(id, adjustment, reason, expiryDate),
+      locationId?: string;
+    }) => ingredientApi.adjustStock(id, adjustment, reason, expiryDate, locationId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: stockKeys.ingredients.all });
     },
@@ -212,61 +206,64 @@ export function useExpiringIngredients(params: { storeId?: string; days?: number
   });
 }
 
-// ─── Variation Groups ──────────────────────────────────────────────────────
-
-export function useVariationGroups(params?: Record<string, string | number | undefined>) {
+export function useIngredientLocationStocks(id: string | undefined) {
   return useQuery({
-    queryKey: stockKeys.variationGroups.list(params),
-    queryFn: () => variationGroupApi.list(params),
-  });
-}
-
-export function useVariationGroup(id: string) {
-  return useQuery({
-    queryKey: stockKeys.variationGroups.detail(id),
-    queryFn: () => variationGroupApi.get(id),
+    queryKey: [...stockKeys.ingredients.all, 'locations', id],
+    queryFn: () => ingredientApi.listLocationStocks(id!),
     enabled: !!id,
   });
 }
 
-export function useVariationGroupStats(_storeId?: string) {
-  void _storeId;
+export function useSetIngredientLocationStock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      locationId,
+      data,
+    }: {
+      id: string;
+      locationId: string;
+      data: { currentStock?: number; minStock?: number; expiryDate?: string | null };
+    }) => ingredientApi.setLocationStock(id, locationId, data),
+    onSuccess: (_res, vars) => {
+      qc.invalidateQueries({ queryKey: stockKeys.ingredients.all });
+      qc.invalidateQueries({
+        queryKey: [...stockKeys.ingredients.all, 'locations', vars.id],
+      });
+    },
+  });
+}
+
+export function useIngredientMovements(
+  id: string | undefined,
+  params?: { type?: string; dateFrom?: string; dateTo?: string; page?: number; limit?: number },
+) {
   return useQuery({
-    queryKey: stockKeys.variationGroups.stats(),
-    queryFn: () => variationGroupApi.stats(),
+    queryKey: [...stockKeys.ingredients.all, 'movements', id, params],
+    queryFn: () =>
+      ingredientApi.listMovements(
+        id!,
+        params as Parameters<typeof ingredientApi.listMovements>[1],
+      ),
+    enabled: !!id,
   });
 }
 
-export function useCreateVariationGroup() {
+export function useRemoveIngredientLocationStock() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: variationGroupApi.create,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: stockKeys.variationGroups.all });
+    mutationFn: ({ id, locationId }: { id: string; locationId: string }) =>
+      ingredientApi.removeLocationStock(id, locationId),
+    onSuccess: (_res, vars) => {
+      qc.invalidateQueries({ queryKey: stockKeys.ingredients.all });
+      qc.invalidateQueries({
+        queryKey: [...stockKeys.ingredients.all, 'locations', vars.id],
+      });
     },
   });
 }
 
-export function useUpdateVariationGroup() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: object }) => variationGroupApi.update(id, data),
-    onSuccess: (updated) => {
-      if (updated && 'id' in updated) qc.setQueryData(stockKeys.variationGroups.detail(updated.id), updated);
-      qc.invalidateQueries({ queryKey: stockKeys.variationGroups.lists() });
-    },
-  });
-}
-
-export function useDeleteVariationGroup() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: variationGroupApi.remove,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: stockKeys.variationGroups.all });
-    },
-  });
-}
 
 // ─── Add-on Groups ─────────────────────────────────────────────────────────
 
@@ -329,8 +326,8 @@ export function useAddAddon() {
   return useMutation({
     mutationFn: ({ groupId, data }: { groupId: string; data: { name: string; price?: number } }) =>
       addonGroupApi.addAddon(groupId, data),
-    onSuccess: (_r, { groupId }) => {
-      qc.invalidateQueries({ queryKey: stockKeys.addonGroups.detail(groupId) });
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: stockKeys.addonGroups.all });
     },
   });
 }
@@ -340,8 +337,8 @@ export function useUpdateAddon() {
   return useMutation({
     mutationFn: ({ groupId, addonId, data }: { groupId: string; addonId: string; data: object }) =>
       addonGroupApi.updateAddon(groupId, addonId, data),
-    onSuccess: (_r, { groupId }) => {
-      qc.invalidateQueries({ queryKey: stockKeys.addonGroups.detail(groupId) });
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: stockKeys.addonGroups.all });
     },
   });
 }
@@ -351,8 +348,8 @@ export function useDeleteAddon() {
   return useMutation({
     mutationFn: ({ groupId, addonId }: { groupId: string; addonId: string }) =>
       addonGroupApi.removeAddon(groupId, addonId),
-    onSuccess: (_r, { groupId }) => {
-      qc.invalidateQueries({ queryKey: stockKeys.addonGroups.detail(groupId) });
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: stockKeys.addonGroups.all });
     },
   });
 }
@@ -362,9 +359,8 @@ export function useToggleAddonAvailability() {
   return useMutation({
     mutationFn: ({ groupId, addonId }: { groupId: string; addonId: string }) =>
       addonGroupApi.toggleAddonAvailability(groupId, addonId),
-    onSuccess: (_r, { groupId }) => {
-      qc.invalidateQueries({ queryKey: stockKeys.addonGroups.detail(groupId) });
-      qc.invalidateQueries({ queryKey: stockKeys.addonGroups.stats() });
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: stockKeys.addonGroups.all });
     },
   });
 }

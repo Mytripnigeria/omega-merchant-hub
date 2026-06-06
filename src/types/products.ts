@@ -87,6 +87,41 @@ export interface AddOnGroup {
   storeId: string;
 }
 
+export type IngredientMovementType =
+  | "intake"
+  | "consumption"
+  | "waste"
+  | "transfer"
+  | "correction";
+
+export interface IngredientMovement {
+  id: string;
+  ingredientId: string;
+  storeId: string;
+  staffId?: string | null;
+  staffName?: string | null;
+  type: IngredientMovementType;
+  /** Signed delta — positive for additions, negative for consumption/waste. */
+  quantity: number;
+  previousStock: number;
+  newStock: number;
+  reason?: string | null;
+  referenceType?: string | null;
+  referenceId?: string | null;
+  ingredientName?: string | null;
+  ingredientUnit?: string | null;
+  createdAt: string;
+}
+
+export interface IngredientLocationStock {
+  id: string;
+  locationId: string;
+  currentStock: number;
+  minStock: number;
+  expiryDate?: string | null;
+  lastRestocked?: string | null;
+}
+
 export interface Ingredient {
   id: string;
   name: string;
@@ -94,11 +129,16 @@ export interface Ingredient {
   currentStock: number;
   minStock: number;
   costPerUnit: number;
-  supplierId?: string;
+  /** @deprecated Use `supplierIds` instead. Mirrors `supplierIds[0]`. */
+  supplierId?: string | null;
+  supplierIds?: string[] | null;
+  sku?: string | null;
   storeId: string;
-  /** Best-before / use-by date for the current batch (YYYY-MM-DD). */
+  /** Aggregate best-before (earliest across locations) for the current batch (YYYY-MM-DD). */
   expiryDate?: string | null;
   lastRestocked?: string | null;
+  /** Per-location stock entries. Empty for legacy ingredients with no location rows. */
+  locations?: IngredientLocationStock[];
 }
 
 export interface ComboItem {

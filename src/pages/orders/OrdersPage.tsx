@@ -815,30 +815,59 @@ export default function OrdersPage() {
                   <Card>
                     <CardContent className="p-0">
                       <div className="divide-y divide-border">
-                        {selectedOrder.items.map((item) => (
-                          <div key={item.id} className="p-3 space-y-1">
-                            <div className="flex justify-between gap-2">
-                              <span className="text-sm font-medium">
-                                {item.quantity}× {item.name}
-                              </span>
-                              <span className="text-sm font-semibold whitespace-nowrap">
-                                {formatPrice(item.subtotal)}
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              @ {formatPrice(item.unitPrice)}
-                              {" · prep: "}
-                              <span className="capitalize">
-                                {item.prepStatus}
-                              </span>
-                            </p>
-                            {item.notes && (
-                              <p className="text-xs italic text-muted-foreground">
-                                "{item.notes}"
+                        {selectedOrder.items.map((item) => {
+                          const variationName =
+                            item.variation && typeof item.variation === "object"
+                              ? (item.variation as { name?: unknown }).name
+                              : null;
+                          const addonNames = (item.addons ?? [])
+                            .map((a) =>
+                              a && typeof a === "object"
+                                ? (a as { name?: unknown }).name
+                                : null,
+                            )
+                            .filter(
+                              (n): n is string =>
+                                typeof n === "string" && n.length > 0,
+                            );
+                          return (
+                            <div key={item.id} className="p-3 space-y-1">
+                              <div className="flex justify-between gap-2">
+                                <span className="text-sm font-medium">
+                                  {item.quantity}× {item.name}
+                                </span>
+                                <span className="text-sm font-semibold whitespace-nowrap">
+                                  {formatPrice(item.subtotal)}
+                                </span>
+                              </div>
+                              {typeof variationName === "string" && variationName.length > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                  Variation: <span className="text-foreground">{variationName}</span>
+                                </p>
+                              )}
+                              {addonNames.length > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                  Add-ons:{" "}
+                                  <span className="text-foreground">
+                                    {addonNames.join(", ")}
+                                  </span>
+                                </p>
+                              )}
+                              <p className="text-xs text-muted-foreground">
+                                @ {formatPrice(item.unitPrice)}
+                                {" · prep: "}
+                                <span className="capitalize">
+                                  {item.prepStatus}
+                                </span>
                               </p>
-                            )}
-                          </div>
-                        ))}
+                              {item.notes && (
+                                <p className="text-xs italic text-muted-foreground">
+                                  "{item.notes}"
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </CardContent>
                   </Card>

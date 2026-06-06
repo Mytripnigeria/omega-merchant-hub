@@ -77,7 +77,6 @@ const navItems: NavItem[] = [
       { title: "Products", href: "/stocks/products" },
       { title: "Categories", href: "/stocks/categories" },
       { title: "Ingredients", href: "/stocks/ingredients" },
-      { title: "Variations", href: "/stocks/variations" },
       { title: "Add-ons", href: "/stocks/addons" },
       { title: "Combos", href: "/stocks/combos" },
     ],

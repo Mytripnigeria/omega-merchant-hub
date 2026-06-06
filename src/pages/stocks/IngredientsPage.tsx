@@ -11,8 +11,25 @@ import {
   useUpdateIngredient,
   useDeleteIngredient,
   useAdjustStock,
+  useIngredientLocationStocks,
+  useSetIngredientLocationStock,
+  useRemoveIngredientLocationStock,
+  useIngredientMovements,
 } from "@/hooks/api/use-stock";
+import { useSuppliers } from "@/hooks/api/use-suppliers";
+import { useInventoryLocations } from "@/hooks/api/use-procurement";
 import { useStore } from "@/contexts/StoreContext";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import type {
+  Ingredient,
+  IngredientLocationStock,
+  IngredientMovement,
+} from "@/types/products";
 import {
   Table,
   TableBody,
@@ -58,23 +75,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-
-interface Ingredient {
-  id: string;
-  name: string;
-  sku?: string;
-  unit: string;
-  currentStock: number;
-  minStock: number;
-  costPerUnit: number;
-  supplierId?: string;
-  storeId: string;
-  lastRestocked?: string;
-  /** Best-before / use-by date for the current batch (YYYY-MM-DD). */
-  expiryDate?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
-}
 
 const formatPrice = (amount: number) =>
   new Intl.NumberFormat("en-NG", {
@@ -138,19 +138,33 @@ export default function IngredientsPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "low">("all");
+  const [locationFilter, setLocationFilter] = useState<string>("all");
 
   const queryParams = useMemo(
     () => ({
       ...(storeId ? { storeId } : {}),
       ...(searchQuery ? { search: searchQuery } : {}),
       ...(statusFilter === "low" ? { status: "low" } : {}),
+      ...(locationFilter !== "all" ? { locationId: locationFilter } : {}),
     }),
-    [storeId, searchQuery, statusFilter],
+    [storeId, searchQuery, statusFilter, locationFilter],
   );
 
   const { data: ingredientsData, isLoading } = useIngredients(queryParams);
   const { data: stats } = useIngredientStats(storeId);
   const ingredients: Ingredient[] = (ingredientsData?.data ?? []) as Ingredient[];
+
+  const { data: suppliersData } = useSuppliers({ limit: 200 });
+  const suppliers = suppliersData?.data ?? [];
+  const supplierName = (id: string) =>
+    suppliers.find((s) => s.id === id)?.name ?? id.slice(0, 8);
+
+  const { data: locationsData } = useInventoryLocations(
+    storeId ? { storeId, limit: 200 } : undefined,
+  );
+  const locations = locationsData?.data ?? [];
+  const locationName = (id: string) =>
+    locations.find((l) => l.id === id)?.name ?? id.slice(0, 8);
 
   const createIngredient = useCreateIngredient();
   const updateIngredient = useUpdateIngredient();
@@ -166,8 +180,14 @@ export default function IngredientsPage() {
   const [formCurrentStock, setFormCurrentStock] = useState<number>(0);
   const [formMinStock, setFormMinStock] = useState<number>(0);
   const [formCostPerUnit, setFormCostPerUnit] = useState<number>(0);
-  const [formSupplierId, setFormSupplierId] = useState("");
+  const [formSupplierIds, setFormSupplierIds] = useState<string[]>([]);
   const [formExpiryDate, setFormExpiryDate] = useState<string>("");
+  /** Per-location stock rows used only when creating a new ingredient.
+   * On edit, per-location stock is managed via the dedicated location endpoints
+   * (the create payload `locations` is ignored on update). */
+  const [formInitialLocations, setFormInitialLocations] = useState<
+    { locationId: string; currentStock: number; minStock: number; expiryDate?: string }[]
+  >([]);
 
   // View sheet
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
@@ -179,6 +199,7 @@ export default function IngredientsPage() {
   const [adjustAmount, setAdjustAmount] = useState<number>(0);
   const [adjustReason, setAdjustReason] = useState("");
   const [adjustExpiryDate, setAdjustExpiryDate] = useState<string>("");
+  const [adjustLocationId, setAdjustLocationId] = useState<string>("aggregate");
 
   const lowStockItems = ingredients.filter((i) => Number(i.currentStock) <= Number(i.minStock));
 
@@ -189,8 +210,9 @@ export default function IngredientsPage() {
     setFormCurrentStock(0);
     setFormMinStock(0);
     setFormCostPerUnit(0);
-    setFormSupplierId("");
+    setFormSupplierIds([]);
     setFormExpiryDate("");
+    setFormInitialLocations([]);
   };
 
   const openCreateSheet = () => {
@@ -212,8 +234,15 @@ export default function IngredientsPage() {
       setFormCurrentStock(Number(selectedIngredient.currentStock ?? 0));
       setFormMinStock(Number(selectedIngredient.minStock ?? 0));
       setFormCostPerUnit(Number(selectedIngredient.costPerUnit ?? 0));
-      setFormSupplierId(selectedIngredient.supplierId ?? "");
+      const ids =
+        selectedIngredient.supplierIds && selectedIngredient.supplierIds.length > 0
+          ? selectedIngredient.supplierIds
+          : selectedIngredient.supplierId
+            ? [selectedIngredient.supplierId]
+            : [];
+      setFormSupplierIds(ids);
       setFormExpiryDate(selectedIngredient.expiryDate ?? "");
+      setFormInitialLocations([]);
     }
   }, [selectedIngredient, isFormSheetOpen]);
 
@@ -230,24 +259,30 @@ export default function IngredientsPage() {
       toast.error("Unit is required");
       return;
     }
-    const payload = {
+    const basePayload = {
       name: formName.trim(),
       sku: formSku || undefined,
       unit: formUnit.trim(),
       currentStock: formCurrentStock,
       minStock: formMinStock,
       costPerUnit: formCostPerUnit,
-      supplierId: formSupplierId || undefined,
+      supplierIds: formSupplierIds.length > 0 ? formSupplierIds : undefined,
       expiryDate: formExpiryDate || undefined,
     };
     try {
       if (selectedIngredient) {
-        await updateIngredient.mutateAsync({ id: selectedIngredient.id, data: payload });
+        await updateIngredient.mutateAsync({
+          id: selectedIngredient.id,
+          data: basePayload,
+        });
         toast.success("Ingredient updated");
       } else {
-        await createIngredient.mutateAsync({ ...payload, storeId } as Parameters<
-          typeof createIngredient.mutateAsync
-        >[0]);
+        const locationsPayload = formInitialLocations.filter((l) => l.locationId);
+        await createIngredient.mutateAsync({
+          ...basePayload,
+          storeId,
+          ...(locationsPayload.length > 0 ? { locations: locationsPayload } : {}),
+        } as Parameters<typeof createIngredient.mutateAsync>[0]);
         toast.success("Ingredient created");
       }
       setIsFormSheetOpen(false);
@@ -273,6 +308,13 @@ export default function IngredientsPage() {
     setAdjustTarget(ingredient);
     setAdjustAmount(0);
     setAdjustReason("");
+    setAdjustExpiryDate("");
+    // Default to the ingredient's first per-location row when one exists, else aggregate.
+    setAdjustLocationId(
+      ingredient.locations && ingredient.locations.length > 0
+        ? ingredient.locations[0].locationId
+        : "aggregate",
+    );
     setIsAdjustSheetOpen(true);
   };
 
@@ -290,6 +332,7 @@ export default function IngredientsPage() {
         // Best-before is only meaningful on stock intake (positive adjustments).
         // The backend ignores it for negatives.
         expiryDate: adjustAmount > 0 && adjustExpiryDate ? adjustExpiryDate : undefined,
+        locationId: adjustLocationId !== "aggregate" ? adjustLocationId : undefined,
       });
       toast.success("Stock adjusted");
       setIsAdjustSheetOpen(false);
@@ -379,7 +422,15 @@ export default function IngredientsPage() {
               <p className="text-xs sm:text-sm text-muted-foreground">Suppliers</p>
               <p className="text-xl sm:text-2xl font-semibold">
                 {stats?.supplierCount ??
-                  new Set(ingredients.map((i) => i.supplierId).filter(Boolean)).size}
+                  new Set(
+                    ingredients.flatMap((i) =>
+                      i.supplierIds && i.supplierIds.length > 0
+                        ? i.supplierIds
+                        : i.supplierId
+                          ? [i.supplierId]
+                          : [],
+                    ),
+                  ).size}
               </p>
             </CardContent>
           </Card>
@@ -403,6 +454,19 @@ export default function IngredientsPage() {
           <SelectContent>
             <SelectItem value="all">All Stock</SelectItem>
             <SelectItem value="low">Low Stock</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={locationFilter} onValueChange={setLocationFilter}>
+          <SelectTrigger className="w-full sm:w-56">
+            <SelectValue placeholder="All Locations" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Locations</SelectItem>
+            {locations.map((loc) => (
+              <SelectItem key={loc.id} value={loc.id}>
+                {loc.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -588,13 +652,177 @@ export default function IngredientsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Supplier ID (optional)</Label>
-              <Input
-                placeholder="Supplier reference"
-                value={formSupplierId}
-                onChange={(e) => setFormSupplierId(e.target.value)}
-              />
+              <Label>Suppliers (optional)</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-start font-normal"
+                  >
+                    {formSupplierIds.length === 0
+                      ? "Select suppliers"
+                      : formSupplierIds.length === 1
+                        ? supplierName(formSupplierIds[0])
+                        : `${formSupplierIds.length} suppliers selected`}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-2 max-h-72 overflow-y-auto">
+                  {suppliers.length === 0 ? (
+                    <p className="px-2 py-3 text-sm text-muted-foreground">
+                      No suppliers yet. Create one under Procurement &gt; Suppliers.
+                    </p>
+                  ) : (
+                    suppliers.map((sup) => {
+                      const checked = formSupplierIds.includes(sup.id);
+                      return (
+                        <label
+                          key={sup.id}
+                          className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(v) => {
+                              if (v) {
+                                setFormSupplierIds((prev) => [...prev, sup.id]);
+                              } else {
+                                setFormSupplierIds((prev) =>
+                                  prev.filter((x) => x !== sup.id),
+                                );
+                              }
+                            }}
+                          />
+                          <span>{sup.name}</span>
+                        </label>
+                      );
+                    })
+                  )}
+                </PopoverContent>
+              </Popover>
+              {formSupplierIds.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {formSupplierIds.map((sid) => (
+                    <Badge key={sid} variant="secondary" className="gap-1">
+                      {supplierName(sid)}
+                      <button
+                        type="button"
+                        className="ml-1 text-muted-foreground hover:text-foreground"
+                        onClick={() =>
+                          setFormSupplierIds((prev) => prev.filter((x) => x !== sid))
+                        }
+                        aria-label={`Remove ${supplierName(sid)}`}
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
+            {!selectedIngredient && locations.length > 0 && (
+              <div className="space-y-2">
+                <Label>Initial per-location stock (optional)</Label>
+                <p className="text-xs text-muted-foreground">
+                  Split the starting stock across one or more inventory locations. The aggregate
+                  fields above are recomputed from these rows.
+                </p>
+                <div className="space-y-2">
+                  {formInitialLocations.map((row, idx) => (
+                    <div
+                      key={`${row.locationId}-${idx}`}
+                      className="grid grid-cols-12 gap-2 items-center"
+                    >
+                      <Select
+                        value={row.locationId}
+                        onValueChange={(v) =>
+                          setFormInitialLocations((prev) => {
+                            const next = [...prev];
+                            next[idx] = { ...next[idx], locationId: v };
+                            return next;
+                          })
+                        }
+                      >
+                        <SelectTrigger className="col-span-5">
+                          <SelectValue placeholder="Location" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {locations.map((loc) => (
+                            <SelectItem key={loc.id} value={loc.id}>
+                              {loc.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        placeholder="Stock"
+                        className="col-span-3"
+                        value={row.currentStock}
+                        onChange={(e) =>
+                          setFormInitialLocations((prev) => {
+                            const next = [...prev];
+                            next[idx] = {
+                              ...next[idx],
+                              currentStock: Number(e.target.value),
+                            };
+                            return next;
+                          })
+                        }
+                      />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        placeholder="Min"
+                        className="col-span-3"
+                        value={row.minStock}
+                        onChange={(e) =>
+                          setFormInitialLocations((prev) => {
+                            const next = [...prev];
+                            next[idx] = { ...next[idx], minStock: Number(e.target.value) };
+                            return next;
+                          })
+                        }
+                      />
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="col-span-1"
+                        onClick={() =>
+                          setFormInitialLocations((prev) => prev.filter((_, i) => i !== idx))
+                        }
+                        aria-label="Remove location row"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setFormInitialLocations((prev) => [
+                        ...prev,
+                        { locationId: "", currentStock: 0, minStock: 0 },
+                      ])
+                    }
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add location
+                  </Button>
+                </div>
+              </div>
+            )}
+            {selectedIngredient && (
+              <IngredientLocationsEditor
+                ingredient={selectedIngredient}
+                allLocations={locations}
+              />
+            )}
             <div className="space-y-2">
               <Label>Best-before date (optional)</Label>
               <Input
@@ -640,6 +868,24 @@ export default function IngredientsPage() {
             </SheetDescription>
           </SheetHeader>
           <div className="grid gap-4 py-6">
+            {adjustTarget?.locations && adjustTarget.locations.length > 0 && (
+              <div className="space-y-2">
+                <Label>Location</Label>
+                <Select value={adjustLocationId} onValueChange={setAdjustLocationId}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {adjustTarget.locations.map((row) => (
+                      <SelectItem key={row.locationId} value={row.locationId}>
+                        {locationName(row.locationId)} — {row.currentStock} {adjustTarget.unit}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="aggregate">Aggregate (no location)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Adjustment ({adjustTarget?.unit})</Label>
               <Input
@@ -761,13 +1007,62 @@ export default function IngredientsPage() {
                         : "—"}
                     </p>
                   </div>
-                  {viewingIngredient.supplierId && (
-                    <div className="space-y-1 col-span-2">
-                      <p className="text-sm text-muted-foreground">Supplier ID</p>
-                      <p className="font-mono text-sm">{viewingIngredient.supplierId}</p>
-                    </div>
-                  )}
                 </div>
+                {(() => {
+                  const ids =
+                    viewingIngredient.supplierIds && viewingIngredient.supplierIds.length > 0
+                      ? viewingIngredient.supplierIds
+                      : viewingIngredient.supplierId
+                        ? [viewingIngredient.supplierId]
+                        : [];
+                  if (ids.length === 0) return null;
+                  return (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Suppliers</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {ids.map((sid) => (
+                          <Badge key={sid} variant="secondary">
+                            {supplierName(sid)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+                {viewingIngredient.locations && viewingIngredient.locations.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Per-location stock</p>
+                    <div className="rounded-md border divide-y">
+                      {viewingIngredient.locations.map((row: IngredientLocationStock) => (
+                        <div
+                          key={row.id}
+                          className="flex items-center justify-between px-3 py-2 text-sm"
+                        >
+                          <div>
+                            <p className="font-medium">{locationName(row.locationId)}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Min: {row.minStock} {viewingIngredient.unit}
+                              {row.expiryDate ? ` · BB ${row.expiryDate}` : ""}
+                            </p>
+                          </div>
+                          <p
+                            className={cn(
+                              "font-medium",
+                              Number(row.currentStock) <= Number(row.minStock) &&
+                                "text-destructive",
+                            )}
+                          >
+                            {row.currentStock} {viewingIngredient.unit}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <IngredientHistorySection
+                  ingredientId={viewingIngredient.id}
+                  unit={viewingIngredient.unit}
+                />
               </div>
               <SheetFooter className="flex-col sm:flex-row gap-2">
                 <Button
@@ -809,6 +1104,312 @@ export default function IngredientsPage() {
           )}
         </SheetContent>
       </Sheet>
+    </div>
+  );
+}
+
+function IngredientLocationsEditor({
+  ingredient,
+  allLocations,
+}: {
+  ingredient: Ingredient;
+  allLocations: { id: string; name: string }[];
+}) {
+  const { data: rows, isLoading } = useIngredientLocationStocks(ingredient.id);
+  const setStock = useSetIngredientLocationStock();
+  const removeStock = useRemoveIngredientLocationStock();
+
+  const [newLocationId, setNewLocationId] = useState("");
+  const [newStock, setNewStock] = useState<number>(0);
+  const [newMin, setNewMin] = useState<number>(0);
+
+  const usedIds = new Set((rows ?? []).map((r) => r.locationId));
+  const addable = allLocations.filter((l) => !usedIds.has(l.id));
+
+  const handleSave = async (
+    locationId: string,
+    data: { currentStock?: number; minStock?: number; expiryDate?: string | null },
+  ) => {
+    try {
+      await setStock.mutateAsync({ id: ingredient.id, locationId, data });
+      toast.success("Location stock saved");
+    } catch (err) {
+      toast.error((err as Error).message ?? "Failed to save");
+    }
+  };
+
+  const handleRemove = async (locationId: string) => {
+    try {
+      await removeStock.mutateAsync({ id: ingredient.id, locationId });
+      toast.success("Location removed");
+    } catch (err) {
+      toast.error((err as Error).message ?? "Failed to remove");
+    }
+  };
+
+  const handleAdd = async () => {
+    if (!newLocationId) {
+      toast.error("Pick a location");
+      return;
+    }
+    await handleSave(newLocationId, { currentStock: newStock, minStock: newMin });
+    setNewLocationId("");
+    setNewStock(0);
+    setNewMin(0);
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label>Per-location stock</Label>
+      <p className="text-xs text-muted-foreground">
+        Adjustments here update the aggregate stock on this ingredient automatically.
+      </p>
+      {isLoading ? (
+        <Skeleton className="h-16 w-full" />
+      ) : (
+        <div className="rounded-md border divide-y">
+          {(rows ?? []).length === 0 ? (
+            <p className="px-3 py-2 text-sm text-muted-foreground">
+              No per-location stock yet. Add one below to start tracking by location.
+            </p>
+          ) : (
+            (rows ?? []).map((row) => (
+              <LocationStockRow
+                key={row.id}
+                row={row}
+                unit={ingredient.unit}
+                allLocations={allLocations}
+                onSave={(data) => handleSave(row.locationId, data)}
+                onRemove={() => handleRemove(row.locationId)}
+                disabled={setStock.isPending || removeStock.isPending}
+              />
+            ))
+          )}
+        </div>
+      )}
+      {addable.length > 0 && (
+        <div className="grid grid-cols-12 gap-2 items-center pt-2">
+          <Select value={newLocationId} onValueChange={setNewLocationId}>
+            <SelectTrigger className="col-span-5">
+              <SelectValue placeholder="Add location" />
+            </SelectTrigger>
+            <SelectContent>
+              {addable.map((loc) => (
+                <SelectItem key={loc.id} value={loc.id}>
+                  {loc.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            type="number"
+            step="0.01"
+            min={0}
+            placeholder="Stock"
+            className="col-span-3"
+            value={newStock}
+            onChange={(e) => setNewStock(Number(e.target.value))}
+          />
+          <Input
+            type="number"
+            step="0.01"
+            min={0}
+            placeholder="Min"
+            className="col-span-3"
+            value={newMin}
+            onChange={(e) => setNewMin(Number(e.target.value))}
+          />
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="col-span-1"
+            onClick={handleAdd}
+            disabled={setStock.isPending}
+            aria-label="Add location stock"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LocationStockRow({
+  row,
+  unit,
+  allLocations,
+  onSave,
+  onRemove,
+  disabled,
+}: {
+  row: IngredientLocationStock;
+  unit: string;
+  allLocations: { id: string; name: string }[];
+  onSave: (data: { currentStock?: number; minStock?: number; expiryDate?: string | null }) => void;
+  onRemove: () => void;
+  disabled: boolean;
+}) {
+  const [currentStock, setCurrentStock] = useState<number>(Number(row.currentStock));
+  const [minStock, setMinStock] = useState<number>(Number(row.minStock));
+  const name = allLocations.find((l) => l.id === row.locationId)?.name ?? row.locationId.slice(0, 8);
+
+  const dirty =
+    currentStock !== Number(row.currentStock) || minStock !== Number(row.minStock);
+
+  return (
+    <div className="grid grid-cols-12 gap-2 items-center px-3 py-2">
+      <p className="col-span-4 text-sm font-medium truncate">{name}</p>
+      <div className="col-span-3">
+        <Input
+          type="number"
+          step="0.01"
+          min={0}
+          value={currentStock}
+          onChange={(e) => setCurrentStock(Number(e.target.value))}
+        />
+      </div>
+      <div className="col-span-3">
+        <Input
+          type="number"
+          step="0.01"
+          min={0}
+          value={minStock}
+          onChange={(e) => setMinStock(Number(e.target.value))}
+        />
+      </div>
+      <div className="col-span-2 flex justify-end gap-1">
+        {dirty && (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={disabled}
+            onClick={() => onSave({ currentStock, minStock })}
+          >
+            Save
+          </Button>
+        )}
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          disabled={disabled}
+          onClick={onRemove}
+          aria-label="Remove location"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+      <p className="col-span-12 text-xs text-muted-foreground">
+        Current: {row.currentStock} {unit} · Min: {row.minStock} {unit}
+        {row.expiryDate ? ` · BB ${row.expiryDate}` : ""}
+      </p>
+    </div>
+  );
+}
+
+function movementLabel(type: IngredientMovement["type"]): {
+  label: string;
+  className: string;
+} {
+  switch (type) {
+    case "intake":
+      return {
+        label: "Intake",
+        className:
+          "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+      };
+    case "consumption":
+      return {
+        label: "Order",
+        className:
+          "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+      };
+    case "waste":
+      return {
+        label: "Waste",
+        className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+      };
+    case "transfer":
+      return {
+        label: "Transfer",
+        className:
+          "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+      };
+    case "correction":
+    default:
+      return {
+        label: "Correction",
+        className:
+          "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+      };
+  }
+}
+
+function IngredientHistorySection({
+  ingredientId,
+  unit,
+}: {
+  ingredientId: string;
+  unit: string;
+}) {
+  const { data, isLoading } = useIngredientMovements(ingredientId, { limit: 20 });
+  const movements = data?.data ?? [];
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-muted-foreground">Item history</p>
+      {isLoading ? (
+        <Skeleton className="h-16 w-full" />
+      ) : movements.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No movements yet. Restocks, order deductions, waste and transfers will
+          appear here.
+        </p>
+      ) : (
+        <div className="rounded-md border divide-y">
+          {movements.map((m: IngredientMovement) => {
+            const meta = movementLabel(m.type);
+            const qty = Number(m.quantity);
+            return (
+              <div
+                key={m.id}
+                className="flex items-start justify-between gap-3 px-3 py-2 text-sm"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className={cn("font-normal", meta.className)}>
+                      {meta.label}
+                    </Badge>
+                    <span
+                      className={cn(
+                        "font-medium",
+                        qty < 0 ? "text-destructive" : "text-green-700 dark:text-green-400",
+                      )}
+                    >
+                      {qty > 0 ? "+" : ""}
+                      {qty} {unit}
+                    </span>
+                  </div>
+                  {m.reason && (
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {m.reason}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(m.createdAt).toLocaleString()}
+                    {m.staffName ? ` · ${m.staffName}` : ""}
+                  </p>
+                </div>
+                <div className="text-right text-xs text-muted-foreground whitespace-nowrap">
+                  {m.previousStock} → {m.newStock} {unit}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
