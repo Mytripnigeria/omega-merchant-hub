@@ -9,6 +9,8 @@ export interface CashSession {
   storeId: string;
   staffId: string;
   staffName: string;
+  counterName: string | null;
+  staffsJoined: string[] | null;
   shiftId: string | null;
   status: CashSessionStatus;
   openedAt: string;

@@ -67,6 +67,7 @@ const navItems: NavItem[] = [
     children: [
       { title: "All Orders", href: "/orders" },
       { title: "Transactions", href: "/orders/transactions" },
+      { title: "Registers", href: "/orders/registers" },
       { title: "Account Balancing", href: "/orders/account" },
     ],
   },
@@ -118,7 +119,6 @@ const navItems: NavItem[] = [
       { title: "Checklists", href: "/operations/checklists" },
       { title: "KPI Targets", href: "/operations/kpi" },
       { title: "Expenses", href: "/operations/expenses" },
-      { title: "Sales vs Target", href: "/operations/sales-target" },
       { title: "Food Cost %", href: "/operations/food-cost" },
       { title: "Waste Management", href: "/operations/waste" },
     ],

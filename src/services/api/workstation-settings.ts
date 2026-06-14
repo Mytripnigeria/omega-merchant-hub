@@ -31,6 +31,8 @@ export interface WorkstationSettings {
   autoPrintShiftSummary: boolean;
 
   defaultPermissions: string[];
+  /** Maps workstation function key → allowed role names. */
+  functionRoleAccess: Record<string, string[]> | null;
   offlineModeEnabled: boolean;
   autoSyncMinutes: number;
 

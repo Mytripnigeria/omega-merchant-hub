@@ -29,7 +29,14 @@ import {
   Trash2,
   PackagePlus,
   PackageMinus,
+  History,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   useIngredients,
@@ -38,29 +45,45 @@ import {
   useUpdateIngredient,
   useDeleteIngredient,
   useAdjustStock,
+  useIngredientMovements,
 } from "@/hooks/api/use-stock";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useStore } from "@/contexts/StoreContext";
+import { useSuppliers } from "@/hooks/api/use-suppliers";
+import { useInventoryLocations } from "@/hooks/api/use-procurement";
 import type { Ingredient } from "@/types/products";
 
 interface IngredientForm {
   name: string;
   unit: string;
+  type: string;
   currentStock: string;
   minStock: string;
   costPerUnit: string;
   sku: string;
-  supplierId: string;
+  supplierIds: string[];
 }
+
+// Inventory variant/types — all ingredients are inventories, not vice-versa.
+const INVENTORY_TYPES = [
+  "ingredient",
+  "packaging",
+  "premix",
+  "hygiene",
+  "equipment",
+  "other",
+];
 
 function emptyForm(): IngredientForm {
   return {
     name: "",
     unit: "kg",
+    type: "ingredient",
     currentStock: "0",
     minStock: "0",
     costPerUnit: "0",
     sku: "",
-    supplierId: "",
+    supplierIds: [],
   };
 }
 
@@ -68,11 +91,12 @@ function ingredientToForm(i: Ingredient): IngredientForm {
   return {
     name: i.name,
     unit: i.unit,
+    type: i.type ?? "ingredient",
     currentStock: String(i.currentStock),
     minStock: String(i.minStock),
     costPerUnit: String(i.costPerUnit),
     sku: i.sku ?? "",
-    supplierId: i.supplierId ?? "",
+    supplierIds: i.supplierIds ?? (i.supplierId ? [i.supplierId] : []),
   };
 }
 
@@ -91,10 +115,21 @@ export default function InventoriesPage() {
   const [form, setForm] = useState<IngredientForm>(emptyForm());
   const [adjustment, setAdjustment] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
+  const [historyItem, setHistoryItem] = useState<Ingredient | null>(null);
+  const historyQuery = useIngredientMovements(historyItem?.id, { limit: 50 });
+  const [filterLocation, setFilterLocation] = useState<string>("__all__");
+
+  const suppliersQuery = useSuppliers({ limit: 200 });
+  const suppliers = suppliersQuery.data?.data ?? [];
+  const locationsQuery = useInventoryLocations(
+    currentStore?.id ? { storeId: currentStore.id } : undefined,
+  );
+  const locations = locationsQuery.data?.data ?? [];
 
   const ingredientsQuery = useIngredients({
     storeId: currentStore?.id,
     search: search || undefined,
+    locationId: filterLocation === "__all__" ? undefined : filterLocation,
     page,
     limit: pageSize,
   });
@@ -162,11 +197,12 @@ export default function InventoriesPage() {
         storeId: currentStore.id,
         name: form.name,
         unit: form.unit,
+        type: form.type,
         currentStock: Number(form.currentStock) || 0,
         minStock: Number(form.minStock) || 0,
         costPerUnit: Number(form.costPerUnit) || 0,
         sku: form.sku || undefined,
-        supplierId: form.supplierId || undefined,
+        supplierIds: form.supplierIds,
       } as Partial<Ingredient> & { storeId: string },
       {
         onSuccess: () => {
@@ -186,10 +222,11 @@ export default function InventoriesPage() {
         data: {
           name: form.name,
           unit: form.unit,
+          type: form.type,
           minStock: Number(form.minStock) || 0,
           costPerUnit: Number(form.costPerUnit) || 0,
           sku: form.sku || undefined,
-          supplierId: form.supplierId || undefined,
+          supplierIds: form.supplierIds,
         },
       },
       {
@@ -267,17 +304,38 @@ export default function InventoriesPage() {
 
       <Card className="border-border/50">
         <CardContent className="p-4 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search ingredients..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search ingredients..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                className="pl-9 h-9 bg-muted/50 border-0"
+              />
+            </div>
+            <Select
+              value={filterLocation}
+              onValueChange={(v) => {
+                setFilterLocation(v);
                 setPage(1);
               }}
-              className="pl-9 h-9 bg-muted/50 border-0"
-            />
+            >
+              <SelectTrigger className="h-9 w-full sm:w-56">
+                <SelectValue placeholder="All locations" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All locations</SelectItem>
+                {locations.map((loc) => (
+                  <SelectItem key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {ingredientsQuery.isLoading ? (
@@ -349,6 +407,14 @@ export default function InventoriesPage() {
                               title="Adjust stock"
                             >
                               <PackagePlus className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setHistoryItem(i)}
+                              title="View history"
+                            >
+                              <History className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -461,13 +527,60 @@ export default function InventoriesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>SKU</Label>
-                  <Input
-                    value={form.sku}
-                    onChange={(e) => setForm({ ...form, sku: e.target.value })}
-                  />
+                  <Label>Type</Label>
+                  <Select
+                    value={form.type}
+                    onValueChange={(v) => setForm({ ...form, type: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INVENTORY_TYPES.map((t) => (
+                        <SelectItem key={t} value={t} className="capitalize">
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label>SKU</Label>
+                <Input
+                  value={form.sku}
+                  onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                />
+              </div>
+              {suppliers.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Suppliers</Label>
+                  <p className="text-xs text-muted-foreground">
+                    An inventory can have multiple suppliers
+                  </p>
+                  <div className="space-y-2 p-3 border rounded-lg max-h-40 overflow-y-auto">
+                    {suppliers.map((s) => (
+                      <label
+                        key={s.id}
+                        className="flex items-center gap-2 text-sm cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={form.supplierIds.includes(s.id)}
+                          onCheckedChange={() =>
+                            setForm((f) => ({
+                              ...f,
+                              supplierIds: f.supplierIds.includes(s.id)
+                                ? f.supplierIds.filter((x) => x !== s.id)
+                                : [...f.supplierIds, s.id],
+                            }))
+                          }
+                        />
+                        {s.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Current Stock</Label>
@@ -516,6 +629,65 @@ export default function InventoriesPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Item history — additions, automatic order deductions, recorded waste */}
+      <Dialog open={!!historyItem} onOpenChange={(o) => !o && setHistoryItem(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {historyItem ? `${historyItem.name} — history` : "Item history"}
+            </DialogTitle>
+          </DialogHeader>
+          {historyQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">Loading…</p>
+          ) : (historyQuery.data?.data ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              No movements recorded yet.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {(historyQuery.data?.data ?? []).map((m) => {
+                const isDeduction = Number(m.quantity) < 0;
+                const label =
+                  m.type === "consumption"
+                    ? m.referenceType === "order"
+                      ? "Order deduction"
+                      : "Consumption"
+                    : m.type.charAt(0).toUpperCase() + m.type.slice(1);
+                return (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between gap-3 p-3 rounded-lg border text-sm"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {label}
+                        </Badge>
+                        {m.reason && (
+                          <span className="text-muted-foreground truncate">{m.reason}</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(m.createdAt).toLocaleString()}
+                        {m.staffName ? ` · ${m.staffName}` : ""}
+                      </p>
+                    </div>
+                    <span
+                      className={`font-semibold shrink-0 ${
+                        isDeduction ? "text-destructive" : "text-green-600"
+                      }`}
+                    >
+                      {isDeduction ? "" : "+"}
+                      {Number(m.quantity)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

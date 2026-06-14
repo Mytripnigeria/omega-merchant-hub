@@ -163,8 +163,9 @@ export default function ChecklistsPage() {
   const { data: rolesData } = useRoles();
   const roles =
     (rolesData?.data ?? []) as Array<{ id: string; name: string }>;
+  // Backend caps page size at 200; requesting more fails validation.
   const { data: staffData } = useStaff(
-    storeId ? { storeId, limit: 500 } : undefined,
+    storeId ? { storeId, limit: 200 } : undefined,
   );
   const staff = (staffData?.data ?? []) as Array<{
     id: string;

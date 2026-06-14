@@ -24,6 +24,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 // Orders
 const OrdersPage = lazy(() => import("./pages/orders/OrdersPage"));
 const TransactionsPage = lazy(() => import("./pages/orders/TransactionsPage"));
+const RegistersPage = lazy(() => import("./pages/orders/RegistersPage"));
 const AccountBalancingPage = lazy(() => import("./pages/orders/AccountBalancingPage"));
 
 // Stocks
@@ -86,7 +87,6 @@ const EquipmentPage = lazy(() => import("./pages/operations/EquipmentPage"));
 const ChecklistsPage = lazy(() => import("./pages/operations/ChecklistsPage"));
 const KpiPage = lazy(() => import("./pages/operations/KpiPage"));
 const ExpensesPage = lazy(() => import("./pages/operations/ExpensesPage"));
-const SalesTargetPage = lazy(() => import("./pages/operations/SalesTargetPage"));
 const FoodCostPage = lazy(() => import("./pages/operations/FoodCostPage"));
 const WastePage = lazy(() => import("./pages/operations/WastePage"));
 const TablesPage = lazy(() => import("./pages/operations/TablesPage"));
@@ -149,6 +149,7 @@ const App = () => (
                 {/* Orders */}
                 <Route path="/orders" element={<OrdersPage />} />
                 <Route path="/orders/transactions" element={<TransactionsPage />} />
+                <Route path="/orders/registers" element={<RegistersPage />} />
                 <Route path="/orders/account" element={<AccountBalancingPage />} />
                 
                 {/* Stocks */}
@@ -211,7 +212,6 @@ const App = () => (
                 <Route path="/operations/checklists" element={<ChecklistsPage />} />
                 <Route path="/operations/kpi" element={<KpiPage />} />
                 <Route path="/operations/expenses" element={<ExpensesPage />} />
-                <Route path="/operations/sales-target" element={<SalesTargetPage />} />
                 <Route path="/operations/food-cost" element={<FoodCostPage />} />
                 <Route path="/operations/waste" element={<WastePage />} />
                 <Route path="/operations/tables" element={<TablesPage />} />

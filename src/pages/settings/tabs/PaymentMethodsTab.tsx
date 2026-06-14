@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -43,8 +44,20 @@ const TYPE_OPTIONS: { value: PaymentMethodType; label: string }[] = [
   { value: "transfer", label: "Bank Transfer" },
   { value: "pos", label: "POS Terminal" },
   { value: "mobile_money", label: "Mobile Money" },
+  { value: "wallet", label: "Wallet" },
   { value: "other", label: "Other" },
 ];
+
+// Mirrors the product/category visibility options — controls which
+// channels/platforms a payment method applies to.
+const VISIBILITY_OPTIONS: { id: string; label: string }[] = [
+  { id: "pos", label: "Show on POS" },
+  { id: "self", label: "Show on Self-Order" },
+  { id: "storefront", label: "Show on Storefront" },
+  { id: "omni", label: "Show on Omnichannels" },
+];
+
+const ALL_CHANNELS = VISIBILITY_OPTIONS.map((o) => o.id);
 
 export function PaymentMethodsTab() {
   const { data: methods = [], isLoading } = usePaymentMethods();
@@ -57,6 +70,7 @@ export function PaymentMethodsTab() {
   const [type, setType] = useState<PaymentMethodType>("cash");
   const [label, setLabel] = useState("");
   const [isEnabled, setIsEnabled] = useState(true);
+  const [visibility, setVisibility] = useState<string[]>(ALL_CHANNELS);
   // Bank details for `transfer` methods — surfaced to the storefront so
   // customers can fund their wallet / pay by transfer.
   const [bankName, setBankName] = useState("");
@@ -68,6 +82,9 @@ export function PaymentMethodsTab() {
       setType(editing.type);
       setLabel(editing.label);
       setIsEnabled(editing.isEnabled);
+      setVisibility(
+        editing.visibility?.length ? editing.visibility : ALL_CHANNELS,
+      );
       const cfg = (editing.config ?? {}) as Record<string, unknown>;
       setBankName(typeof cfg.bankName === "string" ? cfg.bankName : "");
       setAccountNumber(
@@ -80,6 +97,7 @@ export function PaymentMethodsTab() {
       setType("cash");
       setLabel("");
       setIsEnabled(true);
+      setVisibility(ALL_CHANNELS);
       setBankName("");
       setAccountNumber("");
       setAccountName("");
@@ -110,7 +128,7 @@ export function PaymentMethodsTab() {
       if (editing) {
         await updateMethod.mutateAsync({
           id: editing.id,
-          data: { type, label: label.trim(), isEnabled, config },
+          data: { type, label: label.trim(), isEnabled, visibility, config },
         });
         toast.success("Payment method updated");
       } else {
@@ -118,6 +136,7 @@ export function PaymentMethodsTab() {
           type,
           label: label.trim(),
           isEnabled,
+          visibility,
           config,
         });
         toast.success("Payment method created");
@@ -126,6 +145,12 @@ export function PaymentMethodsTab() {
     } catch (err) {
       toast.error((err as Error).message ?? "Failed to save");
     }
+  };
+
+  const toggleVisibility = (id: string) => {
+    setVisibility((prev) =>
+      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id],
+    );
   };
 
   const handleToggle = (m: PaymentMethod) => {
@@ -286,6 +311,26 @@ export function PaymentMethodsTab() {
                 </div>
               </div>
             )}
+            <div className="space-y-2">
+              <Label>Visibility</Label>
+              <p className="text-xs text-muted-foreground">
+                Channels this method applies to
+              </p>
+              <div className="space-y-2 p-3 border rounded-lg">
+                {VISIBILITY_OPTIONS.map((opt) => (
+                  <label
+                    key={opt.id}
+                    className="flex items-center gap-2 text-sm cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={visibility.includes(opt.id)}
+                      onCheckedChange={() => toggleVisibility(opt.id)}
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
+            </div>
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <div>
                 <p className="text-sm font-medium">Enabled</p>

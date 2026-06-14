@@ -1,6 +1,9 @@
 import { apiRequest } from '@/lib/api-client';
 
-export type PaymentMethodType = 'cash' | 'card' | 'transfer' | 'pos' | 'mobile_money' | 'other';
+export type PaymentMethodType = 'cash' | 'card' | 'transfer' | 'pos' | 'mobile_money' | 'wallet' | 'other';
+
+/** Channels a payment method can show on (matches product/category visibility). */
+export type PaymentMethodChannel = 'pos' | 'self' | 'storefront' | 'omni';
 
 export interface PaymentMethod {
   id: string;
@@ -8,6 +11,7 @@ export interface PaymentMethod {
   type: PaymentMethodType;
   label: string;
   isEnabled: boolean;
+  visibility: string[];
   config: Record<string, unknown> | null;
   order: number;
   createdAt: string;
@@ -18,6 +22,7 @@ export interface CreatePaymentMethodPayload {
   type: PaymentMethodType;
   label: string;
   isEnabled?: boolean;
+  visibility?: string[];
   config?: Record<string, unknown>;
   order?: number;
 }

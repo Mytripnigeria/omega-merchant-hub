@@ -159,6 +159,13 @@ export default function CombosPage() {
   const [draftItems, setDraftItems] = useState<DraftItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Original price is the combined selling price of the selected products —
+  // derived, never typed. The backend recomputes it authoritatively on save.
+  const computedOriginalPrice = draftItems.reduce((sum, d) => {
+    const p = products.find((pr) => pr.id === d.productId);
+    return sum + Number(p?.sellingPrice ?? p?.price ?? 0) * (d.quantity || 0);
+  }, 0);
+
   const filteredCombos = combos.filter((c) =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
@@ -295,7 +302,7 @@ export default function CombosPage() {
         name: formName.trim(),
         description: formDescription || undefined,
         price: formPrice,
-        originalPrice: formOriginalPrice,
+        originalPrice: computedOriginalPrice,
         isActive: formIsActive,
         imageFileId: formImageFileId ?? undefined,
         storeId,
@@ -318,7 +325,7 @@ export default function CombosPage() {
           name: formName.trim(),
           description: formDescription || undefined,
           price: formPrice,
-          originalPrice: formOriginalPrice,
+          originalPrice: computedOriginalPrice,
           isActive: formIsActive,
           imageFileId: formImageFileId,
         } as Partial<Combo> & { imageFileId?: string | null },
@@ -605,9 +612,14 @@ export default function CombosPage() {
                     type="number"
                     min={0}
                     placeholder="0"
-                    value={formOriginalPrice}
-                    onChange={(e) => setFormOriginalPrice(Number(e.target.value))}
+                    value={computedOriginalPrice}
+                    readOnly
+                    disabled
+                    title="Automatically calculated from the selected products"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Auto-calculated from selected products
+                  </p>
                 </div>
               </div>
               <div className="space-y-2">

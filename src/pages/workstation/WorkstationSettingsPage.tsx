@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -33,6 +34,7 @@ import {
   useWorkstationSettings,
   useUpdateWorkstationSettings,
 } from "@/hooks/api/use-workstation-settings";
+import { useRoles } from "@/hooks/api/use-hr";
 import type {
   UpdateWorkstationSettingsPayload,
   WorkstationSettings,
@@ -40,9 +42,25 @@ import type {
 
 type Form = WorkstationSettings;
 
+// Workstation functions that can be restricted to specific roles.
+const WORKSTATION_FUNCTIONS: { key: string; label: string }[] = [
+  { key: "counter_pos", label: "Counter POS" },
+  { key: "self_service", label: "Self-Service" },
+  { key: "kitchen", label: "Kitchen" },
+  { key: "waiter", label: "Waiter" },
+  { key: "delivery", label: "Delivery" },
+  { key: "lobby", label: "Lobby" },
+  { key: "instore", label: "Instore" },
+  { key: "outstore", label: "Outstore" },
+  { key: "expenses", label: "Expenses" },
+  { key: "managers", label: "Managers" },
+];
+
 export default function WorkstationSettingsPage() {
   const settingsQuery = useWorkstationSettings();
   const updateSettings = useUpdateWorkstationSettings();
+  const rolesQuery = useRoles();
+  const roles = ((rolesQuery.data?.data ?? []) as Array<{ id: string; name: string }>);
   const [form, setForm] = useState<Form | null>(null);
 
   useEffect(() => {
@@ -85,6 +103,15 @@ export default function WorkstationSettingsPage() {
       },
       onError: (e: Error) => toast.error(e.message ?? "Couldn't save"),
     });
+  };
+
+  const access = form.functionRoleAccess ?? {};
+  const toggleFunctionRole = (funcKey: string, roleName: string) => {
+    const current = access[funcKey] ?? [];
+    const nextRoles = current.includes(roleName)
+      ? current.filter((r) => r !== roleName)
+      : [...current, roleName];
+    set("functionRoleAccess", { ...access, [funcKey]: nextRoles });
   };
 
   return (
@@ -478,6 +505,56 @@ export default function WorkstationSettingsPage() {
             </div>
             <Button
               onClick={() => saveSection(["offlineModeEnabled", "autoSyncMinutes"])}
+              disabled={updateSettings.isPending}
+            >
+              <Save className="h-4 w-4 mr-2" />Save Changes
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" /> Function Access by Role
+            </CardTitle>
+            <CardDescription>
+              Restrict each workstation function to specific roles. Leave a
+              function with no roles selected to allow all roles.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {roles.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No roles found — create roles first to configure access.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {WORKSTATION_FUNCTIONS.map((fn) => (
+                  <div key={fn.key} className="border rounded-lg p-3">
+                    <p className="text-sm font-medium mb-2">{fn.label}</p>
+                    <div className="flex flex-wrap gap-3">
+                      {roles.map((role) => {
+                        const selected = (access[fn.key] ?? []).includes(role.name);
+                        return (
+                          <label
+                            key={role.id}
+                            className="flex items-center gap-2 text-sm cursor-pointer"
+                          >
+                            <Checkbox
+                              checked={selected}
+                              onCheckedChange={() => toggleFunctionRole(fn.key, role.name)}
+                            />
+                            {role.name}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Button
+              onClick={() => saveSection(["functionRoleAccess"])}
               disabled={updateSettings.isPending}
             >
               <Save className="h-4 w-4 mr-2" />Save Changes

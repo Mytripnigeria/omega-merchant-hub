@@ -133,6 +133,8 @@ export interface Ingredient {
   supplierId?: string | null;
   supplierIds?: string[] | null;
   sku?: string | null;
+  /** Inventory variant/type: ingredient, packaging, premix, hygiene, … */
+  type?: string | null;
   storeId: string;
   /** Aggregate best-before (earliest across locations) for the current batch (YYYY-MM-DD). */
   expiryDate?: string | null;

@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/api-client";
+import { apiRequest, tokenStorage } from "@/lib/api-client";
 import type {
   CashSession,
   CashSessionFilters,
@@ -65,4 +65,17 @@ export const cashSessionsService = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  remove: (id: string): Promise<void> =>
+    apiRequest<void>(`/cash-sessions/${id}`, { method: "DELETE" }),
+
+  /** Fetches the Register Report PDF as a Blob (auth header included). */
+  downloadReport: async (id: string): Promise<Blob> => {
+    const base = (import.meta.env.VITE_API_URL as string) ?? "";
+    const res = await fetch(`${base}/cash-sessions/${id}/report.pdf`, {
+      headers: { Authorization: `Bearer ${tokenStorage.getToken() ?? ""}` },
+    });
+    if (!res.ok) throw new Error("Failed to download register report");
+    return res.blob();
+  },
 };
