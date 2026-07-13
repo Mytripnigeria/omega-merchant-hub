@@ -48,6 +48,11 @@ import {
   useIngredientMovements,
 } from "@/hooks/api/use-stock";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  IngredientLocationsEditor,
+  InitialLocationStockSection,
+  type InitialLocationStockRow,
+} from "@/components/stock/IngredientLocations";
 import { useStore } from "@/contexts/StoreContext";
 import { useSuppliers } from "@/hooks/api/use-suppliers";
 import { useInventoryLocations } from "@/hooks/api/use-procurement";
@@ -113,6 +118,9 @@ export default function InventoriesPage() {
   const [sheetMode, setSheetMode] = useState<"create" | "edit" | "adjust">("create");
   const [selected, setSelected] = useState<Ingredient | null>(null);
   const [form, setForm] = useState<IngredientForm>(emptyForm());
+  /** Per-location stock rows used only when creating a new inventory item.
+   * On edit, per-location stock is managed via the dedicated location endpoints. */
+  const [initialLocations, setInitialLocations] = useState<InitialLocationStockRow[]>([]);
   const [adjustment, setAdjustment] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
   const [historyItem, setHistoryItem] = useState<Ingredient | null>(null);
@@ -162,6 +170,7 @@ export default function InventoriesPage() {
   const openCreate = () => {
     setSelected(null);
     setForm(emptyForm());
+    setInitialLocations([]);
     setSheetMode("create");
     setSheetOpen(true);
   };
@@ -192,6 +201,7 @@ export default function InventoriesPage() {
       toast.error("Name is required");
       return;
     }
+    const locationsPayload = initialLocations.filter((l) => l.locationId);
     createIngredient.mutate(
       {
         storeId: currentStore.id,
@@ -203,7 +213,8 @@ export default function InventoriesPage() {
         costPerUnit: Number(form.costPerUnit) || 0,
         sku: form.sku || undefined,
         supplierIds: form.supplierIds,
-      } as Partial<Ingredient> & { storeId: string },
+        ...(locationsPayload.length > 0 ? { locations: locationsPayload } : {}),
+      },
       {
         onSuccess: () => {
           toast.success("Ingredient added");
@@ -278,11 +289,11 @@ export default function InventoriesPage() {
             Inventory
           </h1>
           <p className="text-sm text-muted-foreground">
-            Track ingredient stock levels for {currentStore?.name ?? "your store"}
+            Track inventory stock levels for {currentStore?.name ?? "your store"}
           </p>
         </div>
         <Button size="sm" onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" /> Add Ingredient
+          <Plus className="mr-2 h-4 w-4" /> Add Inventory
         </Button>
       </div>
 
@@ -358,6 +369,7 @@ export default function InventoriesPage() {
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left text-xs font-medium text-muted-foreground p-3">Name</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground p-3">Type</th>
                     <th className="text-right text-xs font-medium text-muted-foreground p-3">Stock</th>
                     <th className="text-right text-xs font-medium text-muted-foreground p-3">Min</th>
                     <th className="text-right text-xs font-medium text-muted-foreground p-3">Cost</th>
@@ -378,6 +390,11 @@ export default function InventoriesPage() {
                           {i.sku && (
                             <p className="text-xs text-muted-foreground font-mono">{i.sku}</p>
                           )}
+                        </td>
+                        <td className="p-3">
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {i.type ?? "ingredient"}
+                          </Badge>
                         </td>
                         <td className="p-3 text-right">
                           {Number(i.currentStock)} {i.unit}
@@ -610,6 +627,19 @@ export default function InventoriesPage() {
                   onChange={(e) => setForm({ ...form, costPerUnit: e.target.value })}
                 />
               </div>
+              {sheetMode === "create" && locations.length > 0 && (
+                <InitialLocationStockSection
+                  allLocations={locations}
+                  value={initialLocations}
+                  onChange={setInitialLocations}
+                />
+              )}
+              {sheetMode === "edit" && selected && (
+                <IngredientLocationsEditor
+                  ingredient={selected}
+                  allLocations={locations}
+                />
+              )}
             </div>
           )}
 

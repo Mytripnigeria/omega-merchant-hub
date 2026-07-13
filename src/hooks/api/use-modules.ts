@@ -54,6 +54,13 @@ export function useToggleChecklistItem() {
     onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.checklists() }),
   });
 }
+export function useChecklistPerformances(id: string | undefined) {
+  return useQuery({
+    queryKey: [...operationsKeys.checklists(), "performances", id],
+    queryFn: () => checklistsApi.performances(id!),
+    enabled: !!id,
+  });
+}
 export function useExpenses(filters?: ExpenseFilters) { return useQuery({ queryKey: [...operationsKeys.expenses(), filters], queryFn: () => operationsService.getExpenses(filters) }); }
 export function useCreateExpense() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreateExpenseRequest) => operationsService.createExpense(data), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.expenses() }) }); }
 export function useUpdateExpense() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateExpenseRequest }) => operationsService.updateExpense(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.expenses() }) }); }

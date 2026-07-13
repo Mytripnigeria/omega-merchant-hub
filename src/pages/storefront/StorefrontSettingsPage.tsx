@@ -75,8 +75,11 @@ export default function StorefrontSettingsPage() {
       (payload as any)[f] = form[f];
     }
     updateConfig.mutate(payload, {
+      // Merge the response into the existing form so a PATCH that echoes only
+      // the changed fields doesn't blank out the other cards' values (the
+      // "doesn't show saved info until reload" bug).
       onSuccess: (next) => {
-        setForm(next);
+        setForm((prev) => (prev ? { ...prev, ...next } : next));
         toast.success("Settings saved");
       },
       onError: (e: Error) => toast.error(e.message ?? "Couldn't save"),

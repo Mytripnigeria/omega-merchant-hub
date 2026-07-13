@@ -61,7 +61,10 @@ export function useUpdateStorefrontConfig() {
     mutationFn: (data: UpdateStorefrontConfigRequest) =>
       storefrontConfigApi.update(data),
     onSuccess: (updated: StorefrontConfig) => {
-      qc.setQueryData(storefrontKeys.config(), updated);
+      // Merge into the cache so a partial PATCH echo doesn't drop other fields.
+      qc.setQueryData<StorefrontConfig>(storefrontKeys.config(), (old) =>
+        old ? { ...old, ...updated } : updated,
+      );
       qc.invalidateQueries({ queryKey: storefrontKeys.config() });
     },
   });

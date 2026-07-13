@@ -35,10 +35,12 @@ export function GeneralSettingsTab() {
   const updateSettings = useUpdateBusinessSettings();
   const uploadImage = useUploadImage();
   const [taxRatePct, setTaxRatePct] = useState<string>("");
+  const [staffCodePrefix, setStaffCodePrefix] = useState<string>("");
 
   useEffect(() => {
     if (settings) {
       setTaxRatePct(((Number(settings.taxRate ?? 0.075)) * 100).toFixed(2));
+      setStaffCodePrefix(settings.staffCodePrefix ?? "STF");
     }
   }, [settings]);
 
@@ -53,6 +55,20 @@ export function GeneralSettingsTab() {
       toast.success("Tax rate updated");
     } catch (e) {
       toast.error((e as Error).message ?? "Couldn't update tax rate");
+    }
+  };
+
+  const handleSaveStaffCodePrefix = async () => {
+    const prefix = staffCodePrefix.trim();
+    if (!/^[A-Za-z0-9]{1,6}$/.test(prefix)) {
+      toast.error("Staff code prefix must be 1–6 letters or digits");
+      return;
+    }
+    try {
+      await updateSettings.mutateAsync({ staffCodePrefix: prefix });
+      toast.success("Staff code prefix updated");
+    } catch (e) {
+      toast.error((e as Error).message ?? "Couldn't update staff code prefix");
     }
   };
 
@@ -323,6 +339,40 @@ export function GeneralSettingsTab() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               Save tax rate
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Staff Codes</CardTitle>
+          <CardDescription>
+            Prefix for new staff codes, e.g. MJS → MJS001. Applies to new staff
+            only.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+            <div className="space-y-2">
+              <Label>Staff code prefix</Label>
+              <Input
+                value={staffCodePrefix}
+                onChange={(e) => setStaffCodePrefix(e.target.value.toUpperCase())}
+                maxLength={6}
+                placeholder="STF"
+              />
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleSaveStaffCodePrefix}
+              disabled={updateSettings.isPending}
+              className="self-end"
+            >
+              {updateSettings.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Save prefix
             </Button>
           </div>
         </CardContent>
