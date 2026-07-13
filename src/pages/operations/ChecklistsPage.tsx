@@ -23,6 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { formatDistanceToNow } from "date-fns";
 import {
   Search,
   Plus,
@@ -46,6 +48,7 @@ import {
   useUpdateChecklist,
   useDeleteChecklist,
   useToggleChecklistItem,
+  useChecklistPerformances,
 } from "@/hooks/api/use-modules";
 import { useStaff, useRoles } from "@/hooks/api/use-hr";
 import { useStore } from "@/contexts/StoreContext";
@@ -518,6 +521,18 @@ export default function ChecklistsPage() {
                     </div>
                   ))}
                 </div>
+
+                <div className="space-y-3 pt-2">
+                  <div>
+                    <p className="text-sm font-medium">
+                      Per-assignee performance
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      How each assigned staff member fills out this checklist.
+                    </p>
+                  </div>
+                  <ChecklistPerformanceList checklistId={selected.id} />
+                </div>
               </div>
               <SheetFooter className="flex-col sm:flex-row gap-2">
                 <Button
@@ -767,6 +782,81 @@ export default function ChecklistsPage() {
           )}
         </SheetContent>
       </Sheet>
+    </div>
+  );
+}
+
+function ChecklistPerformanceList({ checklistId }: { checklistId: string }) {
+  const { data: performances, isLoading } =
+    useChecklistPerformances(checklistId);
+  const rows = performances ?? [];
+
+  if (isLoading) {
+    return <Skeleton className="h-32 w-full" />;
+  }
+
+  if (rows.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground text-center py-8">
+        No assigned staff yet. Assign this checklist to staff or a role.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {rows
+        .slice()
+        .sort((a, b) => b.progress - a.progress)
+        .map((row) => (
+          <div key={row.staffId} className="border rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarFallback>
+                    {row.staffName
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {row.staffName}
+                  </p>
+                  {row.roleName && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {row.roleName}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-sm font-semibold">
+                  {row.completed}
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {" "}
+                    / {row.total}
+                  </span>
+                </p>
+                <p className="text-xs text-muted-foreground">completed</p>
+              </div>
+            </div>
+            <Progress value={Math.min(row.progress, 100)} className="h-1.5" />
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{row.progress}% complete</span>
+              {row.lastCompletedAt && (
+                <span>
+                  {formatDistanceToNow(new Date(row.lastCompletedAt), {
+                    addSuffix: true,
+                  })}
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
     </div>
   );
 }

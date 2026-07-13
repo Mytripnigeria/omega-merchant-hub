@@ -131,6 +131,17 @@ export interface KpiPerformanceRow {
   source: "computed" | "manual";
 }
 
+export interface ChecklistPerformance {
+  staffId: string;
+  staffName: string;
+  roleName: string | null;
+  completed: number;
+  total: number;
+  /** 0-100 */
+  progress: number;
+  lastCompletedAt: string | null;
+}
+
 export interface SalesTarget {
   id: string;
   storeId: string;

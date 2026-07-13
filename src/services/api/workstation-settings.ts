@@ -36,6 +36,11 @@ export interface WorkstationSettings {
   offlineModeEnabled: boolean;
   autoSyncMinutes: number;
 
+  geofenceEnabled: boolean;
+  geofenceLatitude: number | null;
+  geofenceLongitude: number | null;
+  geofenceRadiusMeters: number;
+
   createdAt: string;
   updatedAt: string;
 }

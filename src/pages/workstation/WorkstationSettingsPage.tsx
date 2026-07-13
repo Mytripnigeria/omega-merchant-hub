@@ -27,6 +27,7 @@ import {
   Clock,
   Monitor,
   Printer,
+  MapPin,
   Save,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -97,8 +98,11 @@ export default function WorkstationSettingsPage() {
       (payload as any)[f] = form[f];
     }
     updateSettings.mutate(payload, {
+      // Merge the response so a PATCH that echoes only the changed fields
+      // doesn't blank out the other cards (the "doesn't show saved info until
+      // reload" bug).
       onSuccess: (next) => {
-        setForm(next);
+        setForm((prev) => (prev ? { ...prev, ...next } : next));
         toast.success("Settings saved");
       },
       onError: (e: Error) => toast.error(e.message ?? "Couldn't save"),
@@ -420,6 +424,80 @@ export default function WorkstationSettingsPage() {
                   "managerOverrideRequired",
                   "voidRequiresManager",
                   "refundRequiresManager",
+                ])
+              }
+              disabled={updateSettings.isPending}
+            >
+              <Save className="h-4 w-4 mr-2" />Save Changes
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Geofencing
+            </CardTitle>
+            <CardDescription>Restrict staff login to the work location</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-sm">Enable Geofencing</p>
+                <p className="text-xs text-muted-foreground">Restrict staff login and clock-in to within this radius of the work location.</p>
+              </div>
+              <Switch
+                checked={form.geofenceEnabled}
+                onCheckedChange={(v) => set("geofenceEnabled", v)}
+              />
+            </div>
+            {form.geofenceEnabled && (
+              <>
+                <div className="space-y-2">
+                  <Label>Latitude</Label>
+                  <Input
+                    type="number"
+                    value={form.geofenceLatitude ?? ""}
+                    onChange={(e) =>
+                      set(
+                        "geofenceLatitude",
+                        e.target.value === "" ? null : Number(e.target.value)
+                      )
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Longitude</Label>
+                  <Input
+                    type="number"
+                    value={form.geofenceLongitude ?? ""}
+                    onChange={(e) =>
+                      set(
+                        "geofenceLongitude",
+                        e.target.value === "" ? null : Number(e.target.value)
+                      )
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Radius (metres)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={form.geofenceRadiusMeters}
+                    onChange={(e) => set("geofenceRadiusMeters", Number(e.target.value))}
+                  />
+                </div>
+              </>
+            )}
+            <Button
+              onClick={() =>
+                saveSection([
+                  "geofenceEnabled",
+                  "geofenceLatitude",
+                  "geofenceLongitude",
+                  "geofenceRadiusMeters",
                 ])
               }
               disabled={updateSettings.isPending}

@@ -129,6 +129,19 @@ export const productApi = {
 
 // ─── Ingredients ───────────────────────────────────────────────────────────
 
+/** Initial per-location stock row accepted by the create endpoint. */
+export interface IngredientLocationInput {
+  locationId: string;
+  currentStock?: number;
+  minStock?: number;
+  expiryDate?: string;
+}
+
+export type CreateIngredientInput = Partial<Omit<Ingredient, 'locations'>> & {
+  storeId: string;
+  locations?: IngredientLocationInput[];
+};
+
 export const ingredientApi = {
   list(params?: Record<string, string | number | undefined>) {
     const qs = buildQs(params);
@@ -145,7 +158,7 @@ export const ingredientApi = {
     );
   },
 
-  create(data: Partial<Ingredient> & { storeId: string }) {
+  create(data: CreateIngredientInput) {
     return apiRequest<Ingredient>('/ingredients', { method: 'POST', body: JSON.stringify(data) });
   },
 

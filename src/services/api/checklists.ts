@@ -2,6 +2,7 @@ import { apiRequest } from "@/lib/api-client";
 import type {
   Checklist,
   ChecklistFilters,
+  ChecklistPerformance,
   CreateChecklistRequest,
   UpdateChecklistRequest,
 } from "@/types/operations";
@@ -34,6 +35,12 @@ export const checklistsApi = {
 
   get(id: string) {
     return apiRequest<Checklist>(`/checklists/${id}`);
+  },
+
+  performances(id: string) {
+    return apiRequest<ChecklistPerformance[]>(
+      `/checklists/${id}/performances`,
+    );
   },
 
   create(data: CreateChecklistRequest) {

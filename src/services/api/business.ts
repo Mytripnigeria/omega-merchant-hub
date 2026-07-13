@@ -31,6 +31,8 @@ export interface BusinessSettings {
   notificationDoNotDisturbEnd?: string | null;
   /** VAT rate fraction (0.075 = 7.5%) used at checkout. */
   taxRate?: number;
+  /** Prefix applied to new staff codes (e.g. "MJS" → MJS001). */
+  staffCodePrefix?: string;
 }
 
 export const businessApi = {

@@ -55,8 +55,12 @@ export function DomainsTab() {
 
   const handleVerify = async (d: Domain) => {
     try {
-      await verifyDomain.mutateAsync(d.id);
-      toast.success(`${d.hostname} verified`);
+      const updated = await verifyDomain.mutateAsync(d.id);
+      if (updated?.verifiedAt) {
+        toast.success(`${d.hostname} verified`);
+      } else {
+        toast.info(`${d.hostname} not verified yet — DNS may still be propagating`);
+      }
     } catch (err) {
       toast.error((err as Error).message ?? "Verification failed");
     }
