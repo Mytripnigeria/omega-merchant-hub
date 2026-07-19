@@ -380,9 +380,28 @@ export default function InventoriesPage() {
                 </thead>
                 <tbody>
                   {ingredients.map((i) => {
-                    const value = Number(i.currentStock) * Number(i.costPerUnit);
-                    const lowStock = Number(i.currentStock) <= Number(i.minStock);
-                    const outOfStock = Number(i.currentStock) <= 0;
+                    // When a location filter is active, every stock figure is
+                    // that location's own count (same item holds independent
+                    // stock per location); "All locations" shows the aggregate.
+                    const locRow =
+                      filterLocation === "__all__"
+                        ? null
+                        : (i.locations ?? []).find(
+                            (l) => l.locationId === filterLocation,
+                          );
+                    const shownStock = locRow
+                      ? Number(locRow.currentStock)
+                      : filterLocation === "__all__"
+                        ? Number(i.currentStock)
+                        : 0;
+                    const shownMin = locRow
+                      ? Number(locRow.minStock)
+                      : filterLocation === "__all__"
+                        ? Number(i.minStock)
+                        : 0;
+                    const value = shownStock * Number(i.costPerUnit);
+                    const lowStock = shownStock <= shownMin;
+                    const outOfStock = shownStock <= 0;
                     return (
                       <tr key={i.id} className="border-b border-border last:border-0">
                         <td className="p-3">
@@ -397,10 +416,10 @@ export default function InventoriesPage() {
                           </Badge>
                         </td>
                         <td className="p-3 text-right">
-                          {Number(i.currentStock)} {i.unit}
+                          {shownStock} {i.unit}
                         </td>
                         <td className="p-3 text-right">
-                          {Number(i.minStock)} {i.unit}
+                          {shownMin} {i.unit}
                         </td>
                         <td className="p-3 text-right">{ngn(Number(i.costPerUnit))}</td>
                         <td className="p-3 text-right font-medium">{ngn(value)}</td>

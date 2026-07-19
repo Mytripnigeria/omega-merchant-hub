@@ -1,6 +1,7 @@
 import { apiRequest } from "@/lib/api-client";
 
 export type DeliveryStatus =
+  | "awaiting_dispatch"
   | "pending"
   | "assigned"
   | "in_transit"
