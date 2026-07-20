@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from "date-fns";
 import {
   Search,
@@ -488,51 +489,87 @@ export default function ChecklistsPage() {
                   {selected.dueTime ? ` · ${selected.dueTime}` : ""}
                 </SheetDescription>
               </SheetHeader>
-              <div className="py-6 space-y-3">
+              <div className="py-6 space-y-4">
                 {selected.description && (
                   <p className="text-sm text-muted-foreground">
                     {selected.description}
                   </p>
                 )}
-                <div className="space-y-2">
-                  {selected.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between border rounded-lg p-3"
-                    >
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <Checkbox
-                          checked={item.isCompleted}
-                          onCheckedChange={(v) =>
-                            handleToggle(selected.id, item.id, !!v)
-                          }
-                        />
-                        <span
-                          className={`text-sm truncate ${item.isCompleted ? "line-through text-muted-foreground" : ""}`}
-                        >
-                          {item.title}
-                        </span>
-                      </div>
-                      {item.isCompleted && item.completedByName && (
-                        <span className="text-xs text-muted-foreground shrink-0">
-                          {item.completedByName}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
 
-                <div className="space-y-3 pt-2">
-                  <div>
-                    <p className="text-sm font-medium">
-                      Per-assignee performance
-                    </p>
+                {/* Aggregate progress card + tabs, mirroring the KPI targets
+                    view sheet the client referenced. */}
+                {(() => {
+                  const completedCount = selected.items.filter(
+                    (it) => it.isCompleted,
+                  ).length;
+                  const totalCount = selected.items.length;
+                  const progress = totalCount
+                    ? Math.round((completedCount / totalCount) * 100)
+                    : 0;
+                  return (
+                    <Card>
+                      <CardContent className="p-4 space-y-2">
+                        <p className="text-xs text-muted-foreground">
+                          Aggregate progress
+                        </p>
+                        <p className="text-3xl font-semibold">
+                          {completedCount}{" "}
+                          <span className="text-base font-normal text-muted-foreground">
+                            / {totalCount} items
+                          </span>
+                        </p>
+                        <Progress value={progress} className="h-2" />
+                        <p className="text-xs text-muted-foreground">
+                          {progress}% complete
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
+
+                <Tabs defaultValue="performances" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="performances">Performances</TabsTrigger>
+                    <TabsTrigger value="items">Items</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="performances" className="space-y-3 mt-4">
                     <p className="text-xs text-muted-foreground">
                       How each assigned staff member fills out this checklist.
                     </p>
-                  </div>
-                  <ChecklistPerformanceList checklistId={selected.id} />
-                </div>
+                    <ChecklistPerformanceList checklistId={selected.id} />
+                  </TabsContent>
+
+                  <TabsContent value="items" className="mt-4">
+                    <div className="space-y-2">
+                      {selected.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between border rounded-lg p-3"
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <Checkbox
+                              checked={item.isCompleted}
+                              onCheckedChange={(v) =>
+                                handleToggle(selected.id, item.id, !!v)
+                              }
+                            />
+                            <span
+                              className={`text-sm truncate ${item.isCompleted ? "line-through text-muted-foreground" : ""}`}
+                            >
+                              {item.title}
+                            </span>
+                          </div>
+                          {item.isCompleted && item.completedByName && (
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              {item.completedByName}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
               <SheetFooter className="flex-col sm:flex-row gap-2">
                 <Button

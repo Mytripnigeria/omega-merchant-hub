@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import type { Delivery, DeliveryStatus } from "@/services/api/deliveries";
 
 const STATUS_BADGE: Record<DeliveryStatus, { label: string; className: string }> = {
+  awaiting_dispatch: { label: "Awaiting dispatch", className: "bg-orange-500/10 text-orange-700 dark:text-orange-300" },
   pending: { label: "Pending", className: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300" },
   assigned: { label: "Assigned", className: "bg-blue-500/10 text-blue-700 dark:text-blue-300" },
   in_transit: { label: "In transit", className: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300" },
@@ -59,7 +60,7 @@ export default function DeliveryPage() {
 
   const statusForTab =
     tab === "active"
-      ? "pending,assigned,in_transit"
+      ? "awaiting_dispatch,pending,assigned,in_transit"
       : tab === "completed"
         ? "delivered,failed"
         : undefined;
