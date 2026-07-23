@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCategories, useCategoryStats, useCreateCategory, useUpdateCategory, useDeleteCategory, useReorderCategories, useUploadImage } from "@/hooks/api/use-stock";
+import { useStore } from "@/contexts/StoreContext";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -219,10 +220,14 @@ const VISIBILITY_OPTIONS: { id: string; label: string; value: string }[] = [
 const DEFAULT_VISIBILITY = ["pos", "storefront"];
 
 export default function CategoriesPage() {
-  // Categories are business-scoped on the backend, so we don't filter by store.
+  // Categories are store-scoped on the backend. In all-stores mode we omit
+  // storeId (show all); with a specific store selected we filter by it and
+  // require it on create.
   // Default backend page size is 10 — bump to the cap so the merchant sees
   // every category they've created without us needing pagination UI here.
-  const { data: categoriesData, isLoading } = useCategories({ limit: 200 });
+  const { currentStore, isAllStoresMode } = useStore();
+  const scopedStoreId = isAllStoresMode ? undefined : currentStore?.id;
+  const { data: categoriesData, isLoading } = useCategories({ limit: 200, storeId: scopedStoreId });
   const categories: Category[] = (categoriesData as { data?: Category[] })?.data ?? (categoriesData as Category[] | undefined) ?? [];
   const updateCategory = useUpdateCategory();
   const createCategory = useCreateCategory();
@@ -303,6 +308,10 @@ export default function CategoriesPage() {
       toast.error("Category name is required");
       return;
     }
+    if (!currentStore?.id) {
+      toast.error("Select a store first");
+      return;
+    }
     try {
       await createCategory.mutateAsync({
         name: formName.trim(),
@@ -311,6 +320,7 @@ export default function CategoriesPage() {
         imageFileId: formImageFileId,
         visibility: formVisibility,
         isActive: formIsActive,
+        storeId: currentStore.id,
       } as Parameters<typeof createCategory.mutateAsync>[0]);
       toast.success("Category created");
       setIsAddSheetOpen(false);

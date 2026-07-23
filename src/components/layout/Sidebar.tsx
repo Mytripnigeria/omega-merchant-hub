@@ -142,6 +142,7 @@ const navItems: NavItem[] = [
       { title: "Daily Sales", href: "/reports/daily-sales" },
       { title: "Category Report", href: "/reports/category" },
       { title: "Stock Report", href: "/reports/stock" },
+      { title: "Reviews", href: "/reports/reviews" },
     ],
   },
   {

@@ -23,12 +23,12 @@ export interface PaginatedResponse<T> {
 }
 
 // ─── Categories ────────────────────────────────────────────────────────────
-// Categories are business-scoped on the backend (not store-scoped).
-// Sending `storeId` would be rejected by `forbidNonWhitelisted` validation.
+// Categories are store-scoped on the backend: `storeId` is required on create
+// and accepted as a `GET` filter.
 
 export const categoryApi = {
   list(params?: Record<string, string | number | boolean | undefined>) {
-    const qs = buildQs(stripStoreScope(params));
+    const qs = buildQs(params);
     return apiRequest<PaginatedResponse<Category>>(`/categories${qs}`);
   },
 
@@ -43,13 +43,9 @@ export const categoryApi = {
   },
 
   create(data: Partial<Category>) {
-    const { storeId: _ignored, ...rest } = data as Partial<Category> & {
-      storeId?: string;
-    };
-    void _ignored;
     return apiRequest<Category>('/categories', {
       method: 'POST',
-      body: JSON.stringify(rest),
+      body: JSON.stringify(data),
     });
   },
 
@@ -230,8 +226,8 @@ export const ingredientApi = {
 
 export const addonGroupApi = {
   list(params?: Record<string, string | number | undefined>) {
-    // Addon groups are business-scoped — drop any storeId callers pass.
-    const qs = buildQs(stripStoreScope(params));
+    // Addon groups are store-scoped — pass `storeId` through as a filter.
+    const qs = buildQs(params);
     return apiRequest<PaginatedResponse<AddOnGroup>>(`/addon-groups${qs}`);
   },
 
@@ -246,11 +242,9 @@ export const addonGroupApi = {
   },
 
   create(data: Record<string, unknown>) {
-    const { storeId: _ignored, ...rest } = data;
-    void _ignored;
     return apiRequest<AddOnGroup>('/addon-groups', {
       method: 'POST',
-      body: JSON.stringify(rest),
+      body: JSON.stringify(data),
     });
   },
 
@@ -350,19 +344,4 @@ function buildQs(params?: Record<string, string | number | boolean | undefined>)
   const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== '');
   if (!entries.length) return '';
   return '?' + entries.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&');
-}
-
-/**
- * Drops `storeId` from a query/body. Used by entities that are business-scoped
- * on the backend (categories, variation-groups, addon-groups) — passing
- * `storeId` would trigger `property storeId should not exist` from
- * class-validator's whitelist.
- */
-function stripStoreScope<T extends Record<string, unknown> | undefined>(
-  params: T,
-): T {
-  if (!params) return params;
-  const { storeId: _ignored, ...rest } = params as Record<string, unknown>;
-  void _ignored;
-  return rest as T;
 }

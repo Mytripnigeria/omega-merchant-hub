@@ -150,8 +150,12 @@ const formatPrice = (amount: number) =>
   }).format(amount);
 
 export default function AddOnsPage() {
-  // Add-on groups are business-scoped on the backend.
-  const { data: addOnGroupsData, isLoading } = useAddonGroups();
+  // Add-on groups are store-scoped on the backend. In all-stores mode we omit
+  // storeId (show all); with a specific store selected we filter by it and
+  // require it on create.
+  const { currentStore, isAllStoresMode } = useStore();
+  const scopedStoreId = isAllStoresMode ? undefined : currentStore?.id;
+  const { data: addOnGroupsData, isLoading } = useAddonGroups({ storeId: scopedStoreId });
   const { data: stats } = useAddonGroupStats();
   const addOnGroups: AddOnGroup[] =
     ((addOnGroupsData as unknown as { data?: AddOnGroup[] })?.data ?? []) as AddOnGroup[];
@@ -183,7 +187,6 @@ export default function AddOnsPage() {
   const [itemIsAvailable, setItemIsAvailable] = useState(true);
   // Stock links for this add-on — mirrors the ingredient rows on ProductsPage.
   const [itemIngredients, setItemIngredients] = useState<DraftAddonIngredient[]>([]);
-  const { currentStore } = useStore();
   const { data: ingredientsPage } = useIngredients({
     storeId: currentStore?.id,
     limit: 200,
@@ -242,7 +245,11 @@ export default function AddOnsPage() {
         await updateGroup.mutateAsync({ id: selectedGroup.id, data: payload });
         toast.success("Group updated");
       } else {
-        await createGroup.mutateAsync({ ...payload, addons: [] });
+        if (!currentStore?.id) {
+          toast.error("Select a store first");
+          return;
+        }
+        await createGroup.mutateAsync({ ...payload, addons: [], storeId: currentStore.id });
         toast.success("Group created");
       }
       setIsGroupSheetOpen(false);

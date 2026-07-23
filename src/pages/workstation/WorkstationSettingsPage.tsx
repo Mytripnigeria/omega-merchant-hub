@@ -36,6 +36,7 @@ import {
   useUpdateWorkstationSettings,
 } from "@/hooks/api/use-workstation-settings";
 import { useRoles } from "@/hooks/api/use-hr";
+import { useStore } from "@/contexts/StoreContext";
 import type {
   UpdateWorkstationSettingsPayload,
   WorkstationSettings,
@@ -58,9 +59,11 @@ const WORKSTATION_FUNCTIONS: { key: string; label: string }[] = [
 ];
 
 export default function WorkstationSettingsPage() {
+  const { currentStore } = useStore();
   const settingsQuery = useWorkstationSettings();
   const updateSettings = useUpdateWorkstationSettings();
-  const rolesQuery = useRoles();
+  // Only show roles belonging to the current store for function-access config.
+  const rolesQuery = useRoles({ storeId: currentStore?.id });
   const roles = ((rolesQuery.data?.data ?? []) as Array<{ id: string; name: string }>);
   const [form, setForm] = useState<Form | null>(null);
 

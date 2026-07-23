@@ -73,6 +73,7 @@ const BestSellersPage = lazy(() => import("./pages/reports/BestSellersPage"));
 const DailySalesPage = lazy(() => import("./pages/reports/DailySalesPage"));
 const CategoryReportPage = lazy(() => import("./pages/reports/CategoryReportPage"));
 const StockReportPage = lazy(() => import("./pages/reports/StockReportPage"));
+const ReviewsPage = lazy(() => import("./pages/reports/ReviewsPage"));
 
 // Storefront
 const StorefrontPage = lazy(() => import("./pages/storefront/StorefrontPage"));
@@ -189,6 +190,7 @@ const App = () => (
                 <Route path="/reports/daily-sales" element={<DailySalesPage />} />
                 <Route path="/reports/category" element={<CategoryReportPage />} />
                 <Route path="/reports/stock" element={<StockReportPage />} />
+                <Route path="/reports/reviews" element={<ReviewsPage />} />
                 
                 {/* Bookings */}
                 <Route path="/bookings" element={<BookingsPage />} />
