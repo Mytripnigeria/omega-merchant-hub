@@ -15,7 +15,9 @@ import {
   useUpdateAddon,
   useDeleteAddon,
   useToggleAddonAvailability,
+  useIngredients,
 } from "@/hooks/api/use-stock";
+import { useStore } from "@/contexts/StoreContext";
 import {
   Table,
   TableBody,
@@ -49,6 +51,7 @@ import {
   Search,
   Eye,
   Loader2,
+  X,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -58,12 +61,30 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
+interface AddOnIngredient {
+  id: string;
+  ingredientId: string;
+  ingredientName?: string | null;
+  quantity: number;
+  unit: string;
+}
+
 interface AddOn {
   id: string;
   name: string;
   price: number;
   isAvailable: boolean;
   addOnGroupId?: string;
+  /** Stock links consumed when this add-on is ordered. */
+  ingredients?: AddOnIngredient[];
+}
+
+/** Editable row in the add-on's stock-link list. */
+interface DraftAddonIngredient {
+  key: string;
+  ingredientId: string;
+  quantity: number;
+  unit: string;
 }
 
 interface AddOnGroup {
@@ -133,7 +154,7 @@ export default function AddOnsPage() {
   const { data: addOnGroupsData, isLoading } = useAddonGroups();
   const { data: stats } = useAddonGroupStats();
   const addOnGroups: AddOnGroup[] =
-    ((addOnGroupsData as { data?: AddOnGroup[] })?.data ?? []) as AddOnGroup[];
+    ((addOnGroupsData as unknown as { data?: AddOnGroup[] })?.data ?? []) as AddOnGroup[];
 
   const createGroup = useCreateAddonGroup();
   const updateGroup = useUpdateAddonGroup();
@@ -160,6 +181,14 @@ export default function AddOnsPage() {
   const [itemName, setItemName] = useState("");
   const [itemPrice, setItemPrice] = useState<number>(0);
   const [itemIsAvailable, setItemIsAvailable] = useState(true);
+  // Stock links for this add-on — mirrors the ingredient rows on ProductsPage.
+  const [itemIngredients, setItemIngredients] = useState<DraftAddonIngredient[]>([]);
+  const { currentStore } = useStore();
+  const { data: ingredientsPage } = useIngredients({
+    storeId: currentStore?.id,
+    limit: 200,
+  });
+  const ingredients = ingredientsPage?.data ?? [];
 
   // View sheet
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
@@ -240,7 +269,23 @@ export default function AddOnsPage() {
     setItemName("");
     setItemPrice(0);
     setItemIsAvailable(true);
+    setItemIngredients([]);
   };
+
+  const addDraftAddonIngredient = () =>
+    setItemIngredients((prev) => [
+      ...prev,
+      { key: `new-${Date.now()}-${prev.length}`, ingredientId: "", quantity: 0, unit: "" },
+    ]);
+  const updateDraftAddonIngredient = (
+    index: number,
+    patch: Partial<DraftAddonIngredient>,
+  ) =>
+    setItemIngredients((prev) =>
+      prev.map((it, i) => (i === index ? { ...it, ...patch } : it)),
+    );
+  const removeDraftAddonIngredient = (index: number) =>
+    setItemIngredients((prev) => prev.filter((_, i) => i !== index));
 
   const openItemForCreate = (groupId: string) => {
     setEditingAddon(null);
@@ -255,11 +300,26 @@ export default function AddOnsPage() {
     setItemName(addon.name);
     setItemPrice(Number(addon.price));
     setItemIsAvailable(addon.isAvailable);
+    setItemIngredients(
+      (addon.ingredients ?? []).map((ai) => ({
+        key: ai.id,
+        ingredientId: ai.ingredientId,
+        quantity: Number(ai.quantity ?? 0),
+        unit: ai.unit ?? "",
+      })),
+    );
     setIsItemSheetOpen(true);
   };
 
   const handleSaveItem = async () => {
     if (!itemGroupId) return;
+    const addonIngredientPayload = itemIngredients
+      .filter((i) => i.ingredientId)
+      .map((i) => ({
+        ingredientId: i.ingredientId,
+        quantity: i.quantity,
+        unit: i.unit,
+      }));
     if (!itemName.trim()) {
       toast.error("Add-on name is required");
       return;
@@ -269,13 +329,23 @@ export default function AddOnsPage() {
         await updateAddon.mutateAsync({
           groupId: itemGroupId,
           addonId: editingAddon.id,
-          data: { name: itemName.trim(), price: itemPrice, isAvailable: itemIsAvailable },
+          data: {
+            name: itemName.trim(),
+            price: itemPrice,
+            isAvailable: itemIsAvailable,
+            ingredients: addonIngredientPayload,
+          },
         });
         toast.success("Add-on updated");
       } else {
         await addAddon.mutateAsync({
           groupId: itemGroupId,
-          data: { name: itemName.trim(), price: itemPrice, isAvailable: itemIsAvailable },
+          data: {
+            name: itemName.trim(),
+            price: itemPrice,
+            isAvailable: itemIsAvailable,
+            ingredients: addonIngredientPayload,
+          },
         });
         toast.success("Add-on added");
       }
@@ -692,6 +762,88 @@ export default function AddOnsPage() {
                   onCheckedChange={setItemIsAvailable}
                 />
               </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Ingredients (link to stock)</Label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addDraftAddonIngredient}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Ingredient
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Deducted from inventory each time this add-on is ordered.
+              </p>
+              {itemIngredients.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No ingredients linked.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {itemIngredients.map((ing, index) => (
+                    <div
+                      key={ing.key}
+                      className="flex items-center gap-2 p-2 border rounded-lg"
+                    >
+                      <Select
+                        value={ing.ingredientId}
+                        onValueChange={(val) => {
+                          const matched = ingredients.find((i) => i.id === val);
+                          updateDraftAddonIngredient(index, {
+                            ingredientId: val,
+                            unit: ing.unit || matched?.unit || "",
+                          });
+                        }}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Select ingredient" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ingredients.map((i) => (
+                            <SelectItem key={i.id} value={i.id}>
+                              {i.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        placeholder="Qty"
+                        value={ing.quantity}
+                        onChange={(e) =>
+                          updateDraftAddonIngredient(index, {
+                            quantity: Number(e.target.value),
+                          })
+                        }
+                        className="w-24"
+                      />
+                      <Input
+                        placeholder="unit"
+                        value={ing.unit}
+                        onChange={(e) =>
+                          updateDraftAddonIngredient(index, { unit: e.target.value })
+                        }
+                        className="w-20"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={() => removeDraftAddonIngredient(index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <SheetFooter className="flex-col sm:flex-row gap-2">

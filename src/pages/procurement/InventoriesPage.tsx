@@ -109,6 +109,32 @@ function ngn(n: number): string {
   return `₦${n.toLocaleString()}`;
 }
 
+/**
+ * Stock / minimum figures for one inventory item under the active location
+ * filter. When a location is selected every figure is that location's own
+ * count (an item holds independent stock per location); "All locations"
+ * (`__all__`) falls back to the aggregate stored on the ingredient itself.
+ */
+function stockForLocation(
+  i: Ingredient,
+  filterLocation: string,
+): { stock: number; minStock: number } {
+  const locRow =
+    filterLocation === "__all__"
+      ? null
+      : (i.locations ?? []).find((l) => l.locationId === filterLocation);
+  if (locRow) {
+    return {
+      stock: Number(locRow.currentStock),
+      minStock: Number(locRow.minStock),
+    };
+  }
+  if (filterLocation === "__all__") {
+    return { stock: Number(i.currentStock), minStock: Number(i.minStock) };
+  }
+  return { stock: 0, minStock: 0 };
+}
+
 export default function InventoriesPage() {
   const { currentStore } = useStore();
   const [search, setSearch] = useState("");
@@ -142,6 +168,16 @@ export default function InventoriesPage() {
     limit: pageSize,
   });
   const statsQuery = useIngredientStats(currentStore?.id);
+  // `/ingredients/stats` is store-wide only, so when a location is selected the
+  // tiles are derived client-side from that location's full ingredient list.
+  const locationStatsQuery = useIngredients(
+    {
+      storeId: currentStore?.id,
+      locationId: filterLocation === "__all__" ? undefined : filterLocation,
+      limit: 1000,
+    },
+    { enabled: filterLocation !== "__all__" },
+  );
 
   const createIngredient = useCreateIngredient();
   const updateIngredient = useUpdateIngredient();
@@ -155,6 +191,28 @@ export default function InventoriesPage() {
   const endIndex = Math.min(startIndex + pageSize, total);
 
   const stats = useMemo(() => {
+    if (filterLocation !== "__all__") {
+      const rows: Ingredient[] = locationStatsQuery.data?.data ?? [];
+      const ready = !!locationStatsQuery.data;
+      const lowStock = rows.filter((i) => {
+        const { stock, minStock } = stockForLocation(i, filterLocation);
+        return stock <= minStock;
+      }).length;
+      const totalValue = rows.reduce(
+        (sum, i) =>
+          sum + stockForLocation(i, filterLocation).stock * Number(i.costPerUnit),
+        0,
+      );
+      return [
+        { label: "Total Items", value: ready ? String(rows.length) : "—", icon: Package },
+        { label: "Low Stock", value: ready ? String(lowStock) : "—", icon: AlertTriangle },
+        {
+          label: "Inventory Value",
+          value: ready ? ngn(totalValue) : "—",
+          icon: Package,
+        },
+      ];
+    }
     const s = statsQuery.data;
     return [
       { label: "Total Items", value: s ? String(s.total) : "—", icon: Package },
@@ -165,7 +223,7 @@ export default function InventoriesPage() {
         icon: Package,
       },
     ];
-  }, [statsQuery.data]);
+  }, [statsQuery.data, locationStatsQuery.data, filterLocation]);
 
   const openCreate = () => {
     setSelected(null);
@@ -262,6 +320,8 @@ export default function InventoriesPage() {
         id: selected.id,
         adjustment: amount,
         reason: adjustReason || undefined,
+        locationId:
+          filterLocation === "__all__" ? undefined : filterLocation,
       },
       {
         onSuccess: () => {
@@ -380,25 +440,8 @@ export default function InventoriesPage() {
                 </thead>
                 <tbody>
                   {ingredients.map((i) => {
-                    // When a location filter is active, every stock figure is
-                    // that location's own count (same item holds independent
-                    // stock per location); "All locations" shows the aggregate.
-                    const locRow =
-                      filterLocation === "__all__"
-                        ? null
-                        : (i.locations ?? []).find(
-                            (l) => l.locationId === filterLocation,
-                          );
-                    const shownStock = locRow
-                      ? Number(locRow.currentStock)
-                      : filterLocation === "__all__"
-                        ? Number(i.currentStock)
-                        : 0;
-                    const shownMin = locRow
-                      ? Number(locRow.minStock)
-                      : filterLocation === "__all__"
-                        ? Number(i.minStock)
-                        : 0;
+                    const { stock: shownStock, minStock: shownMin } =
+                      stockForLocation(i, filterLocation);
                     const value = shownStock * Number(i.costPerUnit);
                     const lowStock = shownStock <= shownMin;
                     const outOfStock = shownStock <= 0;
@@ -508,7 +551,8 @@ export default function InventoriesPage() {
               <div className="p-3 border rounded-lg">
                 <p className="text-sm text-muted-foreground">Current stock</p>
                 <p className="text-2xl font-semibold">
-                  {Number(selected.currentStock)} {selected.unit}
+                  {stockForLocation(selected, filterLocation).stock}{" "}
+                  {selected.unit}
                 </p>
               </div>
               <div className="space-y-2">

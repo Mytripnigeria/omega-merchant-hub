@@ -56,12 +56,18 @@ export interface Order {
   total: number;
   paidAmount: number;
   refundedAmount: number;
+  /** Loyalty points spent on this order. */
+  pointsRedeemed: number;
+  /** Naira value of those points — the slice of discountAmount they paid for. */
+  pointsValue: number;
   paymentMethodId: string | null;
   paymentStatus: PaymentStatus | null;
   paymentChannel: PaymentChannel | null;
   paymentReference: string | null;
   paidAt: string | null;
   deliveryFee: number;
+  deliveryRegionId: string | null;
+  deliveryRegionName: string | null;
   tipAmount: number;
   couponCode: string | null;
   couponDiscount: number;

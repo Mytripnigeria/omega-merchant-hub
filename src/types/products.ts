@@ -15,6 +15,8 @@ export interface ProductIngredient {
   name?: string;
   unit: string;
   quantity: number;
+  /** Variation this line is scoped to; null = the product-level default recipe. */
+  variationId?: string | null;
   ingredient?: {
     id: string;
     name: string;
@@ -70,12 +72,25 @@ export interface Category {
   storeId: string;
 }
 
+export interface AddOnIngredient {
+  id: string;
+  ingredientId: string;
+  ingredientName?: string | null;
+  quantity: number;
+  unit: string;
+}
+
 export interface AddOn {
   id: string;
   name: string;
   price: number;
   isAvailable: boolean;
   storeId: string;
+  /**
+   * Stock links consumed when this add-on is ordered — "Extra Chicken" really
+   * deducts chicken. Sending the array on save replaces the whole recipe.
+   */
+  ingredients?: AddOnIngredient[];
 }
 
 export interface AddOnGroup {
@@ -213,6 +228,12 @@ export interface UpdateProductRequest {
   visibility?: ProductVisibility[];
   imageUrl?: string | null;
   imageFileId?: string | null;
+  ingredients?: {
+    ingredientId: string;
+    quantity: number;
+    unit: string;
+    variationId?: string | null;
+  }[];
 }
 
 export interface ProductFilters {

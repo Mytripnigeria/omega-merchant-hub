@@ -262,7 +262,15 @@ export const addonGroupApi = {
     return apiRequest<void>(`/addon-groups/${id}`, { method: 'DELETE' });
   },
 
-  addAddon(groupId: string, data: { name: string; price?: number; isAvailable?: boolean }) {
+  addAddon(
+    groupId: string,
+    data: {
+      name: string;
+      price?: number;
+      isAvailable?: boolean;
+      ingredients?: { ingredientId: string; quantity: number; unit: string }[];
+    },
+  ) {
     return apiRequest(`/addon-groups/${groupId}/addons`, { method: 'POST', body: JSON.stringify(data) });
   },
 

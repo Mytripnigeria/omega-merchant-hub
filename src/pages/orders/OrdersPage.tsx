@@ -928,6 +928,16 @@ export default function OrdersPage() {
                           </span>
                         </div>
                       )}
+                      {selectedOrder.pointsRedeemed > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">
+                            Points redeemed ({selectedOrder.pointsRedeemed} pts)
+                          </span>
+                          <span className="text-sm text-green-600">
+                            -{formatPrice(selectedOrder.pointsValue)}
+                          </span>
+                        </div>
+                      )}
                       <Separator />
                       <div className="flex justify-between text-base font-semibold">
                         <span>Total</span>

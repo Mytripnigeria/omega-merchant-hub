@@ -10,3 +10,4 @@ export * from "./use-procurement";
 export * from "./use-stock";
 export * from "./use-suppliers";
 export * from "./use-payouts";
+export * from "./use-delivery-regions";

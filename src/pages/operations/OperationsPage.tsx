@@ -10,10 +10,25 @@ import {
   Truck, ChefHat, AlertTriangle, CheckCircle2, Settings
 } from "lucide-react";
 import { useStore } from "@/contexts/StoreContext";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import {
+  useDeliveryRegions,
+  useUpdateDeliveryRegion,
+} from "@/hooks/api/use-delivery-regions";
+import { formatPrice } from "@/lib/utils";
 
 export default function OperationsPage() {
   const { currentStore } = useStore();
+  const navigate = useNavigate();
   const [kitchenDisplay, setKitchenDisplay] = useState(true);
+
+  // Delivery zones are real, store-scoped delivery regions managed from
+  // Settings → Delivery Regions.
+  const { data: deliveryZones = [] } = useDeliveryRegions(
+    currentStore?.id ? { storeId: currentStore.id } : undefined,
+  );
+  const updateDeliveryRegion = useUpdateDeliveryRegion();
 
   const devices = [
     { name: "Main POS Terminal", type: "POS", status: "online", lastSeen: "Now" },
@@ -21,12 +36,6 @@ export default function OperationsPage() {
     { name: "Kitchen Display 2", type: "KDS", status: "offline", lastSeen: "2 hours ago" },
     { name: "Receipt Printer", type: "Printer", status: "online", lastSeen: "Now" },
     { name: "Label Printer", type: "Printer", status: "warning", lastSeen: "Low paper" },
-  ];
-
-  const deliveryZones = [
-    { zone: "Zone A (0-3km)", fee: "$2.00", minOrder: "$15", time: "20-30 min", active: true },
-    { zone: "Zone B (3-5km)", fee: "$4.00", minOrder: "$25", time: "30-45 min", active: true },
-    { zone: "Zone C (5-8km)", fee: "$6.00", minOrder: "$35", time: "45-60 min", active: false },
   ];
 
   const kitchenStations = [
@@ -232,25 +241,49 @@ export default function OperationsPage() {
                   </CardTitle>
                   <CardDescription>Configure delivery areas and fees</CardDescription>
                 </div>
-                <Button>Add Zone</Button>
+                <Button onClick={() => navigate("/settings?tab=delivery-regions")}>Add Zone</Button>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {deliveryZones.map((zone) => (
-                  <div key={zone.zone} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div key={zone.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-4">
-                      <MapPin className={`h-5 w-5 ${zone.active ? "text-primary" : "text-muted-foreground"}`} />
+                      <MapPin className={`h-5 w-5 ${zone.isActive ? "text-primary" : "text-muted-foreground"}`} />
                       <div>
-                        <p className="font-medium">{zone.zone}</p>
+                        <p className="font-medium">{zone.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          Fee: {zone.fee} • Min: {zone.minOrder} • Est: {zone.time}
+                          Fee: {formatPrice(Number(zone.fee))} • Min: {formatPrice(Number(zone.minOrderAmount))} • Est: {zone.estimatedMinutes !== null ? `${zone.estimatedMinutes} min` : "—"}
                         </p>
                       </div>
                     </div>
-                    <Switch defaultChecked={zone.active} />
+                    <Switch
+                      checked={zone.isActive}
+                      onCheckedChange={(checked) =>
+                        updateDeliveryRegion.mutate(
+                          { id: zone.id, data: { isActive: checked } },
+                          {
+                            onError: (e: Error) =>
+                              toast.error(e.message ?? "Couldn't update zone"),
+                          },
+                        )
+                      }
+                    />
                   </div>
                 ))}
+                {deliveryZones.length === 0 && (
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-4">
+                      <MapPin className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">No delivery zones yet</p>
+                        <p className="text-sm text-muted-foreground">
+                          Add one from Settings → Delivery Regions
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

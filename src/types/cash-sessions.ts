@@ -25,6 +25,7 @@ export interface CashSession {
   actualCard: number;
   actualMobile: number;
   actualTotal: number;
+  closingAmount: number;
   difference: number;
   reconciliationStatus: ReconciliationStatus | null;
   reviewedById: string | null;

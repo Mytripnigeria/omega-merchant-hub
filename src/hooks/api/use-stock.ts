@@ -122,10 +122,14 @@ export function useReorderCategories() {
 
 // ─── Ingredients ───────────────────────────────────────────────────────────
 
-export function useIngredients(params?: Record<string, string | number | undefined>) {
+export function useIngredients(
+  params?: Record<string, string | number | undefined>,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: stockKeys.ingredients.list(params),
     queryFn: () => ingredientApi.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -324,8 +328,19 @@ export function useDeleteAddonGroup() {
 export function useAddAddon() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ groupId, data }: { groupId: string; data: { name: string; price?: number } }) =>
-      addonGroupApi.addAddon(groupId, data),
+    mutationFn: ({
+      groupId,
+      data,
+    }: {
+      groupId: string;
+      data: {
+        name: string;
+        price?: number;
+        isAvailable?: boolean;
+        /** Replacement stock links for this add-on. */
+        ingredients?: { ingredientId: string; quantity: number; unit: string }[];
+      };
+    }) => addonGroupApi.addAddon(groupId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: stockKeys.addonGroups.all });
     },

@@ -14,6 +14,7 @@ import {
   Printer,
   Bell,
   Store,
+  Truck,
   Activity,
 } from "lucide-react";
 
@@ -21,6 +22,7 @@ import { GeneralSettingsTab } from "./tabs/GeneralSettingsTab";
 import { StoresSettingsTab } from "./StoresSettingsTab";
 import { PaymentMethodsTab } from "./tabs/PaymentMethodsTab";
 import { TaxRatesTab } from "./tabs/TaxRatesTab";
+import { DeliveryRegionsTab } from "./tabs/DeliveryRegionsTab";
 import { ReceiptTab } from "./tabs/ReceiptTab";
 import { PrintersTab } from "./tabs/PrintersTab";
 import { NotificationsTab } from "./tabs/NotificationsTab";
@@ -35,6 +37,7 @@ const TABS = [
   { value: "stores", label: "Stores", icon: Store, component: <StoresSettingsTab /> },
   { value: "payments", label: "Payment Methods", icon: CreditCard, component: <PaymentMethodsTab /> },
   { value: "tax", label: "Tax", icon: Percent, component: <TaxRatesTab /> },
+  { value: "delivery-regions", label: "Delivery Regions", icon: Truck, component: <DeliveryRegionsTab /> },
   { value: "receipt", label: "Receipt", icon: Receipt, component: <ReceiptTab /> },
   { value: "printers", label: "Printers", icon: Printer, component: <PrintersTab /> },
   { value: "notifications", label: "Notifications", icon: Bell, component: <NotificationsTab /> },

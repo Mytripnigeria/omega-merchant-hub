@@ -237,9 +237,14 @@ export const productService = {
     const index = mockProducts.findIndex(p => p.id === id);
     if (index === -1) return null;
     
+    // `ingredients` on the request is a recipe *payload* (no row ids), not the
+    // hydrated ProductIngredient[] a Product carries — the mock store doesn't
+    // model recipes, so drop it rather than merge two different shapes.
+    const { ingredients: _recipe, ...rest } = data;
+    void _recipe;
     mockProducts[index] = {
       ...mockProducts[index],
-      ...data,
+      ...rest,
       updatedAt: new Date().toISOString(),
     };
     return mockProducts[index];

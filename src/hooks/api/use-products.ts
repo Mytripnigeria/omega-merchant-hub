@@ -80,6 +80,7 @@ export function useUpdateProduct() {
         queryClient.setQueryData(productKeys.detail(updatedProduct.id), updatedProduct);
       }
       queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: productKeys.all });
     },
   });
 }

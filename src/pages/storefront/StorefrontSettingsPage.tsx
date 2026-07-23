@@ -42,9 +42,17 @@ export default function StorefrontSettingsPage() {
   const updateConfig = useUpdateStorefrontConfig();
   const [form, setForm] = useState<StorefrontConfig | null>(null);
 
+  // Re-sync whenever the server object actually changes (all storefront pages
+  // write the same `storefrontKeys.config()` object), merging server values
+  // over the existing form so an in-progress edit isn't clobbered but fields
+  // saved elsewhere show up without a full page reload.
+  const configUpdatedAt = configQuery.dataUpdatedAt;
   useEffect(() => {
-    if (configQuery.data && !form) setForm(configQuery.data);
-  }, [configQuery.data, form]);
+    const next = configQuery.data;
+    if (!next) return;
+    setForm((prev) => (prev ? { ...prev, ...next } : next));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configUpdatedAt]);
 
   if (configQuery.isLoading || !form) {
     return (

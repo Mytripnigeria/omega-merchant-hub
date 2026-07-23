@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { TablePagination } from "@/components/ui/table-pagination";
 import { Eye, Download, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/utils";
@@ -35,8 +36,14 @@ const fmt = (d: string | null) =>
 export default function RegistersPage() {
   const { currentStore, isAllStoresMode } = useStore();
   const storeId = isAllStoresMode ? undefined : currentStore?.id;
-  const { data, isLoading } = useCashSessions({ storeId, limit: 50 });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const { data, isLoading } = useCashSessions({ storeId, page, limit: pageSize });
   const registers = data?.data ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = data?.totalPages ?? 1;
+  const startIndex = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endIndex = Math.min(page * pageSize, total);
 
   const qc = useQueryClient();
   const [selected, setSelected] = useState<CashSession | null>(null);
@@ -122,7 +129,7 @@ export default function RegistersPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatPrice(Number(r.actualTotal))}
+                      {formatPrice(Number(r.closingAmount ?? r.actualTotal))}
                     </TableCell>
                     <TableCell>
                       <Button
@@ -142,6 +149,20 @@ export default function RegistersPage() {
         </CardContent>
       </Card>
 
+      <TablePagination
+        currentPage={page}
+        totalPages={totalPages}
+        totalItems={total}
+        startIndex={startIndex}
+        endIndex={endIndex}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(s) => {
+          setPageSize(s);
+          setPage(1);
+        }}
+      />
+
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent>
           <DialogHeader>
@@ -160,7 +181,9 @@ export default function RegistersPage() {
               />
               <Row
                 label="Closing Amount"
-                value={formatPrice(Number(selected.actualTotal))}
+                value={formatPrice(
+                  Number(selected.closingAmount ?? selected.actualTotal),
+                )}
               />
               <Row
                 label="Staffs Joined In"

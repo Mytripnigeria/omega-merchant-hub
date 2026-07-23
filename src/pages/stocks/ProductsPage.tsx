@@ -17,8 +17,6 @@ import {
   useDeleteProduct,
   useAddProductVariation,
   useRemoveProductVariation,
-  useLinkProductIngredient,
-  useUnlinkProductIngredient,
   useLinkProductAddonGroup,
   useUnlinkProductAddonGroup,
 } from "@/hooks/api/use-products";
@@ -95,12 +93,21 @@ interface DraftVariation {
   stock: number;
 }
 
+/** Sentinel for "this recipe line applies to the product, not one variation". */
+const ALL_VARIATIONS = "__all__";
+
 interface DraftIngredient {
   key: string;
   id?: string;
   ingredientId: string;
   quantity: number;
   unit: string;
+  /**
+   * Variation this recipe line applies to. Empty = the product-level default,
+   * used only by products with no variation-scoped recipe. Lets a Large portion
+   * consume more than a Small one.
+   */
+  variationId?: string;
 }
 
 function formatPrice(amount: number) {
@@ -185,8 +192,6 @@ export default function ProductsPage() {
   const toggleStatus = useToggleProductStatus();
   const addVariation = useAddProductVariation();
   const removeVariation = useRemoveProductVariation();
-  const linkIngredient = useLinkProductIngredient();
-  const unlinkIngredient = useUnlinkProductIngredient();
   const linkAddonGroup = useLinkProductAddonGroup();
   const unlinkAddonGroup = useUnlinkProductAddonGroup();
   const uploadImage = useUploadImage();
@@ -276,6 +281,7 @@ export default function ProductsPage() {
         ingredientId: pi.ingredientId,
         quantity: Number(pi.quantity ?? 0),
         unit: pi.unit ?? pi.ingredient?.unit ?? "",
+        variationId: pi.variationId ?? "",
       })),
     );
     setSelectedAddonGroupIds((p.addonGroups ?? []).map((g) => g.id));
@@ -359,19 +365,13 @@ export default function ProductsPage() {
   const updateDraftIngredient = (index: number, patch: Partial<DraftIngredient>) => {
     setDraftIngredients((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
   };
+  // Only variations that already exist server-side can scope a recipe line —
+  // a brand-new, unsaved variation has no id yet.
+  const savedVariations = draftVariations.filter((v) => !!v.id);
+
   const removeDraftIngredient = async (index: number) => {
-    const ing = draftIngredients[index];
-    if (selectedProduct && ing.id) {
-      try {
-        await unlinkIngredient.mutateAsync({
-          productId: selectedProduct.id,
-          ingredientId: ing.ingredientId,
-        });
-      } catch (err) {
-        toast.error((err as Error).message ?? "Failed to unlink ingredient");
-        return;
-      }
-    }
+    // Removal is expressed by omitting the row from the replacement
+    // `ingredients` array sent on save — no immediate API call.
     setDraftIngredients((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -464,6 +464,15 @@ export default function ProductsPage() {
           visibility: formVisibility as Product["visibility"],
           status: formStatus,
           imageFileId: formImageFileId,
+          // Full replacement of the product's recipe.
+          ingredients: draftIngredients
+            .filter((i) => i.ingredientId)
+            .map((i) => ({
+              ingredientId: i.ingredientId,
+              quantity: i.quantity,
+              unit: i.unit,
+              variationId: i.variationId || null,
+            })),
         },
       });
 
@@ -481,13 +490,7 @@ export default function ProductsPage() {
         });
       }
 
-      // Sync new ingredient links
-      for (const ing of draftIngredients.filter((i) => !i.id && i.ingredientId)) {
-        await linkIngredient.mutateAsync({
-          productId: selectedProduct.id,
-          data: { ingredientId: ing.ingredientId, quantity: ing.quantity, unit: ing.unit },
-        });
-      }
+      // Ingredients are sent with the PATCH above as a full replacement list.
 
       // Sync addon group changes
       const previousIds = (selectedProduct.addonGroups ?? []).map((g) => g.id);
@@ -547,7 +550,6 @@ export default function ProductsPage() {
     createProduct.isPending ||
     updateProduct.isPending ||
     addVariation.isPending ||
-    linkIngredient.isPending ||
     linkAddonGroup.isPending ||
     unlinkAddonGroup.isPending;
 
@@ -1039,6 +1041,28 @@ export default function ProductsPage() {
                           onChange={(e) => updateDraftIngredient(index, { unit: e.target.value })}
                           className="w-20"
                         />
+                        {savedVariations.length > 0 && (
+                          <Select
+                            value={ing.variationId || ALL_VARIATIONS}
+                            onValueChange={(val) =>
+                              updateDraftIngredient(index, {
+                                variationId: val === ALL_VARIATIONS ? "" : val,
+                              })
+                            }
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={ALL_VARIATIONS}>All variants</SelectItem>
+                              {savedVariations.map((v) => (
+                                <SelectItem key={v.id} value={v.id!}>
+                                  {v.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
