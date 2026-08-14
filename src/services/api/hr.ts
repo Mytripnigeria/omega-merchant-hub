@@ -38,6 +38,27 @@ function buildQuery(params: Record<string, unknown>): string {
   return s ? `?${s}` : '';
 }
 
+export interface DashboardAccess {
+  hasAccess: boolean;
+  adminId: string | null;
+  email: string | null;
+  role: string | null;
+  storeIds: string[] | null;
+  /** Module permissions, e.g. ["orders.view", "stocks.manage"]. */
+  permissions: string[];
+  mustChangePassword: boolean;
+}
+
+export interface DashboardCredentials {
+  adminId: string;
+  email: string;
+  /** Shown once — never retrievable again. */
+  temporaryPassword: string;
+  role: string;
+  storeIds: string[] | null;
+  permissions: string[];
+}
+
 export const hrService = {
   async getStaff(filters?: StaffFilters): Promise<PaginatedResponse<Staff>> {
     return apiRequest(`/staff${buildQuery(filters ?? {})}`);
@@ -65,6 +86,34 @@ export const hrService = {
 
   async clearStaffPin(id: string): Promise<void> {
     return apiRequest(`/staff/${id}/pin`, { method: 'DELETE' });
+  },
+
+  /** Current merchant-dashboard access state (never includes the password). */
+  async getDashboardAccess(id: string): Promise<DashboardAccess> {
+    return apiRequest(`/staff/${id}/dashboard-access`);
+  },
+
+  /**
+   * Grants (or re-issues) a dashboard login. The returned temporary password is
+   * shown once and cannot be read back afterwards.
+   */
+  async grantDashboardAccess(
+    id: string,
+    payload: {
+      email?: string;
+      role?: string;
+      storeIds?: string[];
+      permissions?: string[];
+    },
+  ): Promise<DashboardCredentials> {
+    return apiRequest(`/staff/${id}/dashboard-access`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async revokeDashboardAccess(id: string): Promise<void> {
+    return apiRequest(`/staff/${id}/dashboard-access`, { method: 'DELETE' });
   },
 
   async getRoles(filters?: RoleFilters): Promise<PaginatedResponse<Role>> {

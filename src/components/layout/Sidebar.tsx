@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { canView, moduleForPath } from "@/lib/permissions";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -139,6 +141,7 @@ const navItems: NavItem[] = [
     children: [
       { title: "Download Reports", href: "/reports/download" },
       { title: "Best Sellers", href: "/reports/bestsellers" },
+      { title: "Product Performance", href: "/reports/product-performance" },
       { title: "Daily Sales", href: "/reports/daily-sales" },
       { title: "Category Report", href: "/reports/category" },
       { title: "Stock Report", href: "/reports/stock" },
@@ -317,7 +320,19 @@ function NavMenuItem({ item, onNavigate, expandedItem, onExpand, collapsed }: Na
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileOpenChange }: SidebarProps) {
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const { data: business } = useBusiness();
-  
+
+  // Hide modules this login can't open. The API enforces the same rules, so
+  // this is about not showing dead ends — not the control itself.
+  const { permissions } = useAuth();
+  const visibleNavItems = useMemo(
+    () =>
+      navItems.filter((item) => {
+        const module = moduleForPath(item.href ?? item.children?.[0]?.href ?? "");
+        return module ? canView(permissions, module) : true;
+      }),
+    [permissions],
+  );
+
   const handleNavigate = () => {
     onMobileOpenChange?.(false);
   };
@@ -343,7 +358,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileOpenChange }:
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 pb-4">
         <nav className="space-y-1">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <NavMenuItem 
               key={item.title} 
               item={item} 
@@ -381,7 +396,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileOpenChange }:
       {/* Collapsed Navigation */}
       <ScrollArea className="flex-1 px-2 pb-4">
         <nav className="space-y-1">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <NavMenuItem 
               key={item.title} 
               item={item} 

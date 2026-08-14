@@ -19,7 +19,18 @@ export const reportsKeys = {
     [...reportsKeys.all, "foodCost", filter] as const,
   stock: (filter?: ReportsRange) =>
     [...reportsKeys.all, "stock", filter] as const,
+  productPerformance: (filter?: ReportsRange) =>
+    [...reportsKeys.all, "productPerformance", filter] as const,
 };
+
+/** Per-item sales including variations and add-ons. */
+export function useProductPerformance(filter: ReportsRange = {}) {
+  return useQuery({
+    queryKey: reportsKeys.productPerformance(filter),
+    queryFn: () => reportsService.productPerformance(filter),
+    staleTime: 60 * 1000,
+  });
+}
 
 export function useSalesReport(filter: SalesReportFilter = {}) {
   return useQuery({

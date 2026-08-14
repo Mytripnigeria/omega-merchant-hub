@@ -36,9 +36,9 @@ export const categoryApi = {
     return apiRequest<Category>(`/categories/${id}`);
   },
 
-  stats() {
+  stats(storeId?: string) {
     return apiRequest<{ total: number; active: number; inactive: number }>(
-      `/categories/stats`,
+      `/categories/stats${storeId ? `?storeId=${storeId}` : ''}`,
     );
   },
 
@@ -96,6 +96,18 @@ export const productApi = {
 
   addVariation(productId: string, data: object) {
     return apiRequest(`/products/${productId}/variations`, { method: 'POST', body: JSON.stringify(data) });
+  },
+
+  /**
+   * Replace the product's whole variation set in one transactional request:
+   * rows with an `id` are edited in place, rows without are added, omitted
+   * rows are removed.
+   */
+  syncVariations(productId: string, variations: object[]) {
+    return apiRequest(`/products/${productId}/variations`, {
+      method: 'PUT',
+      body: JSON.stringify({ variations }),
+    });
   },
 
   updateVariation(productId: string, varId: string, data: object) {
@@ -235,9 +247,9 @@ export const addonGroupApi = {
     return apiRequest<AddOnGroup>(`/addon-groups/${id}`);
   },
 
-  stats() {
+  stats(storeId?: string) {
     return apiRequest<{ totalGroups: number; totalAddons: number; availableAddons: number }>(
-      `/addon-groups/stats`,
+      `/addon-groups/stats${storeId ? `?storeId=${storeId}` : ''}`,
     );
   },
 

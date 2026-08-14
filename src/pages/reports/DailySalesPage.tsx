@@ -2,14 +2,11 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DatePeriodFilter,
+  type DatePeriod,
+} from "@/components/ui/date-period-filter";
+import { resolveDatePeriodRange } from "@/lib/date-range";
 import {
-  Calendar,
   DollarSign,
   ShoppingCart,
   Clock,
@@ -25,21 +22,6 @@ import {
 import { useSalesReport } from "@/hooks/api/use-reports";
 import { useStore } from "@/contexts/StoreContext";
 
-type DayPreset = "today" | "yesterday";
-
-function rangeFor(preset: DayPreset): { dateFrom: string; dateTo: string } {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const d = now.getDate();
-  const iso = (date: Date) => date.toISOString().slice(0, 10);
-  if (preset === "yesterday") {
-    const start = new Date(y, m, d - 1);
-    return { dateFrom: iso(start), dateTo: iso(start) };
-  }
-  return { dateFrom: iso(now), dateTo: iso(now) };
-}
-
 const ngn = (n: number) =>
   new Intl.NumberFormat("en-NG", {
     style: "currency",
@@ -47,9 +29,22 @@ const ngn = (n: number) =>
     maximumFractionDigits: 0,
   }).format(n);
 
-function formatHour(iso: string): string {
-  const d = new Date(iso);
-  const h = d.getHours();
+/**
+ * Label a sales bucket.
+ *
+ * Buckets are local wall-clock labels from the backend: `YYYY-MM-DDTHH:mm:ss`
+ * for hourly granularity and a bare `YYYY-MM-DD` for daily. They must be read
+ * as strings — parsing a bare date through `new Date()` treats it as UTC
+ * midnight, which in Lagos is 01:00, and that is why every bucket on this page
+ * used to render as "1 AM".
+ */
+function formatBucket(bucket: string): string {
+  const [date, time] = bucket.split("T");
+  if (!time) {
+    const [, month, day] = date.split("-");
+    return `${day}/${month}`;
+  }
+  const h = Number(time.slice(0, 2));
   const suffix = h >= 12 ? "PM" : "AM";
   const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return `${display} ${suffix}`;
@@ -58,17 +53,22 @@ function formatHour(iso: string): string {
 export default function DailySalesPage() {
   const { currentStore } = useStore();
   const storeId = currentStore?.id;
-  const [preset, setPreset] = useState<DayPreset>("today");
+  const [preset, setPreset] = useState<DatePeriod>("today");
+  const [customStart, setCustomStart] = useState<string>();
+  const [customEnd, setCustomEnd] = useState<string>();
+
+  // A single day breaks down by hour; a multi-day range by day, otherwise the
+  // hours of different days would be interleaved under the same labels.
+  const groupBy = preset === "today" || preset === "yesterday" ? "hour" : "day";
 
   const filter = useMemo(() => {
-    const { dateFrom, dateTo } = rangeFor(preset);
+    const range = resolveDatePeriodRange(preset, customStart, customEnd);
     return {
       ...(storeId ? { storeId } : {}),
-      dateFrom,
-      dateTo,
-      groupBy: "hour" as const,
+      ...(range ?? {}),
+      groupBy: groupBy as "hour" | "day",
     };
-  }, [storeId, preset]);
+  }, [storeId, preset, customStart, customEnd, groupBy]);
 
   const { data, isLoading } = useSalesReport(filter);
   const buckets = data?.buckets ?? [];
@@ -76,7 +76,7 @@ export default function DailySalesPage() {
   const chartData = useMemo(
     () =>
       buckets.map((b) => ({
-        time: formatHour(b.bucket),
+        time: formatBucket(b.bucket),
         sales: b.revenue,
       })),
     [buckets],
@@ -99,19 +99,22 @@ export default function DailySalesPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Daily Sales</h1>
           <p className="text-sm text-muted-foreground">
-            Hourly sales performance from completed orders
+            {groupBy === "hour"
+              ? "Hourly sales performance from completed orders"
+              : "Daily sales performance from completed orders"}
           </p>
         </div>
-        <Select value={preset} onValueChange={(v) => setPreset(v as DayPreset)}>
-          <SelectTrigger className="w-[140px] h-9 bg-muted/50 border-0">
-            <Calendar className="h-4 w-4 mr-2" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="yesterday">Yesterday</SelectItem>
-          </SelectContent>
-        </Select>
+        <DatePeriodFilter
+          value={preset}
+          onChange={setPreset}
+          showAllOption={false}
+          customStartDate={customStart}
+          customEndDate={customEnd}
+          onCustomRange={(start, end) => {
+            setCustomStart(start);
+            setCustomEnd(end);
+          }}
+        />
       </div>
 
       <div className="grid gap-3 grid-cols-2 md:grid-cols-3">
@@ -157,14 +160,16 @@ export default function DailySalesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Sales by hour</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            {groupBy === "hour" ? "Sales by hour" : "Sales by day"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <Skeleton className="h-64 w-full" />
           ) : chartData.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
-              No sales recorded for this day yet.
+              No sales recorded for this period yet.
             </p>
           ) : (
             <div className="h-64">
@@ -209,7 +214,9 @@ export default function DailySalesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Hourly breakdown</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            {groupBy === "hour" ? "Hourly breakdown" : "Daily breakdown"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -235,7 +242,7 @@ export default function DailySalesPage() {
                       <p
                         className={`font-medium ${isPeak ? "text-primary" : ""}`}
                       >
-                        {formatHour(b.bucket)}
+                        {formatBucket(b.bucket)}
                         {isPeak && (
                           <span className="ml-2 text-xs text-primary">peak</span>
                         )}

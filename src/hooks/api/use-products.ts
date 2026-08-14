@@ -134,6 +134,23 @@ export function useAddProductVariation() {
   });
 }
 
+/**
+ * Saves every variation of a product at once. Replaces the old
+ * one-request-per-variation loop, which could only add (never edit) and left
+ * the product half-saved when any single request failed.
+ */
+export function useSyncProductVariations() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, variations }: { productId: string; variations: object[] }) =>
+      productApi.syncVariations(productId, variations),
+    onSuccess: (_r, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(productId) });
+      queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+    },
+  });
+}
+
 export function useUpdateProductVariation() {
   const queryClient = useQueryClient();
   return useMutation({

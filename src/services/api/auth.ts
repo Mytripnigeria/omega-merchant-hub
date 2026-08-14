@@ -33,6 +33,13 @@ export interface AdminUser {
   email: string;
   role: string;
   avatarUrl?: string;
+  /**
+   * Dashboard modules this login may use. `null` = unrestricted (the business
+   * owner, or a login predating module permissions).
+   */
+  permissions?: string[] | null;
+  /** Stores this login may work in. `null` = every store. */
+  storeIds?: string[] | null;
 }
 
 export interface LoginResponse {

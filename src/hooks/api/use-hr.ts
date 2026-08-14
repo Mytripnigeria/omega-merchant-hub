@@ -87,6 +87,46 @@ export function useClearStaffPin() {
   });
 }
 
+/** Merchant-dashboard access state for a staff member. */
+export function useDashboardAccess(staffId: string | undefined) {
+  return useQuery({
+    queryKey: [...hrKeys.staffMember(staffId ?? ""), "dashboard-access"],
+    queryFn: () => hrService.getDashboardAccess(staffId!),
+    enabled: !!staffId,
+  });
+}
+
+export function useGrantDashboardAccess() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: {
+        email?: string;
+        role?: string;
+        storeIds?: string[];
+        permissions?: string[];
+      };
+    }) => hrService.grantDashboardAccess(id, payload),
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: hrKeys.staffMember(id) });
+    },
+  });
+}
+
+export function useRevokeDashboardAccess() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => hrService.revokeDashboardAccess(id),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: hrKeys.staffMember(id) });
+    },
+  });
+}
+
 export function usePayslips(filters?: PayslipFilters) { return useQuery({ queryKey: [...hrKeys.payslips(), filters], queryFn: () => hrService.getPayslips(filters) }); }
 export function useApprovePayslip() {
   const qc = useQueryClient();

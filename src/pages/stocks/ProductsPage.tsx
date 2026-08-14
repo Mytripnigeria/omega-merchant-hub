@@ -15,8 +15,7 @@ import {
   useCreateProduct,
   useUpdateProduct,
   useDeleteProduct,
-  useAddProductVariation,
-  useRemoveProductVariation,
+  useSyncProductVariations,
   useLinkProductAddonGroup,
   useUnlinkProductAddonGroup,
 } from "@/hooks/api/use-products";
@@ -190,8 +189,7 @@ export default function ProductsPage() {
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
   const toggleStatus = useToggleProductStatus();
-  const addVariation = useAddProductVariation();
-  const removeVariation = useRemoveProductVariation();
+  const syncVariations = useSyncProductVariations();
   const linkAddonGroup = useLinkProductAddonGroup();
   const unlinkAddonGroup = useUnlinkProductAddonGroup();
   const uploadImage = useUploadImage();
@@ -343,16 +341,10 @@ export default function ProductsPage() {
   const updateDraftVariation = (index: number, patch: Partial<DraftVariation>) => {
     setDraftVariations((prev) => prev.map((v, i) => (i === index ? { ...v, ...patch } : v)));
   };
-  const removeDraftVariation = async (index: number) => {
-    const v = draftVariations[index];
-    if (selectedProduct && v.id) {
-      try {
-        await removeVariation.mutateAsync({ productId: selectedProduct.id, varId: v.id });
-      } catch (err) {
-        toast.error((err as Error).message ?? "Failed to remove variation");
-        return;
-      }
-    }
+  // Removal is expressed by omitting the row from the variation set sent on
+  // save — same as ingredient rows — so nothing is destroyed until the merchant
+  // actually saves, and a cancelled edit changes nothing.
+  const removeDraftVariation = (index: number) => {
     setDraftVariations((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -476,19 +468,22 @@ export default function ProductsPage() {
         },
       });
 
-      // Sync new variations (existing ones edits not yet supported inline; add only)
-      for (const v of draftVariations.filter((v) => !v.id && v.name.trim())) {
-        await addVariation.mutateAsync({
-          productId: selectedProduct.id,
-          data: {
+      // Save every variation in one request: edits to existing rows are applied
+      // in place (they were previously never sent, so the form reported success
+      // while nothing changed) and additions/removals ride along atomically.
+      await syncVariations.mutateAsync({
+        productId: selectedProduct.id,
+        variations: draftVariations
+          .filter((v) => v.name.trim())
+          .map((v) => ({
+            ...(v.id ? { id: v.id } : {}),
             name: v.name.trim(),
             sku: v.sku || undefined,
             price: v.price,
             sellingPrice: v.sellingPrice,
             stock: v.stock,
-          },
-        });
-      }
+          })),
+      });
 
       // Ingredients are sent with the PATCH above as a full replacement list.
 
@@ -549,7 +544,7 @@ export default function ProductsPage() {
   const isFormPending =
     createProduct.isPending ||
     updateProduct.isPending ||
-    addVariation.isPending ||
+    syncVariations.isPending ||
     linkAddonGroup.isPending ||
     unlinkAddonGroup.isPending;
 

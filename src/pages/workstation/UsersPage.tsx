@@ -44,10 +44,22 @@ import {
   useDeleteStaff,
   useSetStaffPin,
   useClearStaffPin,
+  useDashboardAccess,
+  useGrantDashboardAccess,
+  useRevokeDashboardAccess,
 } from "@/hooks/api/use-hr";
 import { useActivityLog } from "@/hooks/api/use-activity-log";
 import { useStore } from "@/contexts/StoreContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Staff } from "@/types/hr";
+import type { DashboardCredentials } from "@/services/api/hr";
+import { DASHBOARD_MODULES } from "@/lib/permissions";
 
 const ALL = "__all__";
 type SheetMode = "view" | "edit" | "add";
@@ -95,6 +107,14 @@ function staffToForm(s: Staff): UserFormState {
   };
 }
 
+type ModuleAccess = "none" | "view" | "manage";
+
+const MODULE_LEVELS: { value: ModuleAccess; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "view", label: "View" },
+  { value: "manage", label: "Manage" },
+];
+
 export default function UsersPage() {
   const { currentStore } = useStore();
   const [search, setSearch] = useState("");
@@ -123,6 +143,18 @@ export default function UsersPage() {
   const deleteStaff = useDeleteStaff();
   const setStaffPin = useSetStaffPin();
   const clearStaffPin = useClearStaffPin();
+  const dashboardAccess = useDashboardAccess(selectedUser?.id);
+  const grantDashboard = useGrantDashboardAccess();
+  const revokeDashboard = useRevokeDashboardAccess();
+  // The generated password is returned once and never retrievable — hold it in
+  // a dialog until the merchant has copied it.
+  const [issuedCredentials, setIssuedCredentials] =
+    useState<DashboardCredentials | null>(null);
+  // Module picker for the grant dialog: module key → "none" | "view" | "manage".
+  const [grantFor, setGrantFor] = useState<Staff | null>(null);
+  const [moduleAccess, setModuleAccess] = useState<Record<string, ModuleAccess>>(
+    {},
+  );
 
   const staff = staffQuery.data?.data ?? [];
   const total = staffQuery.data?.total ?? 0;
@@ -229,6 +261,60 @@ export default function UsersPage() {
         onError: (e: Error) => toast.error(e.message ?? "Couldn't update user"),
       },
     );
+  };
+
+  /** Opens the module picker, pre-filled with whatever they already hold. */
+  const handleGrantDashboard = (user: Staff) => {
+    const current = dashboardAccess.data?.permissions ?? [];
+    const seed: Record<string, ModuleAccess> = {};
+    for (const m of DASHBOARD_MODULES) {
+      seed[m.key] = current.includes(`${m.key}.manage`)
+        ? "manage"
+        : current.includes(`${m.key}.view`)
+          ? "view"
+          : "none";
+    }
+    setModuleAccess(seed);
+    setGrantFor(user);
+  };
+
+  const submitGrant = () => {
+    if (!grantFor) return;
+    const permissions = Object.entries(moduleAccess)
+      .filter(([, level]) => level !== "none")
+      .map(([key, level]) => `${key}.${level}`);
+    if (permissions.length === 0) {
+      toast.error("Pick at least one module");
+      return;
+    }
+    grantDashboard.mutate(
+      {
+        id: grantFor.id,
+        // Scope to the staff member's own store — a dashboard login should not
+        // silently span every branch.
+        payload: {
+          storeIds: grantFor.storeId ? [grantFor.storeId] : undefined,
+          permissions,
+        },
+      },
+      {
+        onSuccess: (creds) => {
+          setGrantFor(null);
+          setIssuedCredentials(creds);
+        },
+        onError: (e: Error) =>
+          toast.error(e.message ?? "Couldn't grant dashboard access"),
+      },
+    );
+  };
+
+  const handleRevokeDashboard = (user: Staff) => {
+    if (!confirm(`Revoke ${user.firstName}'s dashboard access?`)) return;
+    revokeDashboard.mutate(user.id, {
+      onSuccess: () => toast.success("Dashboard access revoked"),
+      onError: (e: Error) =>
+        toast.error(e.message ?? "Couldn't revoke access"),
+    });
   };
 
   const handleSetPin = () => {
@@ -538,6 +624,88 @@ export default function UsersPage() {
                 >
                   Clear PIN
                 </Button>
+                {/* Merchant-dashboard login — separate from the workstation PIN.
+                    The password is generated server-side and shown once. */}
+                <div className="border-t pt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Merchant dashboard access</Label>
+                    {dashboardAccess.data?.hasAccess && (
+                      <Badge variant="outline" className="text-xs">
+                        {dashboardAccess.data.role ?? "admin"}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {dashboardAccess.data?.hasAccess ? (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        Signs in at the dashboard with{" "}
+                        <span className="font-medium text-foreground">
+                          {dashboardAccess.data.email}
+                        </span>
+                        {dashboardAccess.data.storeIds?.length
+                          ? ` · ${dashboardAccess.data.storeIds.length} store${dashboardAccess.data.storeIds.length === 1 ? "" : "s"}`
+                          : " · all stores"}
+                        {dashboardAccess.data.mustChangePassword &&
+                          " · must change password on next login"}
+                      </p>
+                      {dashboardAccess.data.permissions?.length ? (
+                        <div className="flex flex-wrap gap-1">
+                          {dashboardAccess.data.permissions.map((p) => {
+                            const [key, level] = p.split(".");
+                            const label =
+                              DASHBOARD_MODULES.find((m) => m.key === key)
+                                ?.label ?? key;
+                            return (
+                              <Badge
+                                key={p}
+                                variant="secondary"
+                                className="text-[10px]"
+                              >
+                                {label} · {level}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleGrantDashboard(selectedUser)}
+                          disabled={grantDashboard.isPending}
+                        >
+                          <Key className="mr-2 h-4 w-4" />
+                          Change modules / reset password
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRevokeDashboard(selectedUser)}
+                          disabled={revokeDashboard.isPending}
+                        >
+                          Revoke access
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        Give this staff member a login for the merchant
+                        dashboard, limited to their own store.
+                      </p>
+                      <Button
+                        size="sm"
+                        onClick={() => handleGrantDashboard(selectedUser)}
+                        disabled={grantDashboard.isPending}
+                      >
+                        <Key className="mr-2 h-4 w-4" />
+                        Grant access
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
                 <div className="border-t pt-4 space-y-2">
                   <Label>Account status</Label>
                   <Button
@@ -739,6 +907,114 @@ export default function UsersPage() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      {/* Module picker — what this staff member may open and change. */}
+      <Dialog open={!!grantFor} onOpenChange={(open) => !open && setGrantFor(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Dashboard access for {grantFor?.firstName} {grantFor?.lastName}
+            </DialogTitle>
+            <DialogDescription>
+              Choose what they can reach. "View" opens the module read-only;
+              "Manage" also lets them create and edit. Anything left at "None"
+              is hidden — and refused by the server.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-1">
+            {DASHBOARD_MODULES.map((m) => (
+              <div
+                key={m.key}
+                className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 hover:bg-muted/50"
+              >
+                <span className="text-sm font-medium">{m.label}</span>
+                <div className="flex gap-1">
+                  {MODULE_LEVELS.map((level) => (
+                    <Button
+                      key={level.value}
+                      type="button"
+                      size="sm"
+                      variant={
+                        (moduleAccess[m.key] ?? "none") === level.value
+                          ? "default"
+                          : "outline"
+                      }
+                      className="h-7 px-2 text-xs"
+                      onClick={() =>
+                        setModuleAccess((prev) => ({
+                          ...prev,
+                          [m.key]: level.value,
+                        }))
+                      }
+                    >
+                      {level.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setGrantFor(null)}>
+              Cancel
+            </Button>
+            <Button onClick={submitGrant} disabled={grantDashboard.isPending}>
+              {grantDashboard.isPending ? "Saving…" : "Grant access"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shown once: the generated dashboard password cannot be read back. */}
+      <Dialog
+        open={!!issuedCredentials}
+        onOpenChange={(open) => !open && setIssuedCredentials(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Dashboard access granted</DialogTitle>
+            <DialogDescription>
+              Copy this password now — it is stored hashed and can never be
+              shown again. Reset it any time from this staff member's Security
+              tab.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Email</Label>
+              <p className="font-medium">{issuedCredentials?.email}</p>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">
+                Temporary password
+              </Label>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 rounded-md bg-muted px-3 py-2 font-mono text-sm">
+                  {issuedCredentials?.temporaryPassword}
+                </code>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (!issuedCredentials) return;
+                    void navigator.clipboard
+                      ?.writeText(issuedCredentials.temporaryPassword)
+                      .then(() => toast.success("Password copied"))
+                      .catch(() => toast.error("Couldn't copy — select it manually"));
+                  }}
+                >
+                  Copy
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              They must change it the first time they sign in.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

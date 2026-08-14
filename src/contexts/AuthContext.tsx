@@ -13,11 +13,22 @@ import {
   type AdminUser,
 } from "@/services/api/auth";
 import { tokenStorage } from "@/lib/api-client";
+import {
+  canManage as canManageModule,
+  canView as canViewModule,
+  type DashboardModule,
+} from "@/lib/permissions";
 
 interface AuthContextValue {
   admin: AdminUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  /** Granted module permissions; `null` = unrestricted. */
+  permissions: string[] | null;
+  /** Whether this login may open a module's screens. */
+  canView: (module: DashboardModule) => boolean;
+  /** Whether this login may change things in a module. */
+  canManage: (module: DashboardModule) => boolean;
   login: (payload: AdminLoginPayload) => Promise<void>;
   register: (payload: AdminRegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
@@ -68,12 +79,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAdmin(null);
   }, []);
 
+  // `undefined` (field absent) and `null` both mean unrestricted.
+  const permissions = admin?.permissions ?? null;
+  const canView = useCallback(
+    (module: DashboardModule) => canViewModule(permissions, module),
+    [permissions],
+  );
+  const canManage = useCallback(
+    (module: DashboardModule) => canManageModule(permissions, module),
+    [permissions],
+  );
+
   return (
     <AuthContext.Provider
       value={{
         admin,
         isAuthenticated: !!admin,
         isLoading,
+        permissions,
+        canView,
+        canManage,
         login,
         register,
         logout,

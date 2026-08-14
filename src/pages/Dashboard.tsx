@@ -12,13 +12,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import {
+  DatePeriodFilter,
+  type DatePeriod,
+} from "@/components/ui/date-period-filter";
+import { resolveDatePeriodRange } from "@/lib/date-range";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { useState, useMemo } from "react";
 import { useStore } from "@/contexts/StoreContext";
@@ -27,19 +25,19 @@ import { RecentOrders } from "@/components/dashboard/RecentOrders";
 import { TopProducts } from "@/components/dashboard/TopProducts";
 import { LiveActivity } from "@/components/dashboard/LiveActivity";
 
-type Period = "24h" | "7d" | "30d" | "90d";
-
-function rangeFor(period: Period): { dateFrom: string; dateTo: string } {
-  const to = new Date();
-  const from = new Date();
-  if (period === "24h") from.setHours(from.getHours() - 24);
-  else if (period === "7d") from.setDate(from.getDate() - 7);
-  else if (period === "30d") from.setDate(from.getDate() - 30);
-  else from.setDate(from.getDate() - 90);
-  return {
-    dateFrom: from.toISOString().split("T")[0],
-    dateTo: to.toISOString().split("T")[0],
-  };
+/**
+ * Chart x-axis label for a sales bucket. Day/week/month buckets arrive as
+ * `YYYY-MM-DD`, hour buckets as `YYYY-MM-DDTHH:mm:ss` on the merchant's wall
+ * clock — both are local labels, so they must not be re-parsed through UTC.
+ */
+function bucketLabel(bucket: string): string {
+  const time = bucket.split("T")[1];
+  if (time) {
+    const hour = Number(time.slice(0, 2));
+    const suffix = hour >= 12 ? "pm" : "am";
+    return `${hour % 12 === 0 ? 12 : hour % 12}${suffix}`;
+  }
+  return bucket.slice(5); // MM-DD
 }
 
 interface StatCardProps {
@@ -122,8 +120,16 @@ function ChartSkeleton() {
 
 export default function Dashboard() {
   const { isAllStoresMode, currentStore } = useStore();
-  const [period, setPeriod] = useState<Period>("7d");
-  const range = useMemo(() => rangeFor(period), [period]);
+  const [period, setPeriod] = useState<DatePeriod>("today");
+  const [customStart, setCustomStart] = useState<string>();
+  const [customEnd, setCustomEnd] = useState<string>();
+  const range = useMemo(
+    () => resolveDatePeriodRange(period, customStart, customEnd),
+    [period, customStart, customEnd],
+  );
+
+  // A single day reads better hour-by-hour; anything wider stays daily.
+  const groupBy = period === "today" || period === "yesterday" ? "hour" : "day";
 
   // Real reports data driving the dashboard.
   const { data: summary, isLoading: summaryLoading } = useDashboardSummary(
@@ -131,8 +137,8 @@ export default function Dashboard() {
   );
   const { data: sales, isLoading: salesLoading } = useSalesReport({
     storeId: currentStore?.id,
-    ...range,
-    groupBy: period === "90d" ? "week" : "day",
+    ...(range ?? {}),
+    groupBy,
   });
 
   const isLoading = summaryLoading || salesLoading;
@@ -143,7 +149,7 @@ export default function Dashboard() {
 
   // Map sales buckets into chart data the AreaChart expects.
   const chartData = (sales?.buckets ?? []).map((b) => ({
-    name: b.bucket.slice(5), // MM-DD
+    name: bucketLabel(b.bucket),
     revenue: b.revenue,
     orders: b.orders,
   }));
@@ -190,17 +196,17 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
-            <SelectTrigger className="w-full sm:w-36 h-9 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="24h">Last 24 hours</SelectItem>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="90d">Last 90 days</SelectItem>
-            </SelectContent>
-          </Select>
+          <DatePeriodFilter
+            value={period}
+            onChange={setPeriod}
+            showAllOption={false}
+            customStartDate={customStart}
+            customEndDate={customEnd}
+            onCustomRange={(start, end) => {
+              setCustomStart(start);
+              setCustomEnd(end);
+            }}
+          />
           <Button variant="outline" size="sm" className="h-9 w-9 p-0 sm:w-auto sm:px-3">
             <MoreHorizontal className="h-4 w-4" />
           </Button>

@@ -10,7 +10,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TablePagination } from "@/components/ui/table-pagination";
-import { Star } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import type { OrderReview } from "@/types/reviews";
+import { Image as ImageIcon, Star } from "lucide-react";
 import { useStore } from "@/contexts/StoreContext";
 import { useReviews } from "@/hooks/api/use-reviews";
 
@@ -38,6 +46,7 @@ export default function ReviewsPage() {
   const storeId = isAllStoresMode ? undefined : currentStore?.id;
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [viewing, setViewing] = useState<OrderReview | null>(null);
   const { data, isLoading } = useReviews({ storeId, page, limit: pageSize });
   const reviews = data?.data ?? [];
   const total = data?.total ?? 0;
@@ -78,6 +87,7 @@ export default function ReviewsPage() {
                   <TableHead>Rating</TableHead>
                   <TableHead>Order</TableHead>
                   <TableHead>Comment</TableHead>
+                  <TableHead>Photos</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -94,6 +104,22 @@ export default function ReviewsPage() {
                     <TableCell className="max-w-xs truncate">
                       {r.comment ?? "—"}
                     </TableCell>
+                    <TableCell>
+                      {r.imageUrls?.length ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1 px-2"
+                          onClick={() => setViewing(r)}
+                        >
+                          <ImageIcon className="h-4 w-4" />
+                          View
+                          {r.imageUrls.length > 1 ? ` (${r.imageUrls.length})` : ""}
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -101,6 +127,40 @@ export default function ReviewsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Photo viewer — the merchant needs to see what the customer attached. */}
+      <Dialog open={!!viewing} onOpenChange={(open) => !open && setViewing(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              Photos from {viewing?.customerName}
+              {viewing?.orderNumber != null ? ` · Order #${viewing.orderNumber}` : ""}
+            </DialogTitle>
+          </DialogHeader>
+          {viewing?.comment && (
+            <p className="text-sm text-muted-foreground">{viewing.comment}</p>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(viewing?.imageUrls ?? []).map((url, i) => (
+              <a
+                key={url}
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="block overflow-hidden rounded-lg border"
+                title="Open full size"
+              >
+                <img
+                  src={url}
+                  alt={`Review photo ${i + 1}`}
+                  loading="lazy"
+                  className="h-56 w-full object-cover"
+                />
+              </a>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <TablePagination
         currentPage={page}

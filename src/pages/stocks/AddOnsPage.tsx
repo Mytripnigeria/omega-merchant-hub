@@ -156,7 +156,7 @@ export default function AddOnsPage() {
   const { currentStore, isAllStoresMode } = useStore();
   const scopedStoreId = isAllStoresMode ? undefined : currentStore?.id;
   const { data: addOnGroupsData, isLoading } = useAddonGroups({ storeId: scopedStoreId });
-  const { data: stats } = useAddonGroupStats();
+  const { data: stats } = useAddonGroupStats(scopedStoreId);
   const addOnGroups: AddOnGroup[] =
     ((addOnGroupsData as unknown as { data?: AddOnGroup[] })?.data ?? []) as AddOnGroup[];
 

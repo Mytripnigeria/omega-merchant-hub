@@ -12,6 +12,8 @@ export interface OrderReview {
   /** 1–5 stars. */
   rating: number;
   comment: string | null;
+  /** Photos the customer attached to the review; null when none. */
+  imageUrls: string[] | null;
   isPublished: boolean;
   createdAt: string;
   updatedAt: string;

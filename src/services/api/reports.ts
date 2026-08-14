@@ -165,6 +165,24 @@ function buildQuery(filter: Record<string, unknown>): string {
   return qs.toString();
 }
 
+export interface ProductPerformanceRow {
+  name: string;
+  /** Variation name — only set on rows in `variations`. */
+  variationName: string | null;
+  productId: string | null;
+  unitsSold: number;
+  ordersCount: number;
+  revenue: number;
+}
+
+export interface ProductPerformanceReport {
+  products: ProductPerformanceRow[];
+  variations: ProductPerformanceRow[];
+  addons: ProductPerformanceRow[];
+  totalUnits: number;
+  totalRevenue: number;
+}
+
 export const reportsService = {
   sales: (filter: SalesReportFilter = {}): Promise<SalesReport> => {
     const qs = buildQuery(filter as Record<string, unknown>);
@@ -192,6 +210,14 @@ export const reportsService = {
     const qs = buildQuery(filter as Record<string, unknown>);
     return apiRequest<TopProductsReport>(
       `/reports/top-products${qs ? `?${qs}` : ""}`,
+    );
+  },
+  productPerformance: (
+    filter: ReportsRange = {},
+  ): Promise<ProductPerformanceReport> => {
+    const qs = buildQuery(filter as Record<string, unknown>);
+    return apiRequest<ProductPerformanceReport>(
+      `/reports/product-performance${qs ? `?${qs}` : ""}`,
     );
   },
   foodCost: (filter: ReportsRange = {}): Promise<FoodCostReport> => {

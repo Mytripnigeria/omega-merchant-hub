@@ -66,13 +66,12 @@ export function useCategory(id: string) {
   });
 }
 
-export function useCategoryStats(_storeId?: string) {
-  // Categories are business-scoped on the backend; storeId is accepted for
-  // call-site compatibility but ignored.
-  void _storeId;
+export function useCategoryStats(storeId?: string) {
+  // Categories are store-scoped, so the summary cards count the selected store.
+  // Passing no storeId ("all stores" mode) totals the whole business.
   return useQuery({
-    queryKey: stockKeys.categories.stats(),
-    queryFn: () => categoryApi.stats(),
+    queryKey: stockKeys.categories.stats(storeId),
+    queryFn: () => categoryApi.stats(storeId),
   });
 }
 
@@ -82,7 +81,7 @@ export function useCreateCategory() {
     mutationFn: categoryApi.create,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: stockKeys.categories.lists() });
-      qc.invalidateQueries({ queryKey: stockKeys.categories.stats() });
+      qc.invalidateQueries({ queryKey: [...stockKeys.categories.all, 'stats'] });
     },
   });
 }
@@ -286,11 +285,12 @@ export function useAddonGroup(id: string) {
   });
 }
 
-export function useAddonGroupStats(_storeId?: string) {
-  void _storeId;
+export function useAddonGroupStats(storeId?: string) {
+  // Add-on groups are store-scoped, so the summary cards count the selected
+  // store. Passing no storeId ("all stores" mode) totals the whole business.
   return useQuery({
-    queryKey: stockKeys.addonGroups.stats(),
-    queryFn: () => addonGroupApi.stats(),
+    queryKey: stockKeys.addonGroups.stats(storeId),
+    queryFn: () => addonGroupApi.stats(storeId),
   });
 }
 
