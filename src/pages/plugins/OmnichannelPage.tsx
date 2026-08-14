@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { MessageSquare, Phone, Mail, Instagram, Facebook, Search, Plus, Settings, Activity, Clock, Key } from "lucide-react";
 import { LucideIcon } from "lucide-react";
+import { ChowdeckPanel } from "@/components/plugins/ChowdeckPanel";
 
 interface Channel {
   id: number;
@@ -113,6 +114,9 @@ export default function OmnichannelPage() {
         </div>
         <Button size="sm" className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" />Add Channel</Button>
       </div>
+
+      {/* Marketplace order channels — live integrations, configured per store. */}
+      <ChowdeckPanel />
 
       {isLoading ? <StatsSkeleton /> : (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
