@@ -20,6 +20,8 @@ import { resolveDatePeriodRange } from "@/lib/date-range";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { useState, useMemo } from "react";
 import { useStore } from "@/contexts/StoreContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { canView } from "@/lib/permissions";
 import { useDashboardSummary, useSalesReport } from "@/hooks/api/use-reports";
 import { RecentOrders } from "@/components/dashboard/RecentOrders";
 import { TopProducts } from "@/components/dashboard/TopProducts";
@@ -95,6 +97,21 @@ function StatCard({ title, value, change, trend, icon, isLoading }: StatCardProp
   );
 }
 
+/**
+ * Stands in for a chart whose data this login isn't allowed to read. An empty
+ * pair of axes would otherwise imply the business did no trade.
+ */
+function ChartUnavailable() {
+  return (
+    <div className="flex h-[180px] items-center justify-center sm:h-[240px]">
+      <p className="max-w-[16rem] text-center text-sm text-muted-foreground">
+        Your dashboard access doesn't include Reports, so sales figures are
+        hidden.
+      </p>
+    </div>
+  );
+}
+
 function ChartSkeleton() {
   return (
     <div className="h-[180px] sm:h-[240px] flex items-center justify-center">
@@ -120,6 +137,7 @@ function ChartSkeleton() {
 
 export default function Dashboard() {
   const { isAllStoresMode, currentStore } = useStore();
+  const { permissions } = useAuth();
   const [period, setPeriod] = useState<DatePeriod>("today");
   const [customStart, setCustomStart] = useState<string>();
   const [customEnd, setCustomEnd] = useState<string>();
@@ -142,6 +160,14 @@ export default function Dashboard() {
   });
 
   const isLoading = summaryLoading || salesLoading;
+
+  // A login granted Dashboard but not Reports is refused /reports/sales, and
+  // the `?? 0` fallbacks below would render "₦0 revenue, 0 orders" — a
+  // permission boundary disguised as a dead trading day. Read the grant
+  // directly rather than inferring it from a failed request: the request may
+  // never even be issued, and the answer is already known up front.
+  const salesUnavailable = !canView(permissions, "reports");
+  const dash = "—";
 
   const totalRevenue = sales?.totalRevenue ?? 0;
   const totalOrders = sales?.totalOrders ?? 0;
@@ -217,15 +243,17 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
           title="Revenue (period)"
-          value={formatRevenue(totalRevenue)}
-          change={revenueDeltaLabel}
+          value={salesUnavailable ? dash : formatRevenue(totalRevenue)}
+          change={
+            salesUnavailable ? "Needs Reports access" : revenueDeltaLabel
+          }
           trend={revenueDeltaTrend}
           icon={<DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
           isLoading={isLoading}
         />
         <StatCard
           title="Orders (period)"
-          value={`${totalOrders}`}
+          value={salesUnavailable ? dash : `${totalOrders}`}
           change={`Today ${summary?.todayOrders ?? 0}`}
           trend="up"
           icon={<ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
@@ -241,7 +269,7 @@ export default function Dashboard() {
         />
         <StatCard
           title="Avg order"
-          value={formatRevenue(Math.round(aov))}
+          value={salesUnavailable ? dash : formatRevenue(Math.round(aov))}
           change={`${summary?.newCustomersToday ?? 0} new customers today`}
           trend={aov > 0 ? "up" : "down"}
           icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
@@ -265,6 +293,8 @@ export default function Dashboard() {
           <CardContent className="px-2 sm:px-6">
             {isLoading ? (
               <ChartSkeleton />
+            ) : salesUnavailable ? (
+              <ChartUnavailable />
             ) : (
               <div className="h-[180px] sm:h-[240px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -326,6 +356,8 @@ export default function Dashboard() {
           <CardContent className="px-2 sm:px-6">
             {isLoading ? (
               <ChartSkeleton />
+            ) : salesUnavailable ? (
+              <ChartUnavailable />
             ) : (
               <div className="h-[180px] sm:h-[240px]">
                 <ResponsiveContainer width="100%" height="100%">

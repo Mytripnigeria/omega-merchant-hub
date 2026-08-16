@@ -217,7 +217,26 @@ export const hrService = {
     });
   },
 
-  async getStats(storeId?: string): Promise<HRStats> {
-    return apiRequest(`/staff/stats${storeId ? `?storeId=${storeId}` : ''}`);
+  /**
+   * The endpoint answers {total, active, onLeave, inactive, terminated} — not
+   * the HRStats field names the summary cards read. The mismatch type-checked
+   * because apiRequest is generic and unvalidated, so `activeStaff` was always
+   * undefined and the Active card sat at 0 beside a list of active staff.
+   * Keys the endpoint doesn't provide stay absent so callers' own fallbacks
+   * (roles.length, list total) still apply.
+   */
+  async getStats(storeId?: string): Promise<Partial<HRStats>> {
+    const raw = await apiRequest<{
+      total: number;
+      active: number;
+      onLeave: number;
+      inactive: number;
+      terminated: number;
+    }>(`/staff/stats${storeId ? `?storeId=${storeId}` : ''}`);
+    return {
+      totalStaff: raw.total,
+      activeStaff: raw.active,
+      onLeave: raw.onLeave,
+    };
   },
 };

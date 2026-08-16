@@ -40,6 +40,12 @@ export interface AdminUser {
   permissions?: string[] | null;
   /** Stores this login may work in. `null` = every store. */
   storeIds?: string[] | null;
+  /**
+   * True while this login is still on the temporary password generated when
+   * dashboard access was granted. Everything stays locked behind the
+   * change-password screen until they pick their own.
+   */
+  mustChangePassword?: boolean;
 }
 
 export interface LoginResponse {

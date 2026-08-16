@@ -19,6 +19,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Login = lazy(() => import("./pages/auth/Login"));
 const Onboarding = lazy(() => import("./pages/auth/Onboarding"));
 const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
+const ChangePassword = lazy(() => import("./pages/auth/ChangePassword"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 
 // Orders
@@ -145,6 +146,13 @@ const App = () => (
 
                 {/* Everything inside DashboardLayout requires auth. */}
                 <Route element={<ProtectedRoute />}>
+                  {/* Outside DashboardLayout on purpose: a login still on its
+                      temporary password is redirected here from everywhere, so
+                      it must not render a nav that leads nowhere. */}
+                  <Route
+                    path="/auth/change-password"
+                    element={<ChangePassword />}
+                  />
                   <Route element={<DashboardLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 

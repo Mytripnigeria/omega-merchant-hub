@@ -14,7 +14,7 @@ import {
  * where they were after signing in.
  */
 export function ProtectedRoute() {
-  const { isAuthenticated, isLoading, permissions } = useAuth();
+  const { isAuthenticated, isLoading, permissions, admin } = useAuth();
   const location = useLocation();
 
   if (isLoading) return <PageLoader />;
@@ -26,6 +26,17 @@ export function ProtectedRoute() {
         state={{ from: `${location.pathname}${location.search}` }}
       />
     );
+  }
+  // A staff login still on its generated temporary password gets nowhere until
+  // it's replaced — that's the promise made when access was granted. This has
+  // to sit above the module checks: the change-password screen belongs to no
+  // module, and a staff member without the Settings module has no other way to
+  // reach one.
+  if (
+    admin?.mustChangePassword &&
+    location.pathname !== "/auth/change-password"
+  ) {
+    return <Navigate to="/auth/change-password" replace />;
   }
   // Module permissions. The API enforces these too — this stops a restricted
   // login reaching a screen by typing its URL, and keeps them out of dead ends.

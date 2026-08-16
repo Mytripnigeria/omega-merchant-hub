@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { canView, moduleForPath } from "@/lib/permissions";
 import {
   Bell,
   Search,
@@ -53,7 +55,19 @@ export function Header() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { isFullscreen, toggleFullscreen } = useFullscreen();
-  const { admin, isLoading: adminLoading, logout } = useAuth();
+  const { admin, isLoading: adminLoading, logout, permissions } = useAuth();
+
+  // The sidebar hides modules a restricted staff login can't reach; these tabs
+  // must obey the same rule or they just advertise links that 403. Same
+  // moduleForPath/canView pair the sidebar uses, so the two can't drift.
+  const navItems = useMemo(
+    () =>
+      mainNavItems.filter((item) => {
+        const module = moduleForPath(item.href);
+        return module ? canView(permissions, module) : true;
+      }),
+    [permissions]
+  );
   const { data: business } = useBusiness();
 
   const isActive = (href: string) => {
@@ -210,7 +224,7 @@ export function Header() {
 
       {/* Navigation Tabs */}
       <nav className="flex h-10 items-center gap-1 px-4 sm:px-6 overflow-x-auto">
-        {mainNavItems.map((item) => (
+        {navItems.map((item) => (
           <Link
             key={item.href}
             to={item.href}
