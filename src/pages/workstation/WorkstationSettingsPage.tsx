@@ -19,17 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Settings,
-  Key,
-  Bell,
-  Shield,
-  Clock,
-  Monitor,
-  Printer,
-  MapPin,
-  Save,
-} from "lucide-react";
+import { Bell, Clock, Key, Link2, MapPin, Monitor, Printer, Save, Settings, Shield } from "lucide-react";
 import { toast } from "sonner";
 import {
   useWorkstationSettings,
@@ -37,6 +27,11 @@ import {
 } from "@/hooks/api/use-workstation-settings";
 import { useRoles } from "@/hooks/api/use-hr";
 import { useStore } from "@/contexts/StoreContext";
+import {
+  useIncomingStoreLinks,
+  useRespondStoreLink,
+  useRevokeStoreLink,
+} from "@/hooks/api/use-store-links";
 import type {
   UpdateWorkstationSettingsPayload,
   WorkstationSettings,
@@ -59,6 +54,9 @@ const WORKSTATION_FUNCTIONS: { key: string; label: string }[] = [
 ];
 
 export default function WorkstationSettingsPage() {
+  const incomingLinks = useIncomingStoreLinks();
+  const respondLink = useRespondStoreLink();
+  const revokeLink = useRevokeStoreLink();
   const { currentStore } = useStore();
   const settingsQuery = useWorkstationSettings();
   const updateSettings = useUpdateWorkstationSettings();
@@ -127,6 +125,100 @@ export default function WorkstationSettingsPage() {
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Workstation Settings</h1>
         <p className="text-muted-foreground">Configure workstation access and policy enforced on staff devices</p>
       </div>
+
+      {/* Requests from other stores' workstations asking to help run this
+          business's orders. Approving shares orders only — menu, stock, staff
+          and reports stay here. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Link2 className="h-5 w-5" />
+            Store link requests
+          </CardTitle>
+          <CardDescription>
+            Another store's workstation is asking to receive and manage your
+            orders. They see and work your orders only — nothing else in your
+            dashboard is shared.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {incomingLinks.isLoading && <Skeleton className="h-16 w-full" />}
+          {!incomingLinks.isLoading && (incomingLinks.data ?? []).length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              No requests. Share your store ID with a partner unit to let their
+              workstation help with your orders.
+            </p>
+          )}
+          {(incomingLinks.data ?? []).map((link) => (
+            <div
+              key={link.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">
+                  {link.requesterStoreName ?? link.requesterStoreId}
+                  <span className="text-muted-foreground font-normal">
+                    {" "}
+                    → {link.targetStoreName ?? "your store"}
+                  </span>
+                </p>
+                {link.message && (
+                  <p className="text-xs text-muted-foreground truncate">
+                    “{link.message}”
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground capitalize">
+                  {link.status}
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                {link.status === "pending" ? (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        respondLink.mutate(
+                          { id: link.id, status: "approved" },
+                          { onSuccess: () => toast.success("Link approved") },
+                        )
+                      }
+                      disabled={respondLink.isPending}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        respondLink.mutate(
+                          { id: link.id, status: "declined" },
+                          { onSuccess: () => toast.success("Link declined") },
+                        )
+                      }
+                      disabled={respondLink.isPending}
+                    >
+                      Decline
+                    </Button>
+                  </>
+                ) : link.status === "approved" ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      revokeLink.mutate(link.id, {
+                        onSuccess: () => toast.success("Access withdrawn"),
+                      })
+                    }
+                    disabled={revokeLink.isPending}
+                  >
+                    Withdraw access
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>

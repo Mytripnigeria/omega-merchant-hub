@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Calendar } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -8,12 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { DateRangeInput } from "@/components/ui/date-time-input";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 export type DatePeriod = "today" | "yesterday" | "this_week" | "this_month" | "all" | "custom";
@@ -37,25 +31,31 @@ export function DatePeriodFilter({
   className,
   showAllOption = true,
 }: DatePeriodFilterProps) {
-  const [isCustomOpen, setIsCustomOpen] = useState(false);
   const [tempStartDate, setTempStartDate] = useState(customStartDate || "");
   const [tempEndDate, setTempEndDate] = useState(customEndDate || "");
 
+  // Keep the inputs in step with the range actually in effect (e.g. when a
+  // page restores a saved filter).
+  useEffect(() => {
+    setTempStartDate(customStartDate || "");
+    setTempEndDate(customEndDate || "");
+  }, [customStartDate, customEndDate]);
+
   const handleValueChange = (newValue: string) => {
     const period = newValue as DatePeriod;
-    if (period === "custom") {
-      setIsCustomOpen(true);
-    } else {
-      onChange(period);
-    }
+    onChange(period);
   };
 
-  const handleApplyCustom = () => {
-    if (tempStartDate && tempEndDate && onCustomRange) {
-      onCustomRange(tempStartDate, tempEndDate);
-      onChange("custom");
-    }
-    setIsCustomOpen(false);
+  /**
+   * Applies whichever endpoints are set. One is enough — a single date means
+   * that day — and `resolveDatePeriodRange` mirrors the missing side.
+   */
+  const apply = (start: string, end: string) => {
+    setTempStartDate(start);
+    setTempEndDate(end);
+    if (!onCustomRange) return;
+    if (!start && !end) return;
+    onCustomRange(start || end, end || start);
   };
 
   const getDisplayLabel = () => {
@@ -71,48 +71,49 @@ export function DatePeriodFilter({
   };
 
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <Popover open={isCustomOpen} onOpenChange={setIsCustomOpen}>
-        <Select value={value} onValueChange={handleValueChange}>
-          <SelectTrigger className="w-full sm:w-[140px]">
-            <Calendar className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Period">{getDisplayLabel()}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {showAllOption && <SelectItem value="all">All Time</SelectItem>}
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="yesterday">Yesterday</SelectItem>
-            <SelectItem value="this_week">This Week</SelectItem>
-            <SelectItem value="this_month">This Month</SelectItem>
-            <SelectItem value="custom">Custom Range</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        <PopoverTrigger asChild>
-          <span className="hidden" />
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-4" align="start">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <h4 className="font-medium text-sm">Select Date Range</h4>
-              <DateRangeInput
-                startValue={tempStartDate}
-                endValue={tempEndDate}
-                onStartChange={setTempStartDate}
-                onEndChange={setTempEndDate}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setIsCustomOpen(false)}>
-                Cancel
-              </Button>
-              <Button size="sm" onClick={handleApplyCustom}>
-                Apply
-              </Button>
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
+    <div className={cn("flex flex-wrap items-center gap-2", className)}>
+      <Select value={value} onValueChange={handleValueChange}>
+        <SelectTrigger className="w-full sm:w-[140px]">
+          <Calendar className="h-4 w-4 mr-2" />
+          <SelectValue placeholder="Period">{getDisplayLabel()}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {showAllOption && <SelectItem value="all">All Time</SelectItem>}
+          <SelectItem value="today">Today</SelectItem>
+          <SelectItem value="yesterday">Yesterday</SelectItem>
+          <SelectItem value="this_week">This Week</SelectItem>
+          <SelectItem value="this_month">This Month</SelectItem>
+          <SelectItem value="custom">Custom Range</SelectItem>
+        </SelectContent>
+      </Select>
+
+      {/* The two dates sit inline rather than in a popover. The popover was
+          anchored to a `hidden` span — no layout box, nothing for Radix to
+          position against — so picking "Custom Range" opened a panel the user
+          could never see, which is why custom dates appeared broken on every
+          screen that uses this control. Inline also matches the workstation's
+          own filter, and needs no Apply step. */}
+      {value === "custom" && (
+        <div className="flex items-center gap-2">
+          <Input
+            type="date"
+            aria-label="Start date"
+            value={tempStartDate}
+            max={tempEndDate || undefined}
+            onChange={(e) => apply(e.target.value, tempEndDate)}
+            className="h-9 w-auto"
+          />
+          <span className="text-muted-foreground text-sm">to</span>
+          <Input
+            type="date"
+            aria-label="End date"
+            value={tempEndDate}
+            min={tempStartDate || undefined}
+            onChange={(e) => apply(tempStartDate, e.target.value)}
+            className="h-9 w-auto"
+          />
+        </div>
+      )}
     </div>
   );
 }

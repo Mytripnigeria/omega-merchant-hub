@@ -37,9 +37,15 @@ export const checklistsApi = {
     return apiRequest<Checklist>(`/checklists/${id}`);
   },
 
-  performances(id: string) {
+  /**
+   * `date` names any day inside the period to report; the backend derives the
+   * period from the checklist's own frequency. Omitted = the period in
+   * progress, which is what this used to be hard-wired to.
+   */
+  performances(id: string, date?: string) {
+    const qs = date ? `?date=${encodeURIComponent(date)}` : "";
     return apiRequest<ChecklistPerformance[]>(
-      `/checklists/${id}/performances`,
+      `/checklists/${id}/performances${qs}`,
     );
   },
 

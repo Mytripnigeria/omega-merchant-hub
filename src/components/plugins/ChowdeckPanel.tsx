@@ -36,6 +36,16 @@ export function ChowdeckPanel() {
     enabled: !!storeId,
   });
 
+  // A store may sell through several Chowdeck vendor listings; the form edits
+  // one at a time.
+  const { data: channels } = useQuery({
+    queryKey: ["chowdeck", "channels", storeId],
+    queryFn: () => chowdeckService.channels(storeId!),
+    enabled: !!storeId,
+  });
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+  const [addingChannel, setAddingChannel] = useState(false);
+
   const [merchantReference, setMerchantReference] = useState("");
   const [secretKey, setSecretKey] = useState("");
   const [isEnabled, setIsEnabled] = useState(false);
@@ -55,17 +65,27 @@ export function ChowdeckPanel() {
     queryClient.invalidateQueries({ queryKey: ["chowdeck", storeId] });
 
   const save = useMutation({
-    mutationFn: () =>
-      chowdeckService.save(storeId!, {
+    mutationFn: () => {
+      const payload = {
         merchantReference: merchantReference.trim(),
         // Blank means "leave the stored key alone" — the form never holds it.
         ...(secretKey.trim() ? { secretKey: secretKey.trim() } : {}),
         isEnabled,
         autoAccept,
-      }),
+      };
+      if (addingChannel) return chowdeckService.addChannel(storeId!, payload);
+      if (selectedChannelId) {
+        return chowdeckService.updateChannel(storeId!, selectedChannelId, payload);
+      }
+      return chowdeckService.save(storeId!, payload);
+    },
     onSuccess: () => {
       toast.success("Chowdeck settings saved");
+      setAddingChannel(false);
       void invalidate();
+      void queryClient.invalidateQueries({
+        queryKey: ["chowdeck", "channels", storeId],
+      });
     },
     onError: (e: Error) => toast.error(e.message ?? "Couldn't save"),
   });
@@ -84,6 +104,17 @@ export function ChowdeckPanel() {
       toast.success(
         `Chowdeck menu updated — ${r.created} added, ${r.updated} corrected`,
       );
+      // Publishing REPLACES the Chowdeck menu, so anything of theirs that is
+      // not in our catalogue has just been removed. Say so loudly.
+      if (r.replacedItems?.length) {
+        toast.warning(
+          `${r.replacedItems.length} item(s) that were on Chowdeck are not in ` +
+            `this store's menu and were removed: ${r.replacedItems
+              .slice(0, 3)
+              .join(", ")}`,
+          { duration: 10000 },
+        );
+      }
       void invalidate();
     },
     onError: (e: Error) => toast.error(e.message ?? "Menu sync failed"),
@@ -131,6 +162,45 @@ export function ChowdeckPanel() {
       </CardHeader>
 
       <CardContent className="space-y-5">
+        {(channels ?? []).length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {(channels ?? []).map((c) => (
+              <Button
+                key={c.id}
+                size="sm"
+                variant={
+                  !addingChannel && (selectedChannelId ?? (channels ?? [])[0]?.id) === c.id
+                    ? "default"
+                    : "outline"
+                }
+                onClick={() => {
+                  setAddingChannel(false);
+                  setSelectedChannelId(c.id);
+                  setMerchantReference(c.merchantReference ?? "");
+                  setIsEnabled(c.isEnabled);
+                  setAutoAccept(c.autoAccept);
+                  setSecretKey("");
+                }}
+              >
+                {c.label || c.merchantReference?.slice(0, 14) || "Channel"}
+              </Button>
+            ))}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setAddingChannel(true);
+                setSelectedChannelId(null);
+                setMerchantReference("");
+                setSecretKey("");
+                setIsEnabled(false);
+                setAutoAccept(false);
+              }}
+            >
+              Add channel
+            </Button>
+          </div>
+        )}
         {isLoading ? (
           <div className="space-y-3">
             <Skeleton className="h-9 w-full" />
@@ -231,9 +301,13 @@ export function ChowdeckPanel() {
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Publishing is safe to repeat: new items are added, ones already on
-              Chowdeck are corrected in place (price, name, availability). It is
-              also what lets an incoming order deduct the right stock, so run it
+              <span className="text-amber-600 dark:text-amber-500 font-medium">
+                Publishing replaces this store's Chowdeck menu.
+              </span>{" "}
+              Chowdeck's bulk upload swaps the whole menu for what we send, so
+              anything on Chowdeck that is not in this store's menu is removed.
+              Repeat publishes are safe — the full menu goes every time — and it
+              is what lets an incoming order deduct the right stock, so run it
               after changing products. Last published{" "}
               {when(data?.lastMenuSyncAt ?? null)} · last order received{" "}
               {when(data?.lastWebhookAt ?? null)}.

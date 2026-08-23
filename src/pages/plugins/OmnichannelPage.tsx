@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MessageSquare, Phone, Mail, Instagram, Facebook, Search, Plus, Settings, Activity, Clock, Key } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 import { ChowdeckPanel } from "@/components/plugins/ChowdeckPanel";
+import { ClovePanel } from "@/components/plugins/ClovePanel";
 
 interface Channel {
   id: number;
@@ -117,6 +118,7 @@ export default function OmnichannelPage() {
 
       {/* Marketplace order channels — live integrations, configured per store. */}
       <ChowdeckPanel />
+      <ClovePanel />
 
       {isLoading ? <StatsSkeleton /> : (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">

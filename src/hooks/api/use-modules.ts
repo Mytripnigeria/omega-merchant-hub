@@ -54,10 +54,10 @@ export function useToggleChecklistItem() {
     onSuccess: () => qc.invalidateQueries({ queryKey: operationsKeys.checklists() }),
   });
 }
-export function useChecklistPerformances(id: string | undefined) {
+export function useChecklistPerformances(id: string | undefined, date?: string) {
   return useQuery({
-    queryKey: [...operationsKeys.checklists(), "performances", id],
-    queryFn: () => checklistsApi.performances(id!),
+    queryKey: [...operationsKeys.checklists(), "performances", id, date ?? "current"],
+    queryFn: () => checklistsApi.performances(id!, date),
     enabled: !!id,
   });
 }

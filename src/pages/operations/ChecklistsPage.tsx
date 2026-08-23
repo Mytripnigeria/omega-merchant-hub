@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toLocalISODate } from "@/lib/date-range";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -824,24 +825,79 @@ export default function ChecklistsPage() {
 }
 
 function ChecklistPerformanceList({ checklistId }: { checklistId: string }) {
-  const { data: performances, isLoading } =
-    useChecklistPerformances(checklistId);
+  // Performance used to only ever describe the period in progress. A merchant
+  // running a daily checklist needs to look back at specific days, so the
+  // panel picks a date and the backend maps it onto the checklist's own
+  // schedule (that day for a daily list, that day's week for a weekly one).
+  const [period, setPeriod] = useState<"today" | "yesterday" | "custom">(
+    "today",
+  );
+  const [customDate, setCustomDate] = useState<string>("");
+
+  const reportDate = useMemo(() => {
+    if (period === "today") return toLocalISODate();
+    if (period === "yesterday") {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      return toLocalISODate(d);
+    }
+    return customDate || undefined;
+  }, [period, customDate]);
+
+  const { data: performances, isLoading } = useChecklistPerformances(
+    checklistId,
+    reportDate,
+  );
   const rows = performances ?? [];
 
+  const picker = (
+    <div className="flex flex-wrap items-center gap-2 pb-1">
+      {(["today", "yesterday", "custom"] as const).map((p) => (
+        <Button
+          key={p}
+          size="sm"
+          variant={period === p ? "default" : "outline"}
+          onClick={() => setPeriod(p)}
+          className="capitalize"
+        >
+          {p === "custom" ? "Custom date" : p}
+        </Button>
+      ))}
+      {period === "custom" && (
+        <Input
+          type="date"
+          value={customDate}
+          max={toLocalISODate()}
+          onChange={(e) => setCustomDate(e.target.value)}
+          className="h-8 w-auto"
+        />
+      )}
+    </div>
+  );
+
   if (isLoading) {
-    return <Skeleton className="h-32 w-full" />;
+    return (
+      <div className="space-y-3">
+        {picker}
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
   }
 
   if (rows.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground text-center py-8">
-        No assigned staff yet. Assign this checklist to staff or a role.
-      </p>
+      <div className="space-y-3">
+        {picker}
+        <p className="text-sm text-muted-foreground text-center py-8">
+          No assigned staff yet. Assign this checklist to staff or a role.
+        </p>
+      </div>
     );
   }
 
   return (
     <div className="space-y-3">
+      {picker}
       {rows
         .slice()
         .sort((a, b) => b.progress - a.progress)
