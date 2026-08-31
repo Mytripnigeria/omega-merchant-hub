@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { useStore } from "@/contexts/StoreContext";
 import {
   useExpensesList,
   useApproveExpense,
@@ -63,6 +64,7 @@ const CATEGORY_OPTIONS: { value: ExpenseCategory | typeof ALL; label: string }[]
 ];
 
 export default function ExpensesPage() {
+  const { currentStore } = useStore();
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState<"pending" | "approved" | "paid" | "all">("pending");
   const [search, setSearch] = useState("");
@@ -79,9 +81,12 @@ export default function ExpensesPage() {
           ? "paid"
           : undefined;
 
+  // Expenses belong to a store, not the whole business — without this the list
+  // pooled every store's spending into one view.
   const { data, isLoading } = useExpensesList({
     page,
     limit: 20,
+    storeId: currentStore?.id,
     status: statusForTab,
     category: category !== ALL ? category : undefined,
     search: search || undefined,
@@ -249,6 +254,33 @@ export default function ExpensesPage() {
                           <p className="text-sm text-muted-foreground mt-1 truncate">
                             {e.description}
                           </p>
+                          {/* The itemised breakdown the workstation captured.
+                              Previously only the total and description showed
+                              here, so a manager could not see what was actually
+                              bought without opening the record. */}
+                          {e.items && e.items.length > 0 && (
+                            <ul className="mt-2 space-y-0.5">
+                              {e.items.map((it, i) => (
+                                <li
+                                  key={`${it.name}-${i}`}
+                                  className="text-xs text-muted-foreground flex justify-between gap-3"
+                                >
+                                  <span className="truncate">
+                                    {it.name}
+                                    {it.quantity ? ` · ${it.quantity}` : ""}
+                                    {it.unit ? ` ${it.unit}` : ""}
+                                    {it.unitPrice
+                                      ? ` × ${formatAmount(it.unitPrice, e.currency)}`
+                                      : ""}
+                                    {it.supplier ? ` · ${it.supplier}` : ""}
+                                  </span>
+                                  <span className="shrink-0 tabular-nums">
+                                    {formatAmount(it.total, e.currency)}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                           <p className="text-xs text-muted-foreground mt-1">
                             {e.requestedByName} ·{" "}
                             {new Date(e.createdAt).toLocaleString()}

@@ -42,18 +42,24 @@ export function ClovePanel() {
   const [isEnabled, setIsEnabled] = useState(false);
   const [autoAccept, setAutoAccept] = useState(false);
   const [syncResult, setSyncResult] = useState<CloveSyncResult | null>(null);
+  // Explicit "adding" mode. Without it, clearing selectedId fell through to the
+  // `?? channels[0]` default below, so Save updated the FIRST channel instead of
+  // creating a new one — i.e. adding a channel silently replaced the previous.
+  const [adding, setAdding] = useState(false);
 
-  const selected: CloveChannel | undefined =
-    (channels ?? []).find((c) => c.id === selectedId) ?? (channels ?? [])[0];
+  const selected: CloveChannel | undefined = adding
+    ? undefined
+    : ((channels ?? []).find((c) => c.id === selectedId) ?? (channels ?? [])[0]);
 
   // Re-seed the form whenever the selected channel (or store) changes.
   useEffect(() => {
+    if (adding) return;
     setLabel(selected?.label ?? "");
     setIsEnabled(selected?.isEnabled ?? false);
     setAutoAccept(selected?.autoAccept ?? false);
     setApiKey("");
     setSyncResult(null);
-  }, [selected?.id, storeId]);
+  }, [selected?.id, storeId, adding]);
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["clove", storeId] });
@@ -71,8 +77,11 @@ export function ClovePanel() {
         ? cloveService.update(storeId!, selected.id, payload)
         : cloveService.add(storeId!, payload);
     },
-    onSuccess: () => {
-      toast.success("Cloove settings saved");
+    onSuccess: (saved) => {
+      toast.success(adding ? "Cloove channel added" : "Cloove settings saved");
+      // Land on the channel just created, rather than snapping back to the first.
+      setAdding(false);
+      setSelectedId(saved?.id ?? null);
       void invalidate();
     },
     onError: (e: Error) => toast.error(e.message ?? "Couldn't save"),
@@ -142,8 +151,11 @@ export function ClovePanel() {
                   <Button
                     key={c.id}
                     size="sm"
-                    variant={selected?.id === c.id ? "default" : "outline"}
-                    onClick={() => setSelectedId(c.id)}
+                    variant={!adding && selected?.id === c.id ? "default" : "outline"}
+                    onClick={() => {
+                      setAdding(false);
+                      setSelectedId(c.id);
+                    }}
                   >
                     {c.label || "Cloove channel"}
                   </Button>
@@ -152,6 +164,7 @@ export function ClovePanel() {
                   size="sm"
                   variant="ghost"
                   onClick={() => {
+                    setAdding(true);
                     setSelectedId(null);
                     setLabel("");
                     setApiKey("");
@@ -212,7 +225,7 @@ export function ClovePanel() {
 
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => save.mutate()} disabled={save.isPending}>
-                {selected ? "Save" : "Connect"}
+                {adding ? "Add channel" : selected ? "Save" : "Connect"}
               </Button>
               <Button
                 variant="outline"

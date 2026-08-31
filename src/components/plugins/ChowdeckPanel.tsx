@@ -74,10 +74,10 @@ export function ChowdeckPanel() {
         autoAccept,
       };
       if (addingChannel) return chowdeckService.addChannel(storeId!, payload);
-      if (selectedChannelId) {
-        return chowdeckService.updateChannel(storeId!, selectedChannelId, payload);
-      }
-      return chowdeckService.save(storeId!, payload);
+      const targetId = selectedChannelId ?? (channels ?? [])[0]?.id;
+      if (targetId) return chowdeckService.updateChannel(storeId!, targetId, payload);
+      // No channel yet — the first connect.
+      return chowdeckService.addChannel(storeId!, payload);
     },
     onSuccess: () => {
       toast.success("Chowdeck settings saved");
@@ -118,6 +118,17 @@ export function ChowdeckPanel() {
       void invalidate();
     },
     onError: (e: Error) => toast.error(e.message ?? "Menu sync failed"),
+  });
+
+  const testOrder = useMutation({
+    mutationFn: () => {
+      const targetId = selectedChannelId ?? (channels ?? [])[0]?.id;
+      if (!targetId) throw new Error("Connect a Chowdeck channel first");
+      return chowdeckService.testOrder(storeId!, targetId);
+    },
+    onSuccess: (r) =>
+      toast.success(`Test order #${r.orderNumber} is now on the counter POS`),
+    onError: (e: Error) => toast.error(e.message ?? "Test order failed"),
   });
 
   const copyWebhook = async () => {
@@ -297,6 +308,16 @@ export function ChowdeckPanel() {
                   className={`mr-2 h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`}
                 />
                 {sync.isPending ? "Publishing…" : "Publish menu"}
+              </Button>
+              {/* Chowdeck's sandbox cannot create an order against your own
+                  vendor, so this is the only way to rehearse the workstation
+                  flow before going live. */}
+              <Button
+                variant="outline"
+                onClick={() => testOrder.mutate()}
+                disabled={!connected || testOrder.isPending}
+              >
+                {testOrder.isPending ? "Sending…" : "Send test order"}
               </Button>
             </div>
 

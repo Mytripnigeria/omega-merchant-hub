@@ -6,8 +6,14 @@ import { useTopProducts } from "@/hooks/api/use-reports";
 import { useStore } from "@/contexts/StoreContext";
 
 interface TopProductsProps {
-  dateFrom: string;
-  dateTo: string;
+  /**
+   * Optional: "Custom range" is selected before either endpoint is picked, so
+   * the dashboard has no range to hand down yet. Omitting both simply leaves
+   * the top-products query unbounded, matching how the sales query spreads an
+   * absent range.
+   */
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export const TopProducts = ({ dateFrom, dateTo }: TopProductsProps) => {

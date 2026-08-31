@@ -196,10 +196,17 @@ export default function Dashboard() {
         : 0;
   const revenueDeltaTrend: "up" | "down" =
     revenueDeltaPct >= 0 ? "up" : "down";
+  // The card's value follows the selected period, but this delta always
+  // compares today with yesterday. Only say "vs yesterday" when the value on
+  // the card *is* today's — otherwise the card contradicts itself (a ₦0 custom
+  // range sitting under "+100.0% vs yesterday"). For any other period, fall
+  // back to the same self-describing "Today …" line the Orders card uses.
   const revenueDeltaLabel =
-    yesterdayRevenue === 0 && todayRevenue === 0
-      ? `Today ${formatRevenue(0)}`
-      : `${revenueDeltaPct >= 0 ? "+" : ""}${revenueDeltaPct.toFixed(1)}% vs yesterday`;
+    period !== "today"
+      ? `Today ${formatRevenue(todayRevenue)}`
+      : yesterdayRevenue === 0 && todayRevenue === 0
+        ? `Today ${formatRevenue(0)}`
+        : `${revenueDeltaPct >= 0 ? "+" : ""}${revenueDeltaPct.toFixed(1)}% vs yesterday`;
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-fade-in">
@@ -410,7 +417,7 @@ export default function Dashboard() {
         <div className="lg:col-span-2">
           <RecentOrders />
         </div>
-        <TopProducts dateFrom={range.dateFrom} dateTo={range.dateTo} />
+        <TopProducts dateFrom={range?.dateFrom} dateTo={range?.dateTo} />
       </div>
 
       {/* Live activity */}

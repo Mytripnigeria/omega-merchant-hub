@@ -10,6 +10,18 @@ export type ExpenseCategory =
   | "salaries"
   | "other";
 
+/** One line of an itemised expense, as captured on the workstation. */
+export interface ExpenseItem {
+  name: string;
+  type: string;
+  unit: string | null;
+  quantity: number;
+  unitPrice: number;
+  /** quantity × unitPrice */
+  total: number;
+  supplier: string | null;
+}
+
 export interface Expense {
   id: string;
   businessId: string;
@@ -20,6 +32,12 @@ export interface Expense {
   amount: number;
   currency: string;
   description: string;
+  /**
+   * Line items the workstation recorded. Null for a single-line submission.
+   * `amount` remains the total either way.
+   */
+  items: ExpenseItem[] | null;
+  supplier: string | null;
   receiptFileId: string | null;
   receiptUrl: string | null;
   status: ExpenseStatus;
