@@ -37,15 +37,19 @@ export default function Login() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="mb-8 flex justify-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-foreground">
-            <span className="text-xl font-bold text-background">Ω</span>
-          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden">
+  <img
+    src="/favicon.png"
+    alt="Logo"
+    className="h-full w-full object-contain"
+  />
+</div>
         </div>
 
         {/* Title */}
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Sign in to OMEGA
+            Sign in to OMEGA OS
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Welcome back! Please sign in to continue.
