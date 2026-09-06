@@ -376,9 +376,13 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileOpenChange }:
     <>
       {/* Collapsed Logo */}
       <div className="flex items-center justify-center p-3 border-b border-border">
-        <div className="flex h-6 w-6 items-center justify-center rounded bg-foreground">
-          <span className="text-xs font-bold text-background">Ω</span>
-        </div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden">
+  <img
+    src="/favicon.png"
+    alt="Logo"
+    className="h-full w-full object-contain"
+  />
+</div>
       </div>
 
       {/* Collapsed Search Icon */}
