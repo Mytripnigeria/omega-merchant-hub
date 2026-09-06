@@ -93,9 +93,13 @@ export function Header() {
         {/* Left: Logo & Project */}
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <Link to="/dashboard" className="flex items-center gap-2 flex-shrink-0">
-            <div className="flex h-6 w-6 items-center justify-center rounded bg-foreground">
-              <span className="text-xs font-bold text-background">Ω</span>
-            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden">
+  <img
+    src="/favicon.png"
+    alt="Logo"
+    className="h-full w-full object-contain"
+  />
+</div>
           </Link>
           <span className="text-muted-foreground hidden sm:inline">/</span>
           <div className="flex items-center gap-2 min-w-0">
