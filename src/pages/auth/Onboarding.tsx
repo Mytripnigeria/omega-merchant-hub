@@ -156,9 +156,13 @@ export default function Onboarding() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-6 flex justify-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-foreground">
-            <span className="text-2xl font-bold text-background">Ω</span>
-          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden">
+  <img
+    src="/favicon.png"
+    alt="Logo"
+    className="h-full w-full object-contain"
+  />
+</div>
         </div>
 
         {/* Step Indicator */}
