@@ -26,9 +26,13 @@ export default function ForgotPassword() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="mb-8 flex justify-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-foreground">
-            <span className="text-xl font-bold text-background">Ω</span>
-          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden">
+  <img
+    src="/favicon.png"
+    alt="Logo"
+    className="h-full w-full object-contain"
+  />
+</div>
         </div>
 
         {!isSubmitted ? (
