@@ -423,9 +423,13 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileOpenChange }:
           <aside className="flex h-full flex-col bg-background">
             <div className="flex items-center justify-between p-4 border-b border-border">
               <div className="flex items-center gap-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded bg-foreground">
-                  <span className="text-xs font-bold text-background">Ω</span>
-                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden">
+  <img
+    src="/favicon.png"
+    alt="Logo"
+    className="h-full w-full object-contain"
+  />
+</div>
                 <span className="text-sm font-medium truncate">
                   {business?.name ?? "—"}
                 </span>
